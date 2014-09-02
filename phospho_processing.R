@@ -24,7 +24,7 @@ phospho1 <- phospho[(phospho$Localization.prob >= .75),]##Why just one localizat
 #####now must condense DF and 'melt' the dataframe so that each ratio for each multiplicity state has its own observation
 
 ##first condense dataframe to include variables of interest. colect non-expression variables first
-other_data <- phospho1[,c("Amino.acid","Charge","Reverse","Contaminant","Proteins","Positions.within.proteins","Leading.proteins","Sequence.window",
+other_data <- phospho1[,c("id","Amino.acid","Charge","Reverse","Contaminant","Proteins","Positions.within.proteins","Leading.proteins","Sequence.window",
                     "Modified.sequence","Localization.prob","PEP", "Score", "Delta.score", "Score.for.localization", "m.z", "Mass.error..ppm.",
                     "Intensity", "Intensity.L", "Intensity.H", "Position", "Number.of.Phospho..STY.", "Protein.group.IDs") ]
 
@@ -61,27 +61,67 @@ test <- test[,!(names(test) %in% drop)]
 
 ##cast data so that each unique 'sample/replicate' combination has its own column populated by the measurement 'currently the value column'.
 
-testnew <- dcast(test, ... ~ variable)##will recast the entire data frame
+# testnew <- dcast(test, ... ~ variable)##will recast the entire data frame
 
-testnew1 <- dcast(test, ... ~ sample, value.var="value") ##casts by sample
+# testnew1 <- dcast(test, ... ~ sample, value.var="value") ##casts by sample
 
 testnew2 <- dcast(test, ... ~ sample + replicate, value.var="value") ##close
 
+##gives a dataframe but adds 'NaN' to summarized column and adds NA to other columns as well (NaN vs NA in original data). is way too long
+
+sample <- testnew2[testnew2$id==42,25:31]
+sample <- cbind(rep(42),sample)
+
+colnames(sample)[1] <- "id" ##change a particular column name using colnames!!!
+
+
+ddply(sample, "id", summarize)
+
+ddply(sample, .(id, multiplicity), summarize, mean = mean(`16770_1`,na.rm = T))
 
 
 
-Name, value.var="Value"
+ddply(sample, .(id, multiplicity), function(x) {
+  
+  
+  
+  mean.count <- mean(x$count)
+  sd.count <- sd(x$count)
+  cv <- sd.count/mean.count
+  data.frame(cv.count = cv)
+})
+
+expression <- phospho1[,grep("Ratio.H.L.normalized(.*)Rep.___", colnames(phospho1))]
+
+##gives index
+data <- grep("_", colnames(sample))
+
+##gives string
+data2 <- colnames(sample)[grep("_", colnames(sample))]
 
 
 
 
 
-test5 <-   colsplit(names(expression), c("Rep"), c("sample","replicate_mult")) ##first split
-test5 <- cbind(test5, colsplit(test5$replicate_mult, "___", c("replicate","multiplicity"))) ##second split
-test5$sample <- gsub(test5$sample,pattern = "Ratio.H.L.normalized.", replacement = "") ##remove redundant information next 3 lines
-drop <- "replicate_mult" 
-test5 <- test5[,!(names(test5) %in% drop)]
-test5
+ddply(sample, .(id, multiplicity), summarize, nona = !is.na(`16770_1`))
+
+
+# adjacency[,j] <- ifelse((!is.na(peptides[i]) & !is.na(peptides[i+1]) == "TRUE"),1,0)## winner winner. note && vs &!
+
+
+a <- testnew2[(!is.na(testnew2$'16770_2') & !is.na(testnew2$'16770_1') == "TRUE"),] ##gives nothing
+
+b <- testnew2[(!is.na(testnew2$multiplicity) & !is.na(testnew2$position) == "TRUE"),] ##gives nothing
+
+
+
+
+##thoughts about a unique ID from which to parse DF
+> any(duplicated(test$Modified.sequence))
+[1] TRUE
+> any(duplicated(phospho2$Modified.sequence))
+[1] TRUE
+
 
 
 
