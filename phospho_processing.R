@@ -79,31 +79,84 @@ ddply(sample, "id", summarize)
 
 ddply(sample, .(id, multiplicity), summarize, mean = mean(`16770_1`,na.rm = T))
 
-##gives string
-data2 <- colnames(sample)[grep("_", colnames(sample))]
-
-ddply(sample, .(id, multiplicity), colwise(mean),na.rm=T)##works
-
-ddply(sample, .(id, multiplicity), colwise(mean,.(data2)),na.rm=T)##should work if underscore not there. replace with camelcase?
-      
-      
-      
-      
-
-
-expression <- phospho1[,grep("Ratio.H.L.normalized(.*)Rep.___", colnames(phospho1))]
-
 ##gives index
 data <- grep("_", colnames(sample))
 
 ##gives string
 data2 <- colnames(sample)[grep("_", colnames(sample))]
 
+ddply(sample, .(id, multiplicity), colwise(mean),na.rm=T)##works
+
+ddply(sample, .(id, multiplicity), colwise(mean,.(data2)),na.rm=T)##should work if underscore not there. replace with camelcase? whatever lets paste a letter in front of the character vector and column names?
+
+newnames <- paste0("HL",data2)
+
+##rename to proper alpha first
+colnames(sample)[data] <- newnames
+      
+      
+## columnwise summary time!...
+ddply(sample, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
+
+
+
+##written for test2new **********************************
+
+##gives index of experiment and replicate
+data <- grep("_", colnames(testnew2))
+
+##gives string of experiment and replicate
+data2 <- colnames(testnew2)[grep("_", colnames(testnew2))]
+
+#produces a new string with proper alpha leading R variable names
+newnames <- paste0("HL",data2)
+
+# rename the experiment variables within the dataframe
+colnames(testnew2)[data] <- newnames
+
+## columnwise application of mean to condense the dataframe. PRODUCES CORRECT NUMBERS!
+out <- ddply(testnew2, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
+
+#merge with identifying information by id
+test <- merge(other_data, out, by="id")
 
 
 
 
-ddply(sample, .(id, multiplicity), summarize, nona = !is.na(`16770_1`))
+
+# repeat each row of other data three times?
+df[rep(seq_len(nrow(df)), each=2),]
+
+otherdata3 <- other_data[rep(seq_len(nrow(other_data)), each=3),]
+
+test <- merge(other_data, out, by="id")
+
+colnames(otherdata3)
+
+
+
+
+
+
+out2 <- ddply(testnew2, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
+
+
+length(which(duplicated(out)))
+length(which(duplicated(testnew2)))
+
+
+# now must merge with the rest of the dataframe...
+
+merged <- merge(testnew2,out,by="id",all = TRUE)
+
+
+try <- aggregate(. ~ id,
+          data=merge(testnew2, out, by="id", all=TRUE), # Merged data, including NAs
+          na.action=na.pass,              # Aggregate rows with missing values...
+          FUN=sum, na.rm=TRUE)            # ...but instruct "sum" to ignore them.
+
+
+
 
 
 # adjacency[,j] <- ifelse((!is.na(peptides[i]) & !is.na(peptides[i+1]) == "TRUE"),1,0)## winner winner. note && vs &!
