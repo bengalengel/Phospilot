@@ -79,17 +79,17 @@ ddply(sample, "id", summarize)
 
 ddply(sample, .(id, multiplicity), summarize, mean = mean(`16770_1`,na.rm = T))
 
+##gives string
+data2 <- colnames(sample)[grep("_", colnames(sample))]
 
+ddply(sample, .(id, multiplicity), colwise(mean),na.rm=T)##works
 
-ddply(sample, .(id, multiplicity), function(x) {
-  
-  
-  
-  mean.count <- mean(x$count)
-  sd.count <- sd(x$count)
-  cv <- sd.count/mean.count
-  data.frame(cv.count = cv)
-})
+ddply(sample, .(id, multiplicity), colwise(mean,.(data2)),na.rm=T)##should work if underscore not there. replace with camelcase?
+      
+      
+      
+      
+
 
 expression <- phospho1[,grep("Ratio.H.L.normalized(.*)Rep.___", colnames(phospho1))]
 
