@@ -1,13 +1,15 @@
-##barcharts of class 1 peptides 
-
-# 1) of total class 1 per LC-MS run
-# 2) of total class 1 per biolgical sample
-# 3) 
-
+# This program will produce a series of charts relating to the phospho(STY) output table from maxquant. 
+# It is IMPORTANT that the experiments be processed in MQ as "XXXXXRepY", where the first set of numbers
+# is the cell line and the last number is the replicate number. Many of the regular expressions that I use require this
+# type of annotation.
 
 
+# First perform all processing steps using plyr and related tools.
+# load required libraries
+library(reshape2)
+library(stringr)
+library(plyr)
 
-# First reperform all preseus processing steps using plyr and related tools.
 
 # Read in phospho table. Note the quote option is key.
 phospho <- read.table("./MQ output/7_17_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
@@ -24,9 +26,10 @@ phospho1 <- phospho[(phospho$Localization.prob >= .75),]##Why just one localizat
 #####now must condense DF and 'melt' the dataframe so that each ratio for each multiplicity state has its own observation
 
 ##first condense dataframe to include variables of interest. colect non-expression variables first
-other_data <- phospho1[,c("id","Amino.acid","Charge","Reverse","Contaminant","Proteins","Positions.within.proteins","Leading.proteins","Sequence.window",
-                    "Modified.sequence","Localization.prob","PEP", "Score", "Delta.score", "Score.for.localization", "m.z", "Mass.error..ppm.",
-                    "Intensity", "Intensity.L", "Intensity.H", "Position", "Number.of.Phospho..STY.", "Protein.group.IDs") ]
+other_data <- phospho1[,c("id","Amino.acid","Charge","Reverse","Contaminant","Proteins","Positions.within.proteins","Leading.proteins",
+                          "Sequence.window","Modified.sequence","Localization.prob","PEP", "Score", "Delta.score", "Score.for.localization", 
+                          "m.z", "Mass.error..ppm.", "Intensity", "Intensity.L", "Intensity.H", "Position", "Number.of.Phospho..STY.", 
+                          "Protein.group.IDs") ]
 
 ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
 ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
@@ -39,33 +42,153 @@ phospho2 <- cbind(expression,other_data)
 # observation is uniquely represented in the data
 
 # Use reshape2 'melt' function 
-library(reshape2)
-library(stringr)
 ##lowercase names if I want
 # names(phospho2) <- tolower(names(phospho2))
 
 ##melt all expression variables into one column
-names(expression)
-#test <- melt(phospho2, measure.vars = names(expression), variable.name = "sample_rep_mult", value.name = "H/L Ratio")
 
-test <- melt(phospho2, measure.vars = names(expression))
+#names(expression)
+#melted <- melt(phospho2, measure.vars = names(expression), variable.name = "sample_rep_mult", value.name = "H/L Ratio")
+
+melted <- melt(phospho2, measure.vars = names(expression))
 
 # Here I split (that is add a variable identifier) the melted 'variable' column so that the sample, replicate, and multiplicity are now explicit
 # for each "variable"
-test <- cbind(test, colsplit(test$variable, "Rep", c("sample", "replicate_mult"))) ##first split
-test <- cbind(test, colsplit(test$replicate_mult, "___", c("replicate","multiplicity"))) ##second split
-test$sample <- gsub(test$sample, pattern = "Ratio.H.L.normalized.", replacement = "") ##remove redundant information next 3 lines
+melted <- cbind(melted, colsplit(melted$variable, "Rep", c("sample", "replicate_mult"))) ##first split
+melted <- cbind(melted, colsplit(melted$replicate_mult, "___", c("replicate","multiplicity"))) ##second split
+melted$sample <- gsub(melted$sample, pattern = "Ratio.H.L.normalized.", replacement = "") ##remove redundant information next 3 lines
 drop <- "replicate_mult" 
-test <- test[,!(names(test) %in% drop)]
+melted <- melted[,!(names(melted) %in% drop)]
 
 
 ##cast data so that each unique 'sample/replicate' combination has its own column populated by the measurement 'currently the value column'.
 
 # testnew <- dcast(test, ... ~ variable)##will recast the entire data frame
-
 # testnew1 <- dcast(test, ... ~ sample, value.var="value") ##casts by sample
 
-testnew2 <- dcast(test, ... ~ sample + replicate, value.var="value") ##close
+casted <- dcast(melted, ... ~ sample + replicate, value.var="value") ##close but creates extra rows
+
+
+##produce the multiplicity explicit table **********************************
+
+##gives index of experiment and replicate
+data <- grep("_", colnames(casted))
+
+##gives string of experiment and replicate
+data2 <- colnames(casted)[grep("_", colnames(casted))]
+
+#produces a new string with proper alpha leading R variable names
+newnames <- paste0("HL",data2)
+
+# rename the experiment variables within the dataframe
+colnames(casted)[data] <- newnames
+
+## columnwise application of mean to condense the dataframe. PRODUCES CORRECT NUMBERS!
+out <- ddply(casted, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
+
+#merge with identifying information by id to produce the multiplicity expanded table (each obs has a row)
+multExpanded <- merge(other_data, out, by="id")
+
+## remove rows with only NAs in expression columns
+
+expCol <- grep("HL(.*)", colnames(multExpanded))
+
+multExpanded <- multExpanded[rowSums(!(is.na(multExpanded[,expCol]))),]                                   
+
+multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol])),]                                   
+
+
+
+(!(is.na(multExpanded[,expCol])))
+
+multExpanded[,expCol]
+
+                                     
+final <- final[!(is.na(final$rnor)) | !(is.na(rawdata$cfam)),]
+
+multExpanded <- multExpanded[complete.cases(multExpanded),]#removes rows with ANY NAs
+
+
+DF <- data.frame(x = c(1, 2, 3), y = c(0, 10, NA))
+na.omit(DF)
+na.exclude(DF)
+is.na(DF)
+rowSums(is.na(DF[,1:2]))
+
+
+final[rowSums(is.na(final[,5:6]))==0,]
+
+m <- as.matrix(DF)
+na.omit(m)
+stopifnot(all(na.omit(1:3) == 1:3))  # does not affect objects with no NA's
+try(na.fail(DF))   #> Error: missing values in ...
+
+options("na.action")
+
+
+
+#hit 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ##gives a dataframe but adds 'NaN' to summarized column and adds NA to other columns as well (NaN vs NA in original data). is way too long
 
@@ -93,32 +216,17 @@ newnames <- paste0("HL",data2)
 
 ##rename to proper alpha first
 colnames(sample)[data] <- newnames
-      
-      
+
+
 ## columnwise summary time!...
 ddply(sample, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
 
 
 
-##written for test2new **********************************
 
-##gives index of experiment and replicate
-data <- grep("_", colnames(testnew2))
 
-##gives string of experiment and replicate
-data2 <- colnames(testnew2)[grep("_", colnames(testnew2))]
 
-#produces a new string with proper alpha leading R variable names
-newnames <- paste0("HL",data2)
 
-# rename the experiment variables within the dataframe
-colnames(testnew2)[data] <- newnames
-
-## columnwise application of mean to condense the dataframe. PRODUCES CORRECT NUMBERS!
-out <- ddply(testnew2, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
-
-#merge with identifying information by id
-test <- merge(other_data, out, by="id")
 
 
 
@@ -196,6 +304,11 @@ drop <- "replicate_mult"
 test5 <- test5[,!(names(test5) %in% drop)]
 test5
 
+##barcharts of class 1 peptides 
+
+# 1) of total class 1 per LC-MS run
+# 2) of total class 1 per biolgical sample
+# 3) 
 
 
 
