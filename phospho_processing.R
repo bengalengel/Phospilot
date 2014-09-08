@@ -93,37 +93,31 @@ multExpanded <- merge(other_data, out, by="id")
 
 expCol <- grep("HL(.*)", colnames(multExpanded))
 
-multExpanded <- multExpanded[rowSums(!(is.na(multExpanded[,expCol]))),]                                   
+multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes all 'NA' rows                               
 
-multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol])),]                                   
+##pie chart of AAs
 
 
+mytable <- table(multExpanded$Amino.acid)
+lbls <- paste(names(mytable), mytable, sep=" ")
+pct <- round(mytable/(sum(mytable)),3)*100
+lbls <- paste(lbls,"\n", pct,sep="")
+lbls <- paste0(lbls,"%")
+pie(mytable, labels = lbls,
+    main="Amino Acid breakdow") 
 
-(!(is.na(multExpanded[,expCol])))
+# Pie Chart with Percentages
+slices <- c(10, 12, 4, 16, 8)
+lbls <- c("US", "UK", "Australia", "Germany", "France")
+pct <- round(slices/sum(slices)*100)
+lbls <- paste(lbls, pct) # add percents to labels
+lbls <- paste(lbls,"%",sep="") # ad % to labels
+pie(slices,labels = lbls, col=rainbow(length(lbls)),
+    main="Pie Chart of Countries") 
 
-multExpanded[,expCol]
 
-                                     
-final <- final[!(is.na(final$rnor)) | !(is.na(rawdata$cfam)),]
 
 multExpanded <- multExpanded[complete.cases(multExpanded),]#removes rows with ANY NAs
-
-
-DF <- data.frame(x = c(1, 2, 3), y = c(0, 10, NA))
-na.omit(DF)
-na.exclude(DF)
-is.na(DF)
-rowSums(is.na(DF[,1:2]))
-
-
-final[rowSums(is.na(final[,5:6]))==0,]
-
-m <- as.matrix(DF)
-na.omit(m)
-stopifnot(all(na.omit(1:3) == 1:3))  # does not affect objects with no NA's
-try(na.fail(DF))   #> Error: missing values in ...
-
-options("na.action")
 
 
 
