@@ -22,6 +22,8 @@ phospho <- phospho[(phospho$Contaminant != "+" & phospho$Reverse != "+"),]## her
 
 # subset to class 1
 phospho1 <- phospho[(phospho$Localization.prob >= .75),]##Why just one localization probability?...
+  # Here the BEST localization probablility across all samples is used to justify identification and use in each. What doesn't make sense is 
+# multiplicity, where a single probability per sample is assigned for each multiplicity state
 
 #####now must condense DF and 'melt' the dataframe so that each ratio for each multiplicity state has its own observation
 
@@ -93,27 +95,51 @@ multExpanded <- merge(other_data, out, by="id")
 
 expCol <- grep("HL(.*)", colnames(multExpanded))
 
-multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes all 'NA' rows                               
+multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes all 'NA' rows using the sums of the logical per row                        
 
-##pie chart of AAs
+##total class 1 sites and protein groups? 
+# How are phosphosites attached to a protein?
+
+##number of protein groups associated with class 1 sites
 
 
+
+##number of unique class 1 sites
+nrow(phospho1)
+
+
+##number of unique class 1 sites with valid quantification
+nrow(table(multExpanded$id))
+
+
+
+
+
+
+
+
+##pie chart of AAs wither percentages
 mytable <- table(multExpanded$Amino.acid)
-lbls <- paste(names(mytable), mytable, sep=" ")
-pct <- round(mytable/(sum(mytable)),3)*100
-lbls <- paste(lbls,"\n", pct,sep="")
-lbls <- paste0(lbls,"%")
+lbls <- paste(names(mytable), mytable, sep=" ")##pastes the labels and numbers from the table
+pct <- round(mytable/(sum(mytable)),3)*100 ##calculates percentages
+pct <- paste0(pct,"%") ##adds % sign
+pct <- paste("(",pct,")",sep="") ##adds parentheses
+lbls <- paste(lbls, pct,sep=" ") ##combines
 pie(mytable, labels = lbls,
-    main="Amino Acid breakdow") 
+    main="Amino Acid breakdow")
 
-# Pie Chart with Percentages
-slices <- c(10, 12, 4, 16, 8)
-lbls <- c("US", "UK", "Australia", "Germany", "France")
-pct <- round(slices/sum(slices)*100)
-lbls <- paste(lbls, pct) # add percents to labels
-lbls <- paste(lbls,"%",sep="") # ad % to labels
-pie(slices,labels = lbls, col=rainbow(length(lbls)),
-    main="Pie Chart of Countries") 
+
+##pie chart of multiplicity with percentages
+mytable <- table(multExpanded$multiplicity)
+lbls <- paste(names(mytable), mytable, sep=" ")##pastes the labels and numbers from the table
+pct <- round(mytable/(sum(mytable)),3)*100 ##calculates percentages
+pct <- paste0(pct,"%") ##adds % sign
+pct <- paste("(",pct,")",sep="") ##adds parentheses
+lbls <- paste(lbls, pct,sep=" ") ##combines
+pie(mytable, labels = lbls,
+main="Number of Phosphorylation sites per peptide")
+
+
 
 
 
