@@ -95,10 +95,15 @@ multExpanded <- merge(other_data, out, by="id")
 
 expCol <- grep("HL(.*)", colnames(multExpanded))
 
-multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes all 'NA' rows using the sums of the logical per row                        
+multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes rows containing all 'NA's using the sums of the logical per row                        
 
-##total class 1 sites and protein groups? 
-# How are phosphosites attached to a protein?
+##############total class 1 sites and protein groups#########################################################
+
+##number of unique sites
+nrow(phospho)
+
+##number of unique class 1 sites
+nrow(phospho1)
 
 ##number of unique protein groups associated with class 1 sites
 nrow(table(phospho1$Proteins))
@@ -107,32 +112,54 @@ nrow(table(phospho1$Leading.proteins))##this may be more accurate
 
 nrow(table(phospho1$Protein))##first protein on the list sometimes...
 
-##number of unique class 1 sites
-nrow(phospho1)
 
 
-##number of unique class 1 sites with quantification
+
+##number of unique class 1 sites with quantification in at least one sample
+##note that the multiplicity references the phosphorylation state of the peptide (singly,doubly,triply) when this site was quantified.
 nrow(table(multExpanded$id))
 
-
+##protein groups for quantified class 1
 nrow(table(multExpanded$Proteins))
 
+##number of leading proteins where 'leading protein' contains at least 1/2 of the peptides of the first protein?
 nrow(table(multExpanded$Leading.proteins))
 
 
 
 
+###################################################PIES in separate script later
 
-
-##pie chart of AAs wither percentages
-mytable <- table(multExpanded$Amino.acid)
+##pie chart of AAs wither percentages of total IDd (but not necessarily quantified) FROM PHOSPHO TABLE!
+mytable <- table(phospho$Amino.acid)
 lbls <- paste(names(mytable), mytable, sep=" ")##pastes the labels and numbers from the table
 pct <- round(mytable/(sum(mytable)),3)*100 ##calculates percentages
 pct <- paste0(pct,"%") ##adds % sign
 pct <- paste("(",pct,")",sep="") ##adds parentheses
 lbls <- paste(lbls, pct,sep=" ") ##combines
 pie(mytable, labels = lbls,
-    main="Amino Acid breakdow")
+    main="Amino Acid breakdown")
+
+
+##pie chart of AAs wither percentages of total IDd CLASS 1 (but not necessarily quantified) FROM PHOSPHO1 TABLE!
+mytable <- table(phospho1$Amino.acid)
+lbls <- paste(names(mytable), mytable, sep=" ")##pastes the labels and numbers from the table
+pct <- round(mytable/(sum(mytable)),3)*100 ##calculates percentages
+pct <- paste0(pct,"%") ##adds % sign
+pct <- paste("(",pct,")",sep="") ##adds parentheses
+lbls <- paste(lbls, pct,sep=" ") ##combines
+pie(mytable, labels = lbls,
+    main="Class 1 Amino Acid breakdown")
+
+##pie chart of AAs wither percentages of total IDd and quantified CLASS 1  FROM PHOSPHO1 TABLE!
+mytable <- table(phospho1$Amino.acid)
+lbls <- paste(names(mytable), mytable, sep=" ")##pastes the labels and numbers from the table
+pct <- round(mytable/(sum(mytable)),3)*100 ##calculates percentages
+pct <- paste0(pct,"%") ##adds % sign
+pct <- paste("(",pct,")",sep="") ##adds parentheses
+lbls <- paste(lbls, pct,sep=" ") ##combines
+pie(mytable, labels = lbls,
+    main="Class 1 Quantified Amino Acid breakdown")
 
 
 ##pie chart of multiplicity with percentages
@@ -143,7 +170,78 @@ pct <- paste0(pct,"%") ##adds % sign
 pct <- paste("(",pct,")",sep="") ##adds parentheses
 lbls <- paste(lbls, pct,sep=" ") ##combines
 pie(mytable, labels = lbls,
-main="Number of Phosphorylation sites per peptide")
+main="Peptide multiplicity states of class 1 quantifications")
+
+
+
+
+############################################################################################################
+
+# Class 1 phospho breakdowns by multiplicity;can be used later to subset analyses by confidence of quantification!!!!
+z <- table(multExpanded$id,multExpanded$multiplicity) ##two dimensional table
+colSums(z)
+##should be a better way to do this but I will just subset
+colnames(z) <- c("m1","m2","m3")
+dfz <- as.data.frame.matrix(z)##converts table into a dataframe for 
+
+
+id1 <- dfz[dfz$m1==1 & dfz$m2==0 & dfz$m3==0,]
+nrow(id1)##sum also works
+
+id2 <- dfz[dfz$m1==0 & dfz$m2==1 & dfz$m3==0,]##which also works here
+nrow(id2)##sum also works
+
+id3 <- dfz[dfz$m1==0 & dfz$m2==0 & dfz$m3==1,]##which also works here
+nrow(id3)##sum also works
+
+id12 <- dfz[dfz$m1==1 & dfz$m2==1 & dfz$m3==0,]
+nrow(id12)##sum also works
+
+id13 <- dfz[dfz$m1==1 & dfz$m2==0 & dfz$m3==1,]##which also works here
+nrow(id13)##sum also works
+
+id23 <- dfz[dfz$m1==0 & dfz$m2==1 & dfz$m3==1,]##which also works here
+nrow(id23)##sum also works
+
+id123 <- dfz[dfz$m1==1 & dfz$m2==1 & dfz$m3==1,]##which also works here
+nrow(id123)##sum also works
+
+
+
+combos <- c(nrow(id1), nrow(id2), nrow(id3), nrow(id12), nrow(id13), nrow(id23), nrow(id123)) ##vector of counts
+combos <- as.data.frame(combos)
+rownames(combos) <- c(1,2,3,12,13,23,123)
+combos <- cbind(combos,prop.table(combos))
+colnames(combos) <- c("phospho combinations","%")
+
+##make a venn diagram later
+
+
+
+##other shit
+#same as above see the quick R page for frequencies and crosstabs
+margin.table(z,2) ##marginal frequencies across the 2nd (column) dimension
+prop.table(z,2)  ##proportion across the 2nd dimension (the first dimension is quite interesting)
+
+mytable <- xtabs(~A+B+c, data=mydata)
+q <- xtabs(~id+multiplicity, data=multExpanded)##this is the same as table
+summary(q)##chi-squared test of independence
+
+
+
+multbd <- xtabs(id ~ multiplicity, data = multExpanded)
+
+table(multExpanded$id)
+
+quantile(multExpanded$multiplicity)
+
+
+
+v <- as.factor(multExpanded$multiplicity)
+
+str(v)
+str(multExpanded$multiplicity)
+
 
 
 
