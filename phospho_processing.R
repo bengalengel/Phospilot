@@ -100,18 +100,24 @@ multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCo
 ##total class 1 sites and protein groups? 
 # How are phosphosites attached to a protein?
 
-##number of protein groups associated with class 1 sites
+##number of unique protein groups associated with class 1 sites
+nrow(table(phospho1$Proteins))
 
+nrow(table(phospho1$Leading.proteins))##this may be more accurate
 
+nrow(table(phospho1$Protein))##first protein on the list sometimes...
 
 ##number of unique class 1 sites
 nrow(phospho1)
 
 
-##number of unique class 1 sites with valid quantification
+##number of unique class 1 sites with quantification
 nrow(table(multExpanded$id))
 
 
+nrow(table(multExpanded$Proteins))
+
+nrow(table(multExpanded$Leading.proteins))
 
 
 
