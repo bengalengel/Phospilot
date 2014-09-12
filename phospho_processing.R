@@ -97,36 +97,51 @@ expCol <- grep("HL(.*)", colnames(multExpanded))
 
 multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes rows containing all 'NA's using the sums of the logical per row                        
 
-##############total class 1 sites and protein groups#########################################################
+##############total sites and protein groups cut by samples and replicates #########################################################
 
 ##number of unique sites
-nrow(phospho)
+sites <- nrow(phospho)
 
 ##number of unique class 1 sites
-nrow(phospho1)
+class1 <- nrow(phospho1)
 
 ##number of unique protein groups associated with class 1 sites
-nrow(table(phospho1$Proteins))
+pgroups <- nrow(table(phospho1$Proteins))
 
-nrow(table(phospho1$Leading.proteins))##this may be more accurate
+leadingp <- nrow(table(phospho1$Leading.proteins))##this may be more accurate
 
-nrow(table(phospho1$Protein))##first protein on the list sometimes...
-
-
-
+protein <- nrow(table(phospho1$Protein))##first protein on the list sometimes...
 
 ##number of unique class 1 sites with quantification in at least one sample
 ##note that the multiplicity references the phosphorylation state of the peptide (singly,doubly,triply) when this site was quantified.
-nrow(table(multExpanded$id))
+quantClass1 <- nrow(table(multExpanded$id))
 
 ##protein groups for quantified class 1
-nrow(table(multExpanded$Proteins))
+pgroupsClass1 <- nrow(table(multExpanded$Proteins))
 
 ##number of leading proteins where 'leading protein' contains at least 1/2 of the peptides of the first protein?
-nrow(table(multExpanded$Leading.proteins))
+leadProteinClass1 <- nrow(table(multExpanded$Leading.proteins))
+
+# number of sites per class 1 replicate 
+uniqueQuantEvents <- colSums(!is.na(multExpanded[expCol]))
+barplot(uniqueQuantEvents)##number of quant events
+
+##subset by having a quant event and unique id### wrong as or right now!
+uniqueIDs <-  multExpanded[!is.na(multExpanded[expCol]),1]
+
+  
+multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes rows containing all 'NA's using the sums of the logical per row                        
+
+  
+  
+
+# barplot of number of overlapping sites common to 6,5,4,3,2,1 replicate
 
 
 
+
+
+#################################################################################################################################
 
 ###################################################PIES in separate script later
 
@@ -216,7 +231,7 @@ colnames(combos) <- c("phospho combinations","%")
 
 ##make a venn diagram later
 
-
+#################################################################################################################
 
 ##other shit
 #same as above see the quick R page for frequencies and crosstabs
