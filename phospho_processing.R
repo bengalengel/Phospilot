@@ -126,14 +126,22 @@ leadProteinClass1 <- nrow(table(multExpanded$Leading.proteins))
 uniqueQuantEvents <- colSums(!is.na(multExpanded[expCol]))
 barplot(uniqueQuantEvents)##number of quant events
 
-##subset by having a quant event and unique id### wrong as or right now!
-uniqueIDs <-  multExpanded[!is.na(multExpanded[expCol]),1]
+# number of unique ids per experiment (CERTAINLY A MUCH BETTER WAY TO DO THIS!)
 
-  
-multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes rows containing all 'NA's using the sums of the logical per row                        
+nmeasure <- function(x) sum(!(is.na(x)))#function to count valid values
 
-  
-  
+#nmeasure(multExpanded$HL16770_1)##works
+#nmeasure(multExpanded[,expCol]) ##sums over all the columns! must use colwise (plyr) see below
+
+#t <- colwise(nmeasure,newnames)(multExpanded)#same as unique events above
+
+idBreakdown <- ddply(multExpanded,.(id), colwise(nmeasure,newnames))##breaks down by id number of mults observed per sample
+
+#now I just need the subset of each vector which is greater than 0
+totalgt0 <- function(x) sum(x > 0, na.rm = TRUE)#function that counts total greater than 0
+
+uniqueids <- colwise(totalgt0,newnames)(idBreakdown)##total number of unique ids
+
 
 # barplot of number of overlapping sites common to 6,5,4,3,2,1 replicate
 
