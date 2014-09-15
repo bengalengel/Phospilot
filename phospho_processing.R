@@ -124,7 +124,7 @@ leadProteinClass1 <- nrow(table(multExpanded$Leading.proteins))
 
 # number of sites per class 1 replicate 
 uniqueQuantEvents <- colSums(!is.na(multExpanded[expCol]))
-barplot(uniqueQuantEvents)##number of quant events
+barplot(uniqueQuantEvents, las=1, cex.names = .80)##number of quant events
 
 # number of unique ids per experiment (CERTAINLY A MUCH BETTER WAY TO DO THIS!)
 
@@ -142,10 +142,32 @@ totalgt0 <- function(x) sum(x > 0, na.rm = TRUE)#function that counts total grea
 
 uniqueids <- colwise(totalgt0,newnames)(idBreakdown)##total number of unique ids
 
+barplot(as.matrix(uniqueids),las=1, cex.names = .80)##note needs a matrix as input and other variables used
 
-# barplot of number of overlapping sites common to 6,5,4,3,2,1 replicate
 
+# barplot of number of overlapping sites common to 6,5,4,3,2,1 etc replicate
+ExpOverlap <- table(rowSums(!is.na(multExpanded[,expCol])))##removes rows containing all 'NA's using the sums of the logical per row                        
+ExpOverlap <- rev(ExpOverlap)
+barplot(ExpOverlap)
 
+##barplot with summary line overlay
+
+#vector of percentages
+test <- ExpOverlap/sum(ExpOverlap)
+
+cumulative <- function(x) {
+  
+  s <- as.numeric(vector(length = nrow(test)))
+  s[1] <- test[1]
+  for (i in seq_along(test)) {
+    if(i>1){
+      s[i] <- s[i-1] + test[i]
+    }
+  }
+  s
+  }
+
+v <- cumulative(as.vector(test))
 
 
 
