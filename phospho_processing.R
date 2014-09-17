@@ -108,9 +108,9 @@ class1 <- nrow(phospho1)
 ##number of unique protein groups associated with class 1 sites
 pgroups <- nrow(table(phospho1$Proteins))
 
-leadingp <- nrow(table(phospho1$Leading.proteins))##this may be more accurate
+leadingp <- nrow(table(phospho1$Leading.proteins))##These are the proteins from each group with the most Ids (first on the list anyway)
 
-protein <- nrow(table(phospho1$Protein))##first protein on the list sometimes...
+protein <- nrow(table(phospho1$Protein))##This is the leading razor protein (the one with the most ids amongst all the associated proteins)
 
 ##number of unique class 1 sites with quantification in at least one sample
 ##note that the multiplicity references the phosphorylation state of the peptide (singly,doubly,triply) when this site was quantified.
@@ -145,29 +145,46 @@ uniqueids <- colwise(totalgt0,newnames)(idBreakdown)##total number of unique ids
 barplot(as.matrix(uniqueids),las=1, cex.names = .80)##note needs a matrix as input and other variables used
 
 
-# barplot of number of overlapping sites common to 6,5,4,3,2,1 etc replicate
+# barplot of number of overlapping experimental observations (not sites) common to 6,5,4,3,2,1 etc replicate
 ExpOverlap <- table(rowSums(!is.na(multExpanded[,expCol])))##removes rows containing all 'NA's using the sums of the logical per row                        
 ExpOverlap <- rev(ExpOverlap)
-barplot(ExpOverlap)
+barplot(ExpOverlap, las = 1)
 
 ##barplot with summary line overlay
 
 #vector of percentages
-test <- ExpOverlap/sum(ExpOverlap)
+percent <- ExpOverlap/sum(ExpOverlap)
 
+#vector of cumulative percentages
 cumulative <- function(x) {
-  
-  s <- as.numeric(vector(length = nrow(test)))
-  s[1] <- test[1]
-  for (i in seq_along(test)) {
+  s <- as.numeric(vector(length = nrow(x)))
+  s[1] <- x[1]
+  for (i in seq_along(x)) {
     if(i>1){
-      s[i] <- s[i-1] + test[i]
+      s[i] <- s[i-1] + x[i]
     }
   }
-  s
+  return(s*100)
   }
 
-v <- cumulative(as.vector(test))
+percent_total <- cumulative(percent)##as percentage
+
+##Overlaid graphic of sample overlap and cumulative percentage using base graphics. Must be aligned later
+bp <- barplot(ExpOverlap)
+bp <- barplot(ExpOverlap,las=1, cex.names = 1, ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,max(ExpOverlap)+500), ylab = "# of overlapping phosphosites", xlab = "overlap between N samples")##note needs a matrix as input and other variables used
+par(new=TRUE)
+par(mar=c(5,4,4,4))
+plot(bp,percent_total,axes="FALSE", ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,100), col = "red", type = "b", pch=19)##note the same coordinate ranges 'xlim' so that the points are in the center of the barchart; type b is points connected by lines.
+mtext("% of total phosphosites",side=4,line=2)
+axis(4,at=seq(0,100,10), las=1)
+box()
+
+##number of modifications per protein. Here I can use the leading razor protein associated with each site or I can use the protein groups file.
+#Must go from the sites file so that each site is used only once as opposed to each group used only once with the same site assigned multiple times
+
+hist(table(phospho1$Protein), breaks = max(table(phospho1$Protein)), xlim = c(0,20), xlab = "Number of phosphosites", ylab = "Number of Proteins", main = "number of C1 sites per protein")
+
+
 
 
 
