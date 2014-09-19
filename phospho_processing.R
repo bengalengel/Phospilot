@@ -31,7 +31,7 @@ phospho1 <- phospho[(phospho$Localization.prob >= .75),]##Why just one localizat
 other_data <- phospho1[,c("id","Amino.acid","Charge","Reverse","Contaminant","Proteins","Positions.within.proteins","Leading.proteins",
                           "Sequence.window","Modified.sequence","Localization.prob","PEP", "Score", "Delta.score", "Score.for.localization", 
                           "m.z", "Mass.error..ppm.", "Intensity", "Intensity.L", "Intensity.H", "Position", "Number.of.Phospho..STY.", 
-                          "Protein.group.IDs") ]
+                          "Protein.group.IDs", "Protein") ]
 
 ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
 ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
@@ -119,7 +119,7 @@ quantClass1 <- nrow(table(multExpanded$id))
 ##protein groups for quantified class 1
 pgroupsClass1 <- nrow(table(multExpanded$Proteins))
 
-##number of leading proteins where 'leading protein' contains at least 1/2 of the peptides of the first protein?
+##number of leading proteins class 1
 leadProteinClass1 <- nrow(table(multExpanded$Leading.proteins))
 
 # number of sites per class 1 replicate 
@@ -150,10 +150,16 @@ ExpOverlap <- table(rowSums(!is.na(multExpanded[,expCol])))##removes rows contai
 ExpOverlap <- rev(ExpOverlap)
 barplot(ExpOverlap, las = 1)
 
+# barplot of number of overlapping sites common to replicates
+idOverlap <- table(rowSums(idBreakdown[,newnames] > 0))
+idOverlap <- rev(idOverlap)
+barplot(idOverlap, las = 1)
+
 ##barplot with summary line overlay
 
 #vector of percentages
-percent <- ExpOverlap/sum(ExpOverlap)
+percentExp <- ExpOverlap/sum(ExpOverlap)
+percentId <- idOverlap/sum(idOverlap)
 
 #vector of cumulative percentages
 cumulative <- function(x) {
@@ -167,17 +173,26 @@ cumulative <- function(x) {
   return(s*100)
   }
 
-percent_total <- cumulative(percent)##as percentage
+percentTotalExp <- cumulative(percentExp)##as percentage
+percentTotalId <- cumulative(percentId)##as percentage
+
 
 ##Overlaid graphic of sample overlap and cumulative percentage using base graphics. Must be aligned later
-bp <- barplot(ExpOverlap)
-bp <- barplot(ExpOverlap,las=1, cex.names = 1, ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,max(ExpOverlap)+500), ylab = "# of overlapping phosphosites", xlab = "overlap between N samples")##note needs a matrix as input and other variables used
+BarCumOverlay <- function(overlap,cumPercent){
+bp <- barplot(overlap)
+bp <- barplot(overlap,las=1, cex.names = 1, ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,max(overlap)+500), ylab = "# of overlapping phosphosites", xlab = "overlap between N samples")##note needs a matrix as input and other variables used
 par(new=TRUE)
 par(mar=c(5,4,4,4))
-plot(bp,percent_total,axes="FALSE", ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,100), col = "red", type = "b", pch=19)##note the same coordinate ranges 'xlim' so that the points are in the center of the barchart; type b is points connected by lines.
+plot(bp,cumPercent,axes="FALSE", ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,100), col = "red", type = "b", pch=19)##note the same coordinate ranges 'xlim' so that the points are in the center of the barchart; type b is points connected by lines.
 mtext("% of total phosphosites",side=4,line=2)
 axis(4,at=seq(0,100,10), las=1)
 box()
+}
+BarCumOverlay(ExpOverlap,percentTotalExp)
+BarCumOverlay(idOverlap,percentTotalId)
+
+
+
 
 ##number of modifications per protein. Here I can use the leading razor protein associated with each site or I can use the protein groups file.
 #Must go from the sites file so that each site is used only once as opposed to each group used only once with the same site assigned multiple times
@@ -269,14 +284,42 @@ id123 <- dfz[dfz$m1==1 & dfz$m2==1 & dfz$m3==1,]##which also works here
 nrow(id123)##sum also works
 
 
-
+##output as table arranged in decending order
 combos <- c(nrow(id1), nrow(id2), nrow(id3), nrow(id12), nrow(id13), nrow(id23), nrow(id123)) ##vector of counts
 combos <- as.data.frame(combos)
 rownames(combos) <- c(1,2,3,12,13,23,123)
 combos <- cbind(combos,prop.table(combos))
-colnames(combos) <- c("phospho combinations","%")
+colnames(combos) <- c("count","%")
+combos=cbind(multiplicity=row.names(combos), combos)
+combos <- arrange(combos,desc(`%`))##note the backticks
 
-##make a venn diagram later
+##make a venn diagram
+install.packages("VennDiagram")
+library(VennDiagram)
+
+
+venn.plot <- draw.triple.venn(
+  area1 = sum(dfz$m1),
+  area2 = sum(dfz$m2),
+  area3 = sum(dfz$m3),
+  n12 = nrow(id12)+nrow(id123),
+  n23 = nrow(id23)+nrow(id123),
+  n13 = nrow(id13)+nrow(id123),
+  n123 = nrow(id123),
+  category = c("Singly", "Doubly", "Triply"),
+  fill = c("orange", "green", "blue"),
+  lty = "blank",
+  cex = 2,
+  cat.cex = 2,
+  cat.col = c("orange", "green", "blue"), margin = .1
+);
+
+
+
+
+
+
+
 
 #################################################################################################################
 
