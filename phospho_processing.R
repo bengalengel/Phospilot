@@ -315,6 +315,14 @@ venn.plot <- draw.triple.venn(
 );
 
 
+#################################################################################################################
+# Clustering
+
+##log2 the expression values
+multExpanded[newnames] <- log2(multExpanded[,newnames])##log2 transform
+
+##a quick summary
+summary(multExpanded[,newnames])
 
 
 
