@@ -1,9 +1,3 @@
-# This program will produce a series of charts relating to the phospho(STY) output table from maxquant. 
-# It is IMPORTANT that the experiments be processed in MQ as "XXXXXRepY", where the first set of numbers
-# is the cell line and the last number is the replicate number. Many of the regular expressions that I use require this
-# type of annotation.
-
-
 # First perform all processing steps using plyr and related tools.
 # load required libraries
 library(reshape2)
@@ -12,45 +6,37 @@ library(plyr)
 
 
 # Read in phospho table. Note the quote option is key.
-phospho <- read.table("./MQ output/7_17_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
+phospho <- read.table("./MQ output/7_29_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
 
 # subset those hits that are not contaminants and not reverse hits.
 
-phospho <- phospho[(phospho$Contaminant != "+" & phospho$Reverse != "+"),]## here I am specifying the rows using column variables and logical operators while not specifying any particular columns
+phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]## here I am specifying the rows using column variables and logical operators while not specifying any particular columns
 # I can come back here to get phospho ID information if needed
 
 
 # subset to class 1
 phospho1 <- phospho[(phospho$Localization.prob >= .75),]##Why just one localization probability?...
-  # Here the BEST localization probablility across all samples is used to justify identification and use in each. What doesn't make sense is 
-# multiplicity, where a single probability per sample is assigned for each multiplicity state
 
-#####now must condense DF and 'melt' the dataframe so that each ratio for each multiplicity state has its own observation
 
-##first condense dataframe to include variables of interest. colect non-expression variables first
-other_data <- phospho1[,c("id","Amino.acid","Charge","Reverse","Contaminant","Proteins","Positions.within.proteins","Leading.proteins",
-                          "Sequence.window","Modified.sequence","Localization.prob","PEP", "Score", "Delta.score", "Score.for.localization", 
-                          "m.z", "Mass.error..ppm.", "Intensity", "Intensity.L", "Intensity.H", "Position", "Number.of.Phospho..STY.", 
-                          "Protein.group.IDs", "Protein") ]
+vars <- c("id","Amino.acid","Charge","Reverse","Potential.contaminant","Proteins","Positions.within.proteins","Leading.proteins",
+          "Sequence.window","Phospho..STY..Probabilities","Localization.prob","PEP", "Score", "Delta.score", "Score.for.localization", 
+          "Mass.error..ppm.", "Intensity", "Intensity.L", "Intensity.H", "Position", "Number.of.Phospho..STY.", 
+          "Protein.group.IDs", "Protein")
+
+other_data <- phospho1[,vars]
 
 ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
 ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
-expression <- phospho1[,grep("Ratio.H.L.normalized(.*)Rep.___", colnames(phospho1))]
+expression <- phospho1[,grep("Ratio.H.L.normalized(.*)_[12]___", colnames(phospho1))]
+
+# Replace the column names
+names(expression) <- sub(names(expression), pattern ="_", replacement = "Rep")
 
 ##combine the two
 phospho2 <- cbind(expression,other_data)
 
 ##now to ensure each multiplicity has its own row and variables are condensed. I am converting from wide to long format to ensure that each
 # observation is uniquely represented in the data
-
-# Use reshape2 'melt' function 
-##lowercase names if I want
-# names(phospho2) <- tolower(names(phospho2))
-
-##melt all expression variables into one column
-
-#names(expression)
-#melted <- melt(phospho2, measure.vars = names(expression), variable.name = "sample_rep_mult", value.name = "H/L Ratio")
 
 melted <- melt(phospho2, measure.vars = names(expression))
 
@@ -61,7 +47,6 @@ melted <- cbind(melted, colsplit(melted$replicate_mult, "___", c("replicate","mu
 melted$sample <- gsub(melted$sample, pattern = "Ratio.H.L.normalized.", replacement = "") ##remove redundant information next 3 lines
 drop <- "replicate_mult" 
 melted <- melted[,!(names(melted) %in% drop)]
-
 
 ##cast data so that each unique 'sample/replicate' combination has its own column populated by the measurement 'currently the value column'.
 
@@ -96,6 +81,12 @@ multExpanded <- merge(other_data, out, by="id")
 expCol <- grep("HL(.*)", colnames(multExpanded))
 
 multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes rows containing all 'NA's using the sums of the logical per row                        
+
+
+
+
+
+
 
 ##############total sites and protein groups cut by samples and replicates #########################################################
 
@@ -171,7 +162,7 @@ cumulative <- function(x) {
     }
   }
   return(s*100)
-  }
+}
 
 percentTotalExp <- cumulative(percentExp)##as percentage
 percentTotalId <- cumulative(percentId)##as percentage
@@ -179,28 +170,23 @@ percentTotalId <- cumulative(percentId)##as percentage
 
 ##Overlaid graphic of sample overlap and cumulative percentage using base graphics. Must be aligned later
 BarCumOverlay <- function(overlap,cumPercent){
-bp <- barplot(overlap)
-bp <- barplot(overlap,las=1, cex.names = 1, ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,max(overlap)+500), ylab = "# of overlapping phosphosites", xlab = "overlap between N samples")##note needs a matrix as input and other variables used
-par(new=TRUE)
-par(mar=c(5,4,4,4))
-plot(bp,cumPercent,axes="FALSE", ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,100), col = "red", type = "b", pch=19)##note the same coordinate ranges 'xlim' so that the points are in the center of the barchart; type b is points connected by lines.
-mtext("% of total phosphosites",side=4,line=2)
-axis(4,at=seq(0,100,10), las=1)
-box()
+  bp <- barplot(overlap)
+  bp <- barplot(overlap,las=1, cex.names = 1, ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,max(overlap)+500), ylab = "# of overlapping phosphosites", xlab = "overlap between N samples")##note needs a matrix as input and other variables used
+  par(new=TRUE)
+  par(mar=c(5,4,4,4))
+  plot(bp,cumPercent,axes="FALSE", ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,100), col = "red", type = "b", pch=19)##note the same coordinate ranges 'xlim' so that the points are in the center of the barchart; type b is points connected by lines.
+  mtext("% of total phosphosites",side=4,line=2)
+  axis(4,at=seq(0,100,10), las=1)
+  box()
 }
 BarCumOverlay(ExpOverlap,percentTotalExp)
 BarCumOverlay(idOverlap,percentTotalId)
-
-
 
 
 ##number of modifications per protein. Here I can use the leading razor protein associated with each site or I can use the protein groups file.
 #Must go from the sites file so that each site is used only once as opposed to each group used only once with the same site assigned multiple times
 
 hist(table(phospho1$Protein), breaks = max(table(phospho1$Protein)), xlim = c(0,20), xlab = "Number of phosphosites", ylab = "Number of Proteins", main = "number of C1 sites per protein")
-
-
-
 
 
 #################################################################################################################################
@@ -247,8 +233,7 @@ pct <- paste0(pct,"%") ##adds % sign
 pct <- paste("(",pct,")",sep="") ##adds parentheses
 lbls <- paste(lbls, pct,sep=" ") ##combines
 pie(mytable, labels = lbls,
-main="Peptide multiplicity states of class 1 quantifications")
-
+    main="Peptide multiplicity states of class 1 quantifications")
 
 
 
@@ -316,6 +301,7 @@ venn.plot <- draw.triple.venn(
 
 
 #################################################################################################################
+#################################################################################################################
 # Data Analysis. Histograms, Dendograms/Clustering/Heatmaps, PCA, DE, QQplots
 
 ##log2 the expression values (updated in main table)
@@ -343,65 +329,13 @@ datanorm <- colwise(median.subtract, newnames)(data) #create median subtracted d
 row.names(datanorm) <- row.names(data)##add back the row names
 
 # Histograms of data
-
-##################################################### LIMMA for DE #####################################################
-#Biological replication is needed for a valid comparison 
-
-library(limma)
-
-
-install.packages("statmod")
-library(statmod)
-
-# Calculate the correlation between technical replicates?...
-# biolrep <- c(1, 1, 2, 2, 3, 3) 
-# corfit <- duplicateCorrelation(datanorm, ndups = 1, block = biolrep)
-
-
-# Produce dataframe from sample means ignoring missing data
-
-HL16770 <- rowMeans(datanorm[,1:2], na.rm = T)
-HL16778 <- rowMeans(datanorm[,3:4], na.rm = T)
-HL16788 <- rowMeans(datanorm[,5:6], na.rm = T)
-
-pilot <- cbind(HL16770, HL16778, HL16788)
-
-
-
-#Produce the design matrix
-
-fac <- factor(rep(1:3, each = 1))##codes the grouping for the ttests
-design <- model.matrix(~0 + fac)
-dnames <- levels(as.factor(substr(colnames(datanorm), 1, 7))) ##check me out. use 5 digit exp name.
-colnames(design) <- dnames
-
-#limma fit 
-fit <- lmFit(pilot, design)
-
-#Now to make all pairwise comparisons (from Smyth pg 14)
-contrast.matrix <- makeContrasts(HL16778-HL16770, HL16788-HL16778, HL16788-HL16770, levels = design) 
-fit2 <- contrasts.fit(fit, contrast.matrix)
-fit2 <- eBayes(fit2)
-
-
-
-
-
-#Look at pairwise DE using toptable and the coef parameter to id which genes you are interested in 
-topTable(fit2, coef = 1, adjust = "fdr")
-
-
-
-
-
-
-
-
-
-
-
-
-
+par(mfrow = c(3,2))
+hist(datanorm$HL16770_1, breaks = 60)
+hist(datanorm$HL16770_2, breaks = 60)
+hist(datanorm$HL16778_1, breaks = 60)
+hist(datanorm$HL16778_2, breaks = 60)
+hist(datanorm$HL16788_1, breaks = 60)
+hist(datanorm$HL16788_2, breaks = 60)
 
 
 ################################################ Dendograms and Clustering  ##########################################
@@ -564,222 +498,5 @@ legend("topleft", levels(cols), col = seq(along=levels(cols)), pch = 1)
 
 
 #################################################################################################################
-
-##other shit
-#same as above see the quick R page for frequencies and crosstabs
-margin.table(z,2) ##marginal frequencies across the 2nd (column) dimension
-prop.table(z,2)  ##proportion across the 2nd dimension (the first dimension is quite interesting)
-
-mytable <- xtabs(~A+B+c, data=mydata)
-q <- xtabs(~id+multiplicity, data=multExpanded)##this is the same as table
-summary(q)##chi-squared test of independence
-
-
-
-multbd <- xtabs(id ~ multiplicity, data = multExpanded)
-
-table(multExpanded$id)
-
-quantile(multExpanded$multiplicity)
-
-
-
-v <- as.factor(multExpanded$multiplicity)
-
-str(v)
-str(multExpanded$multiplicity)
-
-
-
-
-
-
-multExpanded <- multExpanded[complete.cases(multExpanded),]#removes rows with ANY NAs
-
-
-
-#hit 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-##gives a dataframe but adds 'NaN' to summarized column and adds NA to other columns as well (NaN vs NA in original data). is way too long
-
-sample <- testnew2[testnew2$id==42,25:31]
-sample <- cbind(rep(42),sample)
-
-colnames(sample)[1] <- "id" ##change a particular column name using colnames!!!
-
-
-ddply(sample, "id", summarize)
-
-ddply(sample, .(id, multiplicity), summarize, mean = mean(`16770_1`,na.rm = T))
-
-##gives index
-data <- grep("_", colnames(sample))
-
-##gives string
-data2 <- colnames(sample)[grep("_", colnames(sample))]
-
-ddply(sample, .(id, multiplicity), colwise(mean),na.rm=T)##works
-
-ddply(sample, .(id, multiplicity), colwise(mean,.(data2)),na.rm=T)##should work if underscore not there. replace with camelcase? whatever lets paste a letter in front of the character vector and column names?
-
-newnames <- paste0("HL",data2)
-
-##rename to proper alpha first
-colnames(sample)[data] <- newnames
-
-
-## columnwise summary time!...
-ddply(sample, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
-
-
-
-
-
-
-
-
-
-
-
-
-# repeat each row of other data three times?
-df[rep(seq_len(nrow(df)), each=2),]
-
-otherdata3 <- other_data[rep(seq_len(nrow(other_data)), each=3),]
-
-test <- merge(other_data, out, by="id")
-
-colnames(otherdata3)
-
-
-
-
-
-
-out2 <- ddply(testnew2, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
-
-
-length(which(duplicated(out)))
-length(which(duplicated(testnew2)))
-
-
-# now must merge with the rest of the dataframe...
-
-merged <- merge(testnew2,out,by="id",all = TRUE)
-
-
-try <- aggregate(. ~ id,
-          data=merge(testnew2, out, by="id", all=TRUE), # Merged data, including NAs
-          na.action=na.pass,              # Aggregate rows with missing values...
-          FUN=sum, na.rm=TRUE)            # ...but instruct "sum" to ignore them.
-
-
-
-
-
-# adjacency[,j] <- ifelse((!is.na(peptides[i]) & !is.na(peptides[i+1]) == "TRUE"),1,0)## winner winner. note && vs &!
-
-
-a <- testnew2[(!is.na(testnew2$'16770_2') & !is.na(testnew2$'16770_1') == "TRUE"),] ##gives nothing
-
-b <- testnew2[(!is.na(testnew2$multiplicity) & !is.na(testnew2$position) == "TRUE"),] ##gives nothing
-
-
-
-
-##thoughts about a unique ID from which to parse DF
-> any(duplicated(test$Modified.sequence))
-[1] TRUE
-> any(duplicated(phospho2$Modified.sequence))
-[1] TRUE
-
-
-
-
-##split this column by multiplicity
-test2 <- colsplit(test$sample_rep_mult, pattern = "[0-9]{5}", c("a","b"))
-##cast
-test2 <- cbind(test, colsplit(test$sample_rep_mult, pattern = "___", c("sample","multiplicity")))
-
-tail(test2$multiplicity)
-test3 <- dcast(test2, multiplicity ~ var)
-     
-# potentially helpful 
-# Here I split (that is add a variable identifier) the melted 'variable' column so that the sample, replicate, and multiplicity are now explicit
-# for each "variable"
-test5 <-   colsplit(names(expression), c("Rep"), c("sample","replicate_mult")) ##first split
-test5 <- cbind(test5, colsplit(test5$replicate_mult, "___", c("replicate","multiplicity"))) ##second split
-test5$sample <- gsub(test5$sample,pattern = "Ratio.H.L.normalized.", replacement = "") ##remove redundant information next 3 lines
-drop <- "replicate_mult" 
-test5 <- test5[,!(names(test5) %in% drop)]
-test5
-
-##barcharts of class 1 peptides 
-
-# 1) of total class 1 per LC-MS run
-# 2) of total class 1 per biolgical sample
-# 3) 
-
 
 

@@ -81,6 +81,9 @@ pval2 <- 2*(1-pt(abs(ttest2),2))
 pval3 <- 2*(1-pt(abs(n),2))  #check for na issues
 ##########################################################################################
 
+
+###########################QC of p-values######################## 
+
 hist(pval)##shit there are many DE phospho?!!
 hist(pval2)##these are identical of course (just checking...)
 hist(pval3)#note that hist removes the NAs
@@ -88,12 +91,24 @@ hist(pval3)#note that hist removes the NAs
 # I should see a relatively flat distribution here!!!
 
 
-# Volcano plot
+# QQplots of t statistic for QC
+qqt(n,df=2)
+abline(0,1)
 
+
+
+
+
+
+
+
+
+
+
+# Volcano plot
 plot(HL16778-HL16770, -log10(pval), main="volcano")
 
 
-##distances and clustering
 
 
 
