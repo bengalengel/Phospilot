@@ -6,7 +6,7 @@ library(plyr)
 
 
 # Read in phospho table. Note the quote option is key.
-phospho <- read.table("./MQ output/7_29_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
+phospho <- read.table("./MQ output/9_29_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
 
 # subset those hits that are not contaminants and not reverse hits.
 
@@ -27,10 +27,20 @@ other_data <- phospho1[,vars]
 
 ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
 ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
-expression <- phospho1[,grep("Ratio.H.L.normalized(.*)_[12]___", colnames(phospho1))]
+
+# expression <- phospho1[,grep("Ratio.H.L.normalized(.*)_[12]___", colnames(phospho1))]
+
+expression <- phospho1[,grep("Ratio.H.L.normalized(.*)[AB]___", colnames(phospho1))]
+
+# gsub('^([a-z]{3})([a-z]+)$', '\\1d\\2', old)
+
+# gsub('^([a-z]{3})([a-z]+)$', '\\1_\\2', names(expression))
+
+names(expression) <- sub( '(?<=.{22})', '_', names(expression), perl=TRUE )
 
 # Replace the column names
 names(expression) <- sub(names(expression), pattern ="_", replacement = "Rep")
+
 
 ##combine the two
 phospho2 <- cbind(expression,other_data)
@@ -93,8 +103,18 @@ multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCo
 ##number of unique sites
 sites <- nrow(phospho)
 
+##number of quantified sites
+quantsites <- sum(!is.na(phospho$Ratio.H.L))
+
+# number of proteins mapped from quant sites
+tmp <- phospho[!is.na(phospho$Ratio.H.L),]
+proteinquantsites <- nrow(table(tmp$Protein))
+
+
 ##number of unique class 1 sites
 class1 <- nrow(phospho1)
+
+quantClass1 <- sum(!is.na(phospho1$Ratio.H.L))
 
 ##number of unique protein groups associated with class 1 sites
 pgroups <- nrow(table(phospho1$Proteins))
@@ -102,6 +122,8 @@ pgroups <- nrow(table(phospho1$Proteins))
 leadingp <- nrow(table(phospho1$Leading.proteins))##These are the proteins from each group with the most Ids (first on the list anyway)
 
 protein <- nrow(table(phospho1$Protein))##This is the leading razor protein (the one with the most ids amongst all the associated proteins)
+
+
 
 ##number of unique class 1 sites with quantification in at least one sample
 ##note that the multiplicity references the phosphorylation state of the peptide (singly,doubly,triply) when this site was quantified.
@@ -113,9 +135,20 @@ pgroupsClass1 <- nrow(table(multExpanded$Proteins))
 ##number of leading proteins class 1
 leadProteinClass1 <- nrow(table(multExpanded$Leading.proteins))
 
+# number of leading razor proteins for class1
+proteinClass1 <- nrow(table(multExpanded$Protein))
+
+
+# output for table
+output <- data.frame(sites,quantsites, proteinquantsites, class1,quantClass1, protein, leadingp, pgroups)
+
+#write.table(t(colnames(out)),"fitsheader.csv",sep=',',col.names=F,row.names=F,append=T)
+write.table(output,"phosphostats_latest.csv",sep=',',col.names=T,row.names=F)
+
+
 # number of sites per class 1 replicate 
 uniqueQuantEvents <- colSums(!is.na(multExpanded[expCol]))
-barplot(uniqueQuantEvents, las=1, cex.names = .80)##number of quant events
+barplot(uniqueQuantEvents, las=1, cex.names = .80, ylab = "class 1 phosphosites", main = "class 1 phospho per sample")##number of quant events
 
 # number of unique ids per experiment (CERTAINLY A MUCH BETTER WAY TO DO THIS!)
 
@@ -133,7 +166,7 @@ totalgt0 <- function(x) sum(x > 0, na.rm = TRUE)#function that counts total grea
 
 uniqueids <- colwise(totalgt0,newnames)(idBreakdown)##total number of unique ids
 
-barplot(as.matrix(uniqueids),las=1, cex.names = .80)##note needs a matrix as input and other variables used
+barplot(as.matrix(uniqueids),las=1, cex.names = .80, ylab = "unque class 1 phosphosites", main = "Unique class 1 phospho per sample")##note needs a matrix as input and other variables used
 
 
 # barplot of number of overlapping experimental observations (not sites) common to 6,5,4,3,2,1 etc replicate
@@ -305,21 +338,18 @@ venn.plot <- draw.triple.venn(
 # Data Analysis. Histograms, Dendograms/Clustering/Heatmaps, PCA, DE, QQplots
 
 ##log2 the expression values (updated in main table)
-multExpanded[newnames] <- log2(multExpanded[,newnames])##log2 transform
+# multExpanded[newnames] <- log2(multExpanded[,newnames])##log2 transform
 
 ##a quick summary
-summary(multExpanded[,newnames])
+# summary(multExpanded[,newnames])
 
 # Filter so that there is at least one valid value in each sample
 data <- multExpanded[,newnames]
 
+data <- log2(data)
+
 #replace row names with phospho id
-row.names(data) <- multExpanded$id
-
-# remove sites if not observed in each sample (not sure how to automate this for larger datasets)
-data <- data[rowSums(is.na(data[ , 1:2])) < 2 & rowSums(is.na(data[ , 3:4])) < 2 & rowSums(is.na(data[ , 5:6])) < 2, ]                    
-
-# note the dimensions here are 6071 where n>=3 for each phosphosite
+row.names(data) <- multExpanded$id#note this won't work because of the multiplicity issue
 
 #normalize by col median using columnwise (when to normalize??)
 
@@ -328,14 +358,28 @@ datanorm <- colwise(median.subtract, newnames)(data) #create median subtracted d
 
 row.names(datanorm) <- row.names(data)##add back the row names
 
+
+# remove exp obs if not observed in each sample (not sure how to automate this for larger datasets)
+data2 <- data[rowSums(is.na(data[ , 1:2])) < 2 & rowSums(is.na(data[ , 3:4])) < 2 & rowSums(is.na(data[ , 5:6])) < 2, ]                    
+
+data3 <- na.omit(data)
+
+quantified <- nrow(data)
+quantifiedbio <- nrow(data2)
+quantifiedall <- nrow(data3)
+#overlap summary stats for the  
+output2 <- data.frame(quantified, quantifiedbio, quantifiedall)
+write.table(output2, "phosphosummary2_2nd half.csv", sep = ",", col.names = T, row.names = F)
+
+
 # Histograms of data
 par(mfrow = c(3,2))
-hist(datanorm$HL16770_1, breaks = 60)
-hist(datanorm$HL16770_2, breaks = 60)
-hist(datanorm$HL16778_1, breaks = 60)
-hist(datanorm$HL16778_2, breaks = 60)
-hist(datanorm$HL16788_1, breaks = 60)
-hist(datanorm$HL16788_2, breaks = 60)
+phoshis1 <- hist(datanorm$HL1_A, breaks = 60)
+phoshis2 <- hist(datanorm$HL16770_2, breaks = 60)
+phoshis3 <- hist(datanorm$HL16778_1, breaks = 60)
+phoshis4 <- hist(datanorm$HL16778_2, breaks = 60)
+phoshis5 <- hist(datanorm$HL16788_1, breaks = 60)
+phoshis6 <- hist(datanorm$HL16788_2, breaks = 60)
 
 
 ################################################ Dendograms and Clustering  ##########################################
