@@ -6,7 +6,7 @@ library(plyr)
 
 
 # Read in phospho table. Note the quote option is key.
-phospho <- read.table("./MQ output/9_29_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
+phospho <- read.table("./MQ output/7_29_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
 
 # subset those hits that are not contaminants and not reverse hits.
 
@@ -28,15 +28,15 @@ other_data <- phospho1[,vars]
 ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
 ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
 
-# expression <- phospho1[,grep("Ratio.H.L.normalized(.*)_[12]___", colnames(phospho1))]
+expression <- phospho1[,grep("Ratio.H.L.normalized(.*)_[12]___", colnames(phospho1))]
 
-expression <- phospho1[,grep("Ratio.H.L.normalized(.*)[AB]___", colnames(phospho1))]
+# expression <- phospho1[,grep("Ratio.H.L.normalized(.*)[AB]___", colnames(phospho1))]
 
 # gsub('^([a-z]{3})([a-z]+)$', '\\1d\\2', old)
 
 # gsub('^([a-z]{3})([a-z]+)$', '\\1_\\2', names(expression))
 
-names(expression) <- sub( '(?<=.{22})', '_', names(expression), perl=TRUE )
+# names(expression) <- sub( '(?<=.{22})', '_', names(expression), perl=TRUE )
 
 # Replace the column names
 names(expression) <- sub(names(expression), pattern ="_", replacement = "Rep")
@@ -338,7 +338,7 @@ venn.plot <- draw.triple.venn(
 # Data Analysis. Histograms, Dendograms/Clustering/Heatmaps, PCA, DE, QQplots
 
 ##log2 the expression values (updated in main table)
-# multExpanded[newnames] <- log2(multExpanded[,newnames])##log2 transform
+multExpanded[newnames] <- log2(multExpanded[,newnames])##log2 transform
 
 ##a quick summary
 # summary(multExpanded[,newnames])
