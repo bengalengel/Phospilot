@@ -1,5 +1,5 @@
 # Merge the two files for clustering
-
+library(plyr)
 
 data1 <- read.csv("data1.csv")
 data2 <- read.csv("data2.csv")
@@ -16,16 +16,107 @@ combined <- merge(data1,data2, all=T)
 drops <- c("SequenceWindow","Multiplicity")
 combined <- combined[,!(names(combined) %in% drops)]
 
+#boxplots 
+boxplot(combined)
+
 #median normalize 
 median.subtract <- function(x){ x - median(x, na.rm = TRUE)}##create a wrapper for median subtraction
-combined <- colwise(median.subtract)(combined) #create median subtracted data but loose the row names here...
+combined1 <- colwise(median.subtract)(combined) #create median subtracted data but loose the row names here...
+
+# boxplots after median normalization
+boxplot(combined1)
 
 #remove all uncommon
-combinedCommon <- na.omit(combined)
+combinedCommon <- na.omit(combined1)
+
+#boxplots again
+boxplot(combinedCommon)
+
+# PCA based examination of batch effects using swamp package
+library(swamp)
+
+data <- as.matrix(combinedCommon)
+
+##### sample annotations (data.frame)
+set.seed(50)
+o<-data.frame(Factor1=factor(c(rep("A",6),rep("B",6))),
+              Numeric1=rnorm(12),row.names=colnames(data))
+
+# PCA analysis
+res1<-prince(data,o,top=10,permute=T)
+str(res1)
+res1$linp#plot p values
+res1$linpperm#plot p values for permuted data
+prince.plot(prince=res1)
+
+# to plot p values of linear models: lm(principal components ~ sapmle annotations).
+# to see if the variation in the data is associated with sample annotations.
+res2<-prince.var.plot(data,show.top=12,npermute=10)
+
+# to see how many principal components carry informative variation
+## hierarchical clustering analysis
+hca.plot(data,o)
+
+# to show a dendrogram with sample annotations below
+res3<-hca.test(data,o,dendcut=2,test="fisher")
+
+# to test if the major clusters show differences in sample annotations
+## feature associations
+res4a<-feature.assoc(data,o$Factor1,method="correlation")
+
+# to calculate correlation between one sample annotation and each feature
+res4b<-feature.assoc(data,o$Factor1,method="t.test",g1=res4a$permuted.data)
+res4c<-feature.assoc(data,o$Factor1,method="AUC",g1=res4a$permuted.data)
+
+dense.plot(res4a)
+# to plot the distribution of correlations in the observed data
+
+# in comparison to permuted data
+dense.plot(res4b)
+dense.plot(res4c)
+
+res5<-corrected.p(res4a)
+# to correct for multiple testing and find out how many features are
+# significantly associated to the sample annotation
+names(which(res5$padjust<0.05))
+names(which(res5$adjust.permute<0.05))
+names(which(res5$adjust.rank<0.05))
+
+## associations between sample annotations
+res4<-confounding(o,method="fisher")
+# to see how biological and technical annotations are inter-related
+
+## adjustment for batch effects
+gadj1<-quickadjust.zero(data,o$Factor1)
+# to adjust for batches (o$Factor1)
+# using median centering of the features for each batch
+prince.plot(prince(gadj1,o,top=10))
+
+gadj2<-quickadjust.ref(data,o$Factor1,"B")
+# to adjust for batches (o$Factor)
+# by adjusting the median of the features to the median of a reference batch.
+prince.plot(prince(gadj2$adjusted.data,o,top=10))
+
+
+gadj3<-kill.pc(data,pc=1)
+# to remove one or more principal components (here pc1) from the data
+prince.plot(prince(gadj3,o,top=10))
+
+
+
+
+mypar(2,1)
+boxplot(gadj3)
+boxplot(combinedCommon)
+mypar(1,1)
+
+
+
 
 
 # here we go!
 dataZ <- scale(combinedCommon)##Z-scored column wise
+dataZ <- scale(gadj3)##Z-scored column wise
 
 # now all data excepting complete cases (note that the sample dendograms look the same)
 # hist(dataZ[,6], breaks = 100)
@@ -116,13 +207,15 @@ dev.off()
 
 # Rafa PCA plots!
 x <- t(combinedCommon)#samples are the rows of the column matrix
+x <- t(gadj3)#samples are the rows of the column matrix
+
 pc <- prcomp(x)#scale = T, center = T) as of now I am not scaling
 
 names(pc)
 
 cols <- as.factor(substr(colnames(combinedCommon), 3, 7))##check me out. use 5 digit exp name.
 plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "PCA", xlab = "PC1", ylab = "PC2")
-legend("bottomright", levels(cols), col = seq(along=levels(cols)), pch = 1)
+legend("bottomright", levels(cols), col = seq(along=levels(cols)), pch = 1, lwd = 2)
 
 
 summary(pc)
