@@ -1,9 +1,16 @@
+rm(list=ls(all=TRUE)) #start with empty workspace
+
+
 # First perform all processing steps using plyr and related tools.
 # load required libraries
 library(reshape2)
 library(stringr)
 library(plyr)
+source("loadMQ.R")
 
+# load phospho and protein files with particular variables populated using "loadMQ"
+phospho <- load.MQ(directory = "./MQ output/10_9_output/", type = "phospho")
+protein <- load.MQ(directory = "./MQ output/7_29_output/", type = "protein")
 
 # Read in phospho table. Note the quote option is key.
 phospho <- read.table("./MQ output/10_9_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
@@ -298,6 +305,98 @@ prince.plot(prince(bfdata,o,top=10))
 
 
 boxplot(bfdata)#looks a bit better now
+
+
+##################################################### LIMMA for DE #####################################################
+#Biological replication is needed for a valid comparison 
+
+library(limma)
+
+
+install.packages("statmod")
+library(statmod)
+
+# Calculate the correlation between technical replicates?...
+# biolrep <- c(1, 1, 2, 2, 3, 3) 
+# corfit <- duplicateCorrelation(datanorm, ndups = 1, block = biolrep)
+
+
+# Produce dataframe from sample means ignoring missing data
+
+HL18486_1 <- rowMeans(datanorm[,1:2], na.rm = T)
+HL18486_2 <- rowMeans(datanorm[,3:4], na.rm = T)
+HL18862_1 <- rowMeans(datanorm[,5:6], na.rm = T)
+HL18862_2 <- rowMeans(datanorm[,7:8], na.rm = T)
+HL19160_1 <- rowMeans(datanorm[,9:10], na.rm = T)
+HL19160_2 <- rowMeans(datanorm[,11:12], na.rm = T)
+
+
+# HL18486_1 <- rowMeans(bfdata[,1:2], na.rm = T)
+# HL18486_2 <- rowMeans(bfdata[,3:4], na.rm = T)
+# HL18862_1 <- rowMeans(bfdata[,5:6], na.rm = T)
+# HL18862_2 <- rowMeans(bfdata[,7:8], na.rm = T)
+# HL19160_1 <- rowMeans(bfdata[,9:10], na.rm = T)
+# HL19160_2 <- rowMeans(bfdata[,11:12], na.rm = T)
+
+
+
+
+# Better 
+# 
+# HL18486 <- rowMeans(datanorm[,1:4], na.rm = T)
+# HL18862 <- rowMeans(datanorm[,5:8], na.rm = T)
+# HL19160 <- rowMeans(datanorm[,9:12], na.rm = T)
+
+
+pilot <- cbind(HL18486_1, HL18486_2, HL18862_1, HL18862_2, HL19160_1, HL19160_2)
+
+boxplot(pilot)
+
+# pilot <- cbind(HL18486, HL18862, HL19160)
+
+pilot2 <- na.omit(pilot)
+#note the strange outlier 
+
+boxplot(pilot2)
+
+#Produce the design matrix
+
+fac <- factor(c(1,1,2,2,3,3))##codes the grouping for the ttests
+design <- model.matrix(~0 + fac)
+dnames <- levels(as.factor(substr(colnames(pilot2), 1, 7))) ##check me out. use 5 digit exp name.
+colnames(design) <- dnames
+
+#limma fit using all common for now
+fit <- lmFit(pilot2, design)
+
+#Now to make all pairwise comparisons (from Smyth pg 14)
+# contrast.matrix <- makeContrasts(HL16778-HL16770, HL16788-HL16778, HL16788-HL16770, levels = design) 
+
+contrast.matrix <- makeContrasts(HL18862-HL18486, HL19160-HL18862, HL19160-HL18486, levels = design)
+
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+
+
+
+#Look at pairwise DE using toptable and the coef parameter to id which genes you are interested in 
+topTable(fit2, coef = 1, adjust = "fdr")
+
+results <- decideTests(fit2)
+
+vennDiagram(results)
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
