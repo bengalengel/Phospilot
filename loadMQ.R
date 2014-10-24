@@ -23,7 +23,7 @@ load.MQ <- function(type, directory) {
     vars <- c("id","Amino.acid","Charge","Reverse","Potential.contaminant","Proteins","Positions.within.proteins","Leading.proteins",
               "Sequence.window","Phospho..STY..Probabilities","Localization.prob","PEP", "Score", "Delta.score", "Score.for.localization", 
               "Mass.error..ppm.", "Intensity", "Intensity.L", "Intensity.H", "Position", "Number.of.Phospho..STY.", 
-              "Protein.group.IDs", "Protein")
+              "Protein.group.IDs", "Protein", "Ratio.H.L")
     
     other_data <- data[,vars]
     
@@ -45,13 +45,13 @@ load.MQ <- function(type, directory) {
     #select the columns of interest 
     vars <- c("id", "Protein.IDs", "Majority.protein.IDs",  "Protein.names", "Gene.names", "Number.of.proteins", "Peptides", 
               "Razor...unique.peptides", "Unique.peptides", "Sequence.coverage....", "Mol..weight..kDa.", "Sequence.length", "PEP", 
-              "Peptide.IDs", "Mod..peptide.IDs", "Phospho..STY..site.IDs")
+              "Peptide.IDs", "Mod..peptide.IDs", "Phospho..STY..site.IDs", "Only.identified.by.site", "Potential.contaminant", "Reverse")
     
     other_data <- data[,vars]
     
     ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
     ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
-    expression <- data[,grep("Ratio.H.L.normalized(.*)_[12]___", colnames(data))]
+    expression <- data[,grep("Ratio.H.L.normalized(.*)_[12]_", colnames(data))]
     
     ##combine the two
     data <- cbind(expression,other_data)

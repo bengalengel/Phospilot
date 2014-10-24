@@ -7,131 +7,34 @@ library(reshape2)
 library(stringr)
 library(plyr)
 source("loadMQ.R")
+source("ExpandPhos.R")
+source("counts.R")
 
 # load phospho and protein files with particular variables populated using "loadMQ"
-phospho <- load.MQ(directory = "./MQ output/10_9_output/", type = "phospho")
-protein <- load.MQ(directory = "./MQ output/7_29_output/", type = "protein")
+phospho <- load.MQ(directory = "C:/Users/Brett/Documents/Pilot/10_9_14/txt/", type = "phospho")
+protein <- load.MQ(directory = "C:/Users/Brett/Documents/Pilot/10_9_14/txt/", type = "protein")
 
-# Read in phospho table. Note the quote option is key.
-phospho <- read.table("./MQ output/10_9_output/Phospho (STY)Sites.txt", sep = "\t", header=T, fill = T, quote = "")
-
-# subset those hits that are not contaminants and not reverse hits.
 
 phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]## here I am specifying the rows using column variables and logical operators while not specifying any particular columns
 # I can come back here to get phospho ID information if needed
 
+#expand for observation (multiplicity based analysis)
+multExpanded <- ExpandPhos(phospho)
+
 
 # subset to class 1
-phospho1 <- phospho[(phospho$Localization.prob >= .75),]##Why just one localization probability?...
+phospho1 <- phospho[(phospho$Localization.prob >= .75),]
+
+# Class 1 sites with each source of quantification for that site (singly/doubly/3+) explicitly accounted for 
+multExpanded1 <- ExpandPhos(phospho1)
 
 
-vars <- c("id","Amino.acid","Charge","Reverse","Potential.contaminant","Proteins","Positions.within.proteins","Leading.proteins",
-          "Sequence.window","Phospho..STY..Probabilities","Localization.prob","PEP", "Score", "Delta.score", "Score.for.localization", 
-          "Mass.error..ppm.", "Intensity", "Intensity.L", "Intensity.H", "Position", "Number.of.Phospho..STY.", 
-          "Protein.group.IDs", "Protein")
-
-other_data <- phospho1[,vars]
-##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
-##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
-
-expression <- phospho1[,grep("Ratio.H.L.normalized(.*)_[12]___", colnames(phospho1))]
-
-##combine the two
-phospho2 <- cbind(expression,other_data)
-
-##now to ensure each multiplicity has its own row and variables are condensed. I am converting from wide to long format to ensure that each
-# observation is uniquely represented in the data
-
-melted <- melt(phospho2, measure.vars = names(expression))
-
-# Here I split (that is add a variable identifier) the melted 'variable' column so that the sample, replicate, and multiplicity are now explicit
-melted <- cbind(melted, colsplit(melted$variable, "_", c("sample", "bio_tech_mult"))) ##first split
-melted <- cbind(melted, colsplit(melted$bio_tech_mult, "_", c("bio", "tech_mult"))) ##second split
-melted <- cbind(melted, colsplit(melted$tech_mult, "___", c("tech","multiplicity"))) ##third split
-melted$sample <- gsub(melted$sample, pattern = "Ratio.H.L.normalized.", replacement = "") ##remove redundant information next 3 lines
-drop <- c("bio_tech_mult","tech_mult")
-melted <- melted[,!(names(melted) %in% drop)]
-
-##cast data so that each unique 'sample/replicate' combination has its own column populated by the measurement 'currently the value column'.
-
-# testnew <- dcast(test, ... ~ variable)##will recast the entire data frame
-# testnew1 <- dcast(test, ... ~ sample, value.var="value") ##casts by sample
-
-casted <- dcast(melted, ... ~ sample + bio + tech, value.var="value") ##close but creates extra rows
-
-
-##produce the multiplicity explicit table **********************************
-
-##gives index of experiment and replicate
-data <- grep("_", colnames(casted))
-
-##gives string of experiment and replicate
-data2 <- colnames(casted)[grep("_", colnames(casted))]
-
-#produces a new string with proper alpha leading R variable names
-newnames <- paste0("HL",data2)
-
-# rename the experiment variables within the dataframe
-colnames(casted)[data] <- newnames
-
-## columnwise application of mean to condense the dataframe. PRODUCES CORRECT NUMBERS!
-out <- ddply(casted, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
-
-#merge with identifying information by id to produce the multiplicity expanded table (each obs has a row)
-multExpanded <- merge(other_data, out, by="id")
-
-## remove rows with only NAs in expression columns
-
-expCol <- grep("HL(.*)", colnames(multExpanded))
-
-multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes rows containing all 'NA's using the sums of the logical per row                        
-
-##############total sites and protein groups cut by samples and replicates #########################################################
-
-##number of unique sites
-sites <- nrow(phospho)
-
-##number of quantified sites
-quantsites <- sum(!is.na(phospho$Ratio.H.L))
-
-# number of proteins mapped from quant sites
-tmp <- phospho[!is.na(phospho$Ratio.H.L),]
-proteinquantsites <- nrow(table(tmp$Protein))
-
-
-##number of unique class 1 sites
-class1 <- nrow(phospho1)
-
-quantClass1 <- sum(!is.na(phospho1$Ratio.H.L))
-
-##number of unique protein groups associated with class 1 sites
-pgroups <- nrow(table(phospho1$Proteins))
-
-leadingp <- nrow(table(phospho1$Leading.proteins))##These are the proteins from each group with the most Ids (first on the list anyway)
-
-protein <- nrow(table(phospho1$Protein))##This is the leading razor protein (the one with the most ids amongst all the associated proteins)
+#make tables of basic counts of phosphopeptides 
+phoscount(phospho,phospho1,multExpanded,multExpanded1)
 
 
 
-##number of unique class 1 sites with quantification in at least one sample
-##note that the multiplicity references the phosphorylation state of the peptide (singly,doubly,triply) when this site was quantified.
-quantClass1 <- nrow(table(multExpanded$id))
 
-##protein groups for quantified class 1
-pgroupsClass1 <- nrow(table(multExpanded$Proteins))
-
-##number of leading proteins class 1
-leadProteinClass1 <- nrow(table(multExpanded$Leading.proteins))
-
-# number of leading razor proteins for class1
-proteinClass1 <- nrow(table(multExpanded$Protein))
-
-
-# output for table
-output <- data.frame(sites,quantsites, proteinquantsites, class1,quantClass1, protein, leadingp, pgroups)
-
-#write.table(t(colnames(out)),"fitsheader.csv",sep=',',col.names=F,row.names=F,append=T)
-write.table(output,"phosphostats_combined.csv",sep=',',col.names=T,row.names=F)
 
 
 # number of sites per class 1 replicate 
