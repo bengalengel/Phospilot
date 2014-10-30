@@ -126,6 +126,10 @@ multExpanded[newnames] <- log2(multExpanded[,newnames])##log2 transform
 # Filter so that there is at least one valid value in each sample
 data <- multExpanded[,newnames]
 
+data <- cbind(data,multExpanded$Intensity)
+names(data)[13] <- "Int"
+
+
 data <- log2(data)
 
 #replace row names with phospho id later
@@ -180,7 +184,64 @@ boxplot(datanorm)
 
 datanorm <- na.omit(datanorm)#now I have limited to observed in all cases.NOTE WAS NORMALIZED USING MORE DATA POINTS
 
-boxplot(datanorm)
+boxplot(datanorm, ylim= c(-4,4))#note the uneven distributions!
+
+# looking at some MA plots - there is no intensity bias!
+plot(data2$Int, data2$HL18486_1_2, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL18486_1_1, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL18486_1_2, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL18486_2_1, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL18486_2_2, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL18862_1_1, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL18862_1_2, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL18862_2_1, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL18862_2_2, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL19160_1_1, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL19160_1_2, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL19160_2_1, log="x", ylim=c(-6,6))
+> plot(data2$Int, data2$HL19160_2_2, log="x", ylim=c(-6,6))
+
+# so normalize quantiles on 'data2' median normalized data
+quantiled <- normalizeQuantiles(datanorm,ties = T)
+
+
+#remove pc1 due to confounding batch effect new test on quantiled
+
+library(swamp)
+
+quantiled <- na.omit(quantiled)
+quantiled <- as.matrix(quantiled)
+
+##### sample annotations (data.frame)
+set.seed(50)
+o<-data.frame(Factor1=factor(rep(c("A","A","B","B"),3)),
+              Numeric1=rnorm(12),row.names=colnames(quantiled))
+
+
+# PCA analysis
+res1<-prince(quantiled,o,top=10,permute=T)
+str(res1)
+res1$linp#plot p values
+res1$linpperm#plot p values for permuted data
+prince.plot(prince=res1)
+
+#remove confounding PC using svd (batch free data - bfdata)
+bfdata<-kill.pc(datanorm,pc=1)
+# to remove one or more principal components (here pc1) from the data
+prince.plot(prince(bfdata,o,top=10))
+
+
+boxplot(bfdata)#looks a bit better now
+
+
+
+
+
+
+
+
+
+
 
 #remove pc1 due to confounding batch effect
 

@@ -75,12 +75,15 @@ mypar(1,2)
 hist(tt$p[!chr%in%c("chrX","chrY")],nc=20,xlab="p-value",ylim=HLIM,main="")
 hist(tt$p[chr%in%c("chrY")],nc=20,xlab="p-value",ylim=c(0,9),main="")
 
-Combat
-
-Here we show how to implement Combat. 
+# Combat
+# 
+# Here we show how to implement Combat. 
 
 
 mod<-model.matrix(~X)
+
+# mod<-model.matrix(~0+X) doesn't work
+
 cleandat <- ComBat(dat,Z,mod)
 
 tt<-genefilter::rowttests(cleandat,factor(X))
