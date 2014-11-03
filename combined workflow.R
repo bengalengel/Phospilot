@@ -9,108 +9,45 @@ library(plyr)
 source("loadMQ.R")
 source("ExpandPhos.R")
 source("counts.R")
+source("breakdown.R")
 
 # load phospho and protein files with particular variables populated using "loadMQ"
 phospho <- load.MQ(directory = "C:/Users/Brett/Documents/Pilot/10_9_14/txt/", type = "phospho")
 protein <- load.MQ(directory = "C:/Users/Brett/Documents/Pilot/10_9_14/txt/", type = "protein")
 
 
-phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]## here I am specifying the rows using column variables and logical operators while not specifying any particular columns
-# I can come back here to get phospho ID information if needed
+# load phospho and protein files with particular variables populated using "loadMQ" at home
+phospho <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
+protein <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "protein")
 
-#expand for observation (multiplicity based analysis)
+
+# remove contaminants and reverse database hits
+phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]
+protein <- protein[(protein$Potential.contaminant != "+" & protein$Reverse != "+"),]
+
+#expand for observation (multiplicity based analysis). All observations quantified in >=1 experiment.
 multExpanded <- ExpandPhos(phospho)
 
-
-# subset to class 1
+# subset phospho to class 1
 phospho1 <- phospho[(phospho$Localization.prob >= .75),]
+
+# "only identified by site" hits CAN BE removed because they tend to have lower PEPs (wouldn't pass the FDR TH anyway) and can't be quantified since they are not idd by non-modified peptides. 
+# Note there are some high probability proteins here given some proteins are idd by 20+ phosphopeptides.
+# eg is A6NKT7 (PEP = 2.23E-70)
+protein1 <- protein[(protein$Only.identified.by.site != "+"),]
 
 # Class 1 sites with each source of quantification for that site (singly/doubly/3+) explicitly accounted for 
 multExpanded1 <- ExpandPhos(phospho1)
 
-
-#make tables of basic counts of phosphopeptides 
+#make tables of basic counts of proteins and phosphopeptides (may have to update when performing the normalization)
 phoscount(phospho,phospho1,multExpanded,multExpanded1)
+proteincount(protein)
 
+# make breakdown charts of phospho and protein overlap. This function produces barplots of number of sites/obs and proteins per experiment and
+# cumulative over experiments. It also has extensive phospo info, including number of phospho per protein, multiplicity breakdown, and venns
+breakdown(protein, phospho, multExpanded, cls=F)
+breakdown(protein, phospho1, multExpanded1)
 
-
-
-
-
-# number of sites per class 1 replicate 
-uniqueQuantEvents <- colSums(!is.na(multExpanded[expCol]))
-barplot(uniqueQuantEvents, las=1, cex.names = .80, ylab = "class 1 phosphosites", main = "class 1 phospho per sample")##number of quant events
-
-# number of unique ids per experiment (CERTAINLY A MUCH BETTER WAY TO DO THIS!)
-
-nmeasure <- function(x) sum(!(is.na(x)))#function to count valid values
-
-#nmeasure(multExpanded$HL16770_1)##works
-#nmeasure(multExpanded[,expCol]) ##sums over all the columns! must use colwise (plyr) see below
-
-#t <- colwise(nmeasure,newnames)(multExpanded)#same as unique events above
-
-idBreakdown <- ddply(multExpanded,.(id), colwise(nmeasure,newnames))##breaks down by id number of mults observed per sample
-
-#now I just need the subset of each vector which is greater than 0
-totalgt0 <- function(x) sum(x > 0, na.rm = TRUE)#function that counts total greater than 0
-
-uniqueids <- colwise(totalgt0,newnames)(idBreakdown)##total number of unique ids
-
-barplot(as.matrix(uniqueids),las=1, cex.names = .80, ylab = "unque class 1 phosphosites", main = "Unique class 1 phospho per sample")##note needs a matrix as input and other variables used
-
-
-# barplot of number of overlapping experimental observations (not sites) common to 6,5,4,3,2,1 etc replicate
-ExpOverlap <- table(rowSums(!is.na(multExpanded[,expCol])))##removes rows containing all 'NA's using the sums of the logical per row                        
-ExpOverlap <- rev(ExpOverlap)
-barplot(ExpOverlap, las = 1)
-
-# barplot of number of overlapping sites common to replicates
-idOverlap <- table(rowSums(idBreakdown[,newnames] > 0))
-idOverlap <- rev(idOverlap)
-barplot(idOverlap, las = 1)
-
-##barplot with summary line overlay
-
-#vector of percentages
-percentExp <- ExpOverlap/sum(ExpOverlap)
-percentId <- idOverlap/sum(idOverlap)
-
-#vector of cumulative percentages
-cumulative <- function(x) {
-  s <- as.numeric(vector(length = nrow(x)))
-  s[1] <- x[1]
-  for (i in seq_along(x)) {
-    if(i>1){
-      s[i] <- s[i-1] + x[i]
-    }
-  }
-  return(s*100)
-}
-
-percentTotalExp <- cumulative(percentExp)##as percentage
-percentTotalId <- cumulative(percentId)##as percentage
-
-
-##Overlaid graphic of sample overlap and cumulative percentage using base graphics. Must be aligned later
-BarCumOverlay <- function(overlap,cumPercent){
-  bp <- barplot(overlap)
-  bp <- barplot(overlap,las=1, cex.axis = 1, cex.names = 1, cex.lab = 1, ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,max(overlap)+500), ylab = "# of overlapping phosphosites", xlab = "overlap between N samples")##note needs a matrix as input and other variables used
-  par(new=TRUE)
-  par(mar=c(5,4,4,4))
-  plot(bp,cumPercent,axes="FALSE", ann=FALSE, xlim = c(0,max(bp)+1), ylim = c(0,100), col = "red", type = "b", pch=19)##note the same coordinate ranges 'xlim' so that the points are in the center of the barchart; type b is points connected by lines.
-  mtext("% of total phosphosites",side=4,line=2, cex.axis = 1)
-  axis(4,at=seq(0,100,10), las=1, cex.axis = 1)
-  box()
-}
-BarCumOverlay(ExpOverlap,percentTotalExp)
-BarCumOverlay(idOverlap,percentTotalId)
-
-
-##number of modifications per protein. Here I can use the leading razor protein associated with each site or I can use the protein groups file.
-#Must go from the sites file so that each site is used only once as opposed to each group used only once with the same site assigned multiple times
-
-hist(table(phospho1$Protein), breaks = max(table(phospho1$Protein)), xlim = c(0,20), xlab = "Number of phosphosites", ylab = "Number of Proteins", main = "number of C1 sites per protein")
 
 
 

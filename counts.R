@@ -154,7 +154,42 @@ phoscount <- function(phospho,phospho1,multExpanded,multExpanded1){
   #overlap summary stats for the  
   output <- data.frame(quantified, quantifiedsample, quantifiedbio, quantifiedall)
   write.table(output, "c1phosquantoverlap_obs.csv", sep = ",", col.names = T, row.names = F)
-  
-  
-  
 }
+
+
+proteincount <- function(protein){
+#This function counts the proteins across samples.  
+
+  ## remove rows with only NAs in expression columns
+  
+  expCol <- grep("Ratio.H.L.(.*)", colnames(protein))
+  
+  data <- protein[,expCol]
+  
+  proteinsIDd <- nrow(data)#number of idd protesins
+  
+  data <- data[rowSums(is.na(data[,expCol]))!=length(expCol),]#number of quantified proteins
+  
+  # remove exp obs if not observed in each sample 
+  data2 <- data[rowSums(is.na(data[ , 1:4])) < 4 & rowSums(is.na(data[ , 5:8])) < 4 & rowSums(is.na(data[ , 9:12])) < 4,]    
+  
+  # remove exp obs if not observed in each bio replicate (not sure how to automate this for larger datasets)
+  data3 <- data[rowSums(is.na(data[ , 1:2])) < 2 & rowSums(is.na(data[ , 3:4])) < 2 & rowSums(is.na(data[ , 5:6])) < 2 & 
+                  rowSums(is.na(data[ , 7:8])) < 2 & rowSums(is.na(data[ , 9:10])) < 2 & rowSums(is.na(data[ , 11:12])) < 2,]                    
+  
+  # remove exp obs if not observed in every experiment
+  data4 <- na.omit(data)
+  
+  quantified <- nrow(data)
+  quantifiedsample <- nrow(data2)
+  quantifiedbio <- nrow(data3)
+  quantifiedall <- nrow(data4)
+  #overlap summary stats for the  
+  output <- data.frame(proteinsIDd, quantified, quantifiedsample, quantifiedbio, quantifiedall)
+  write.table(output, "proteinoverlap_obs.csv", sep = ",", col.names = T, row.names = F)
+}
+  
+
+
+
+
