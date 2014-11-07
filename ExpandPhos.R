@@ -29,10 +29,10 @@ ExpandPhos <- function(phospho){
   ##produce the multiplicity explicit table **********************************
   
   ##gives index of experiment and replicate
-  data <- grep("_", colnames(casted))
+  data <- grep("^[0-9]+_[12]_[12]", colnames(casted))
   
   ##gives string of experiment and replicate
-  data2 <- colnames(casted)[grep("_", colnames(casted))]
+  data2 <- colnames(casted)[grep("^[0-9]+_[12]_[12]", colnames(casted))]
   
   #produces a new string with proper alpha leading R variable names
   newnames <- paste0("HL",data2)

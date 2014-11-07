@@ -1,66 +1,372 @@
-# ComBAT TESTS with sparse matrix
+# Normalization and batch correction with ComBAT followed by normalization again
 require(limma)
 require(sva)
 require(plyr)
 require(swamp)
+
 #make the sparse matrix from real data (all quants of class 1 here) 
+expCol <- grep("HL(.*)", colnames(multExpanded1))
+data <- multExpanded1[,expCol]
 
-data <- multExpanded1[,newnames]
+# data <- cbind(data,multExpanded1$Intensity)
+# names(data)[13] <- "Int" #for individual MA plots assessing bias of ratios with intensity
 
-data <- cbind(data,multExpanded1$Intensity)
-names(data)[13] <- "Int" #for MA plots
+# add experiment intensities
+intCol <- grep("Intensity", colnames(multExpanded1))
+data <- cbind(data,multExpanded1[,intCol])
 
-
+# add row names with site id and multiplicity designation 
+# row.names(data) <- multExpanded$id#note this won't work because of the multiplicity issue
+idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
+row.names(data) <- idmult
 data <- log2(data)
 
-#only peptides found in all samples
-#normalize by col median using columnwise (when to normalize??)
+# Within Individual experiment 'MA' plots with color change. M is log2(H/L) and A is the log2(total intensity from both heavy and light peptides ACROSS ALL EXPERIMENTS (Intensity) and for the individual experiment)
+plot(data$Intensity, data$HL18486_1_1, ylim=c(-6,6))
+plot(data$Intensity.18486_1_1, data$HL18486_1_1, ylim=c(-6,6))
+plot(data$Intensity, data$HL18486_1_2, ylim=c(-6,6))
+plot(data$Intensity.18486_1_2, data$HL18486_1_2, ylim=c(-6,6))
+plot(data$Intensity, data$HL18486_2_1, ylim=c(-6,6))
+plot(data$Intensity.18486_2_1, data$HL18486_2_1, ylim=c(-6,6))
+plot(data$Intensity, data$HL18486_2_2, ylim=c(-6,6))
+plot(data$Intensity.18486_2_2, data$HL18486_2_2, ylim=c(-6,6))
+plot(data$Intensity, data$HL18862_1_1, ylim=c(-6,6))
+plot(data$Intensity.18862_1_1, data$HL18862_1_1, ylim=c(-6,6))
+plot(data$Intensity, data$HL18862_1_2, ylim=c(-6,6))
+plot(data$Intensity.18862_1_2, data$HL18862_1_2, ylim=c(-6,6))
+plot(data$Intensity, data$HL18862_2_1, ylim=c(-6,6))
+plot(data$Intensity.18862_2_1, data$HL18862_2_1, ylim=c(-6,6))
+plot(data$Intensity, data$HL18862_2_2, ylim=c(-6,6))
+plot(data$Intensity.18862_2_2, data$HL18862_2_2, ylim=c(-6,6))
+plot(data$Intensity, data$HL19160_1_1, ylim=c(-6,6))
+plot(data$Intensity.19160_1_1, data$HL19160_1_1, ylim=c(-6,6))
+plot(data$Intensity, data$HL19160_1_2, ylim=c(-6,6))
+plot(data$Intensity.19160_1_2, data$HL19160_1_2, ylim=c(-6,6))
+plot(data$Intensity, data$HL19160_2_1, ylim=c(-6,6))
+plot(data$Intensity.19160_2_1, data$HL19160_2_1, ylim=c(-6,6))
+plot(data$Intensity, data$HL19160_2_2, ylim=c(-6,6))
+plot(data$Intensity.19160_2_2, data$HL19160_2_2, ylim=c(-6,6))
 
+# Note here for the between array definition of MA plots for single channel data from the limma update notes section. For this reason I have also included 'A'
+
+# The definition of the M and A axes for an MA-plot of single channel
+# data is changed slightly.  Previously the A-axis was the average of
+# all arrays in the dataset - this has been definition since MA-plots
+# were introduced for single channel data in April 2003.  Now an
+# artificial array is formed by averaging all arrays other than the
+# one to be plotted.  Then a mean-difference plot is formed from the
+# specified array and the artificial array.  This change ensures the
+# specified and artificial arrays are computed from independent data,
+# and ensures the MA-plot will reduce to a correct mean-difference
+# plot when there are just two arrays in the dataset.
+
+
+
+#Between experiment MA plot. There should be no bias in terms of intensity at this scale if there was no bias within experiments with intensity. here are technical replicates of the same bio rep in the same batch
+HL184861 <- rowMeans(data[,1:2])
+A <- rowMeans(data[,1:12], na.rm=T)
+plot(HL184861, data$HL18486_1_1-data$HL18486_1_2)#besides the huge outlier there is no bias
+plot(HL184861, data$HL18486_1_1-data$HL18486_1_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+
+plot(A, data$HL18486_1_1-data$HL18486_1_2)#besides the huge outlier there is no bias
+plot(A, data$HL18486_1_1-data$HL18486_1_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+
+# here is the same biological replicate at different batches
+HL184861_2 <- rowMeans(data[,c(1,4)])
+plot(HL184861_2, data$HL18486_1_1-data$HL18486_2_2)
+plot(HL184861_2, data$HL18486_1_1-data$HL18486_2_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+# Note here that the blob has fattened, but there doesn't appear to be an intensity bias.
+
+
+plot(A, data$HL18486_1_1-data$HL18486_2_2)
+plot(A, data$HL18486_1_1-data$HL18486_2_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+
+# here are two different samples within the same batch
+change <- rowMeans(data[,c(1,5)])
+plot(change, data$HL18486_1_1-data$HL18862_1_2)
+plot(change, data$HL18486_1_1-data$HL18862_1_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+# The blob is actually smaller than the same sample in different batches
+
+plot(A, data$HL18486_1_1-data$HL18862_1_2)
+plot(A, data$HL18486_1_1-data$HL18862_1_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+
+
+# Below there seems to be some sort of curvalinear bias if you use the mean of the two ratios compared as opposed to the means
+# across all samples
+
+# Two different samples in separate batches. fattest yet.
+change <- rowMeans(data[,c(1,8)])
+plot(change, data$HL18486_1_1-data$HL18862_2_2)
+plot(change, data$HL18486_1_1-data$HL18862_2_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+# No not really but it is clear that there is no intensity bias
+
+plot(A, data$HL18486_1_1-data$HL18862_2_2)
+plot(A, data$HL18486_1_1-data$HL18862_2_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+
+# Removing the intensity columns for now
+data <- data[,1:12]
+
+# Density plot overlays by color show a difference in the distributions
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(data)-1)){
+  if(i==1) plot(density(data[, i], na.rm=T), col = i, ylim = c(0,.7))
+  else lines(density(data[, i], na.rm=T), col = i)
+}
+
+# This difference is due to batch
+summary(data)
+boxplot(data[,1:12])#extreme outlier in HL18486_1_2
+boxplot(data[,1:12], ylim=c(-4,4))
+
+
+# THE APPROACH NEEDS TO BE NORMALIZATION-BATCH EFFECT CORRECTION-RENORMALIZATION
+
+# First normalization rationale: Given that we expect the same distributions across replicates quantile normalization makes sense. It is unclear if this should be preceded by a median normalization because MQ purportedly performs median normalization on the entire quantified peptide list. From the MQ paper supplement:
+  
+#   To correct for mixing errors of total protein amount the SILAC ratios determined in the
+# previous section are normalized so that the median of logarithmized ratios is at zero. This
+# normalization is done in intensity bins, similarly as described in the section on the
+# calculation of protein ratios and significance. It is done separately for lysine and arginine
+# labeled peptides to compensate for any possible label-specific bias. This peptide ratio
+# normalization is done for each LC-MS run separately, allowing for different protein
+# mixing ratios in different runs.
+
+# Well if the samples are median normalized for every run the global median should still be zero since the median of combined median normalized vectors will be the same regardless of the length. However, according to Jurgen:
+  
+#   "The normalization is done on all peptides, meaning identified + unidentified, including these that do not even have an MS/MS spectrum. the evidence table contains only identified peptides. it means that there is a bias in this sample for identified peptides to have a smaller ratio."
+
+# So I am going to median normalize again to account for this 'ascertainment bias' in my experiments as well
+
+#***********************************************************************************************************************
+
+#median normalize
+names <- colnames(data)[1:12]
 median.subtract <- function(x){ x - median(x, na.rm = TRUE)}##create a wrapper for median subtraction
-data <- colwise(median.subtract, newnames)(data) #create median subtracted data but loose the row names here...
+data <- colwise(median.subtract, names)(data) #create median subtracted data but loose intensity and the row names here...
 
-# row.names(datanorm) <- row.names(data)##add back the row names
+row.names(data) <- idmult##add back the row names
+
+#summaries
+summary(data)
+boxplot(data[,1:12])#extreme outlier in HL18486_1_2
+boxplot(data[,1:12], ylim=c(-4,4))
+
+#remove outlier which is 3X greater than any other datapoint
+data[,2][which.max(data[,2])] <- NaN
+boxplot(data[,1:12])#extreme outlier in HL18486_1_2 removed
+
+# density plots
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(data))){
+  if(i==1) plot(density(data[, i], na.rm=T), col = i, ylim = c(0,.7))
+  else lines(density(data[, i], na.rm=T), col = i)
+}
+
+# quantile normalization. from normalize.quantiles {preprocessCore}  
+# "This functions will handle missing data (ie NA values), based on the assumption that the data is missing at random."
+
+quantiled <- normalizeQuantiles(data,ties = T)#ties are all assigned the same value for the common quantile
+summary(quantiled)
+boxplot(data)
+boxplot(quantiled)
+# density plots all look the same
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(quantiled))){
+  if(i==1) plot(density(quantiled[, i], na.rm=T), col = i, ylim = c(0,.55))
+  else lines(density(quantiled[, i], na.rm=T), col = i)
+}
+
+
+quantiled <- cbind(quantiled,log2(multExpanded1[,intCol]))
+multExpanded1[,intCol]
+# add back logged intensities to see if ther is any new intra-experiment intensity (global that is) dependent bias
+# quantiled <- cbind(quantiled,multExpanded1$Intensity)
+# names(quantiled)[13] <- "Int" #for individual MA plots assessing bias of ratios with intensity
+# quantiled$Int <- log2(quantiled$Int)
+
+# Within Individual experiment 'MA' plots with color change. M is log2(H/L) and A is the log2(total intensity from both heavy and light peptides ACROSS ALL EXPERIMENTS)  There is experiment specific intensity but I don't think multiplicity explicit intensities are reported in the phospho table. They would have to be calcuated from the raw intensities for each experiment and the unnormalized ratios for each multiplicity.
+
+plot(quantiled$Intensity, quantiled$HL18486_1_1, ylim=c(-6,6))
+plot(quantiled$Intensity.18486_1_1, quantiled$HL18486_1_1, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL18486_1_2, ylim=c(-6,6))
+plot(quantiled$Intensity.18486_1_2, quantiled$HL18486_1_2, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL18486_2_1, ylim=c(-6,6))
+plot(quantiled$Intensity.18486_2_1, quantiled$HL18486_2_1, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL18486_2_2, ylim=c(-6,6))
+plot(quantiled$Intensity.18486_2_2, quantiled$HL18486_2_2, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL18862_1_1, ylim=c(-6,6))
+plot(quantiled$Intensity.18862_1_1, quantiled$HL18862_1_1, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL18862_1_2, ylim=c(-6,6))
+plot(quantiled$Intensity.18862_1_2, quantiled$HL18862_1_2, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL18862_2_1, ylim=c(-6,6))
+plot(quantiled$Intensity.18862_2_1, quantiled$HL18862_2_1, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL18862_2_2, ylim=c(-6,6))
+plot(quantiled$Intensity.18862_2_2, quantiled$HL18862_2_2, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL19160_1_1, ylim=c(-6,6))
+plot(quantiled$Intensity.19160_1_1, quantiled$HL19160_1_1, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL19160_1_2, ylim=c(-6,6))
+plot(quantiled$Intensity.19160_1_2, quantiled$HL19160_1_2, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL19160_2_1, ylim=c(-6,6))
+plot(quantiled$Intensity.19160_2_1, quantiled$HL19160_2_1, ylim=c(-6,6))
+plot(quantiled$Intensity, quantiled$HL19160_2_2, ylim=c(-6,6))
+plot(quantiled$Intensity.19160_2_2, quantiled$HL19160_2_2, ylim=c(-6,6))
+
+
+
+
+# 
+# plot(quantiled$Intensity, quantiled$HL18486_1_1, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL18486_1_2, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL18486_2_1, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL18486_2_2, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL18862_1_1, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL18862_1_2, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL18862_2_1, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL18862_2_2, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL19160_1_1, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL19160_1_2, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL19160_2_1, ylim=c(-6,6))
+# plot(quantiled$Int, quantiled$HL19160_2_2, ylim=c(-6,6))
+
+
+# there is no intensity bias between samples (see below). blobs look pretty much the same with no curvilinearity.
+
+#Between experiment MA plot. There should be no bias in terms of intensity at this scale if there was no bias within experiments with intensity. here are technical replicates of the same bio rep in the same batch
+HL184861 <- rowMeans(quantiled[,1:2])
+# fit <- loess(quantiled$HL18486_1_1-quantiled$HL18486_1_2 ~ HL184861, na.rm=T)
+plot(HL184861, quantiled$HL18486_1_1-quantiled$HL18486_1_2)#besides the huge outlier there is no bias
+plot(HL184861, quantiled$HL18486_1_1-quantiled$HL18486_1_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+# lines(HL184861, fit$fitted, col = 2, lwd = 2)
+
+# here is the same biological replicate at different batches
+HL184861_2 <- rowMeans(quantiled[,c(1,4)])
+plot(HL184861_2, quantiled$HL18486_1_1-quantiled$HL18486_2_2)
+plot(HL184861_2, quantiled$HL18486_1_1-quantiled$HL18486_2_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+# Note here that the blob has fattened, but there doesn't appear to be an intensity bias.
+
+
+# here are two different samples within the same batch
+change <- rowMeans(quantiled[,c(1,5)])
+plot(change, quantiled$HL18486_1_1-quantiled$HL18862_1_2)
+plot(change, quantiled$HL18486_1_1-quantiled$HL18862_1_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+# The blob is actually smaller than the same sample in different batches
+
+
+# Two different samples in separate batches. fattest yet.
+change <- rowMeans(quantiled[,c(1,8)])
+plot(change, quantiled$HL18486_1_1-quantiled$HL18862_2_2)
+plot(change, quantiled$HL18486_1_1-quantiled$HL18862_2_2, ylim=c(-6,6), xlim=c(-8,8))#here can't see outlier
+# No not really but it is clear that there is no intensity bias
+
+# END OF NORMALIZATION
 
 
 # remove exp obs if not observed in each sample 
-data2 <- data[rowSums(is.na(data[ , 1:4])) < 4 & rowSums(is.na(data[ , 5:8])) < 4 & rowSums(is.na(data[ , 9:12])) < 4,]    
+quantiled2 <- quantiled[rowSums(is.na(quantiled[ , 1:4])) < 4 & rowSums(is.na(quantiled[ , 5:8])) < 4 & rowSums(is.na(quantiled[ , 9:12])) < 4,]    
 
 # remove exp obs if not observed in each batch
-data3 <- data[rowSums(is.na(data[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 6 
-              & rowSums(is.na(data[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 6,]    
+quantiled3 <- quantiled[rowSums(is.na(quantiled[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 6 
+              & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 6,]    
 
 # remove exp obs if not observed twice in each batch to ensure a variance measurement
-data4 <- data[rowSums(is.na(data[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 5 
-              & rowSums(is.na(data[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 5,] 
-
-
-boxplot(data2, ylim= c(-4,4))#note the uneven distributions!
-
-# quantile normalize using ties=T for now
-quantiled <- normalizeQuantiles(data2,ties = T)
-quantiled <- normalizeQuantiles(data3,ties = T)
-quantiled <- normalizeQuantiles(data4,ties = T)
+quantiled4 <- quantiled[rowSums(is.na(quantiled[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 5 
+              & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 5,] 
+quantiled5 <- na.omit(quantiled)##common across all
 
 
 
-boxplot(quantiled, ylim=c(-4,4))# well thats nice looking...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # remove exp obs if not observed in each sample 
+# data2 <- data[rowSums(is.na(data[ , 1:4])) < 4 & rowSums(is.na(data[ , 5:8])) < 4 & rowSums(is.na(data[ , 9:12])) < 4,]    
+# 
+# # remove exp obs if not observed in each batch
+# data3 <- data[rowSums(is.na(data[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 6 
+#               & rowSums(is.na(data[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 6,]    
+# 
+# # remove exp obs if not observed twice in each batch to ensure a variance measurement
+# data4 <- data[rowSums(is.na(data[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 5 
+#               & rowSums(is.na(data[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 5,] 
+
+
+# boxplots 
+mypar(1,1)
+boxplot(quantiled[,1:12])
+boxplot(quantiled2[,1:12])
+boxplot(quantiled3[,1:12])
+boxplot(quantiled4[,1:12])
+boxplot(quantiled5[,1:12])
+# boxplot(data2, ylim= c(-4,4))#note the uneven distributions!
+
+# density plots
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(quantiled))){
+  if(i==1) plot(density(quantiled[, i], na.rm=T), col = i, ylim = c(0,.55))
+  else lines(density(quantiled[, i], na.rm=T), col = i)
+}
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(quantiled2))){
+  if(i==1) plot(density(quantiled2[, i], na.rm=T), col = i, ylim = c(0,.55))
+  else lines(density(quantiled2[, i], na.rm=T), col = i)
+}
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(quantiled3))){
+  if(i==1) plot(density(quantiled3[, i], na.rm=T), col = i, ylim = c(0,.55))
+  else lines(density(quantiled3[, i], na.rm=T), col = i)
+}
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(quantiled4))){
+  if(i==1) plot(density(quantiled4[, i], na.rm=T), col = i, ylim = c(0,.55))
+  else lines(density(quantiled4[, i], na.rm=T), col = i)
+}
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(quantiled5))){
+  if(i==1) plot(density(quantiled5[, i], na.rm=T), col = i, ylim = c(0,.7))
+  else lines(density(quantiled5[, i], na.rm=T), col = i)
+}
+# # quantile normalize using ties=T for now
+# quantiled <- normalizeQuantiles(data2,ties = T)
+# quantiled <- normalizeQuantiles(data3,ties = T)
+# quantiled <- normalizeQuantiles(data4,ties = T)
+
+
 
 
 #batch effect identification 
 
 
 library(swamp)
-quantiled <- na.omit(quantiled)
-quantiled <- as.matrix(quantiled)
-
+swamp <- as.matrix(quantiled5)
+swamp <- swamp[,1:12]
 ##### sample annotations (data.frame)
 set.seed(50)
 o1<-data.frame(Factor1=factor(rep(c("A","A","B","B"),3)),
-              Numeric1=rnorm(12),row.names=colnames(quantiled))
+              Numeric1=rnorm(12),row.names=colnames(swamp))
 
 
 # PCA analysis
-res1<-prince(quantiled,o1,top=10,permute=T)
+res1<-prince(swamp,o1,top=10,permute=T)
 str(res1)
 res1$linp#plot p values
 res1$linpperm#plot p values for permuted data
@@ -69,10 +375,13 @@ prince.plot(prince=res1)
 #There is a batch effect associated with the process date.
 # I must combat this
 
-##batch adjustment for Factor 3
-com1<-combat(quantiled,o1$Factor1,batchcolumn=1)
-##batch adjustment for Factor 3; with covariate
-com2<-combat(quantiled,o1$Factor1,batchcolumn=1) #WORKS AFTER ENSURING AT LEAST TWO IN A BATCH
+##batch adjustment using the fully denuded data
+com1<-combat(swamp,o1$Factor1,batchcolumn=1)
+
+##batch adjustment using quantiled4
+swamp <- as.matrix(quantiled4)
+swamp <- swamp[,1:12]
+com2<-combat(swamp,o1$Factor1,batchcolumn=1) #WORKS AFTER ENSURING AT LEAST TWO IN A BATCH. How to interpret plots...
 
 # how did I do?
 prince.plot(prince(com1,o1,top=10)) 
