@@ -3,6 +3,7 @@ require(limma)
 require(sva)
 require(plyr)
 require(swamp)
+require(statmod)
 
 #make the sparse matrix from real data (all quants of class 1 here) 
 expCol <- grep("HL(.*)", colnames(multExpanded1))
@@ -19,6 +20,7 @@ data <- cbind(data,multExpanded1[,intCol])
 # row.names(data) <- multExpanded$id#note this won't work because of the multiplicity issue
 idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
 row.names(data) <- idmult
+multExpanded1 <- cbind(multExpanded1,idmult)
 data <- log2(data)
 
 # Within Individual experiment 'MA' plots with color change. M is log2(H/L) and A is the log2(total intensity from both heavy and light peptides ACROSS ALL EXPERIMENTS (Intensity) and for the individual experiment)
@@ -353,10 +355,9 @@ for (i in 1:(ncol(quantiled5))){
 
 
 
-#batch effect identification 
+#batch effect identification and adjustment using swamp/combat*************************
 
 
-library(swamp)
 swamp <- as.matrix(quantiled5)
 swamp <- swamp[,1:12]
 ##### sample annotations (data.frame)
@@ -368,8 +369,8 @@ o1<-data.frame(Factor1=factor(rep(c("A","A","B","B"),3)),
 # PCA analysis
 res1<-prince(swamp,o1,top=10,permute=T)
 str(res1)
-res1$linp#plot p values
-res1$linpperm#plot p values for permuted data
+a <- res1$linp#plot p values
+b <- res1$linpperm#plot p values for permuted data
 prince.plot(prince=res1)
 
 #There is a batch effect associated with the process date.
@@ -382,17 +383,48 @@ com1<-combat(swamp,o1$Factor1,batchcolumn=1)
 swamp <- as.matrix(quantiled4)
 swamp <- swamp[,1:12]
 com2<-combat(swamp,o1$Factor1,batchcolumn=1) #WORKS AFTER ENSURING AT LEAST TWO IN A BATCH. How to interpret plots...
+# Found 2 batches
+# Found 0 covariate(s)
+# Found 25032 Missing Data Values
+# Standardizing Data across genes
+# Fitting L/S model and finding priors
+# Finding parametric adjustments
+# Adjusting the Data
+
+##batch effect correction using sva combat and 'covariate' matrix
 
 # how did I do?
 prince.plot(prince(com1,o1,top=10)) 
 #I did well 
 
-# now for the real shabang
+# now for the full dataset n=8560
 cdata <- na.omit(com2)
-
 prince.plot(prince(cdata,o1,top=10)) #huzzah!
 
-# now with missing data removed perform the clustering************************************************************************
+# PCA analysis
+res1<-prince(cdata,o1,top=10,permute=T)
+#str(res1)
+c <- res1$linp#plot p values
+d <- res1$linpperm#plot p values for permuted data
+out <- rbind(a,b,c,d)
+write.table(out, "PC_ba_batch.csv", sep=',', col.names=T, row.names=F) #PCs before and after batch correction.
+
+
+##batch corrected EDA********************************************************************************
+boxplot(com2, cex.axis = 1, cex.names = .5, cex.lab = .5, las=2)#fix the margins later
+summary(com2)
+# density plots
+plot.new()
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(com2))){
+  if(i==1) plot(density(com2[, i], na.rm=T), col = i, ylim = c(0,.75))
+  else lines(density(com2[, i], na.rm=T), col = i)
+}
+# I am not going to normalize again after batch correction because I am not sure if it makes any sense.
+
+
+
+# now with missing data removed perform the clustering and heatmaps*******************************************
 dataZ <- scale(cdata)##Z-scored column wise
 
 # now all data excepting complete cases (note that the sample dendograms look the same)
@@ -408,7 +440,7 @@ complete.o<- order.dendrogram(dend.complete)
 plot(dend.complete,ylab="height", main = "Euclidian/Complete")
 plot(dend.ward, leaflab = "perpendicular", ylab = "height", main = "Euclidian/Ward")
 
-dev.off()##turns off plot
+plot.new()##produces a blank canvas
 
 # Cluster using euclidian distance and ward linkage for both sites(rows) and samples (columns)
 # Note that both dendograms are created independently and row Z scores are presented in the heatmap
@@ -446,27 +478,59 @@ heatmap.2(
 )
 
 
-dev.off()
+plot.new()
+
+#PCA analysis 
+# Rafa PCA plots!
+x <- t(cdata)#samples are the rows of the column matrix
+pc <- prcomp(x)#scale = T, center = T) as of now I am not scaling
+
+names(pc)
+
+cols <- as.factor(substr(colnames(cdata), 3, 7))##check me out. use 5 digit exp name.
+plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "PCA", xlab = "PC1", ylab = "PC2")
+legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1)
+
+
+summary(pc)
+
+#SVD for calculating variance explained; see Rafa's notes for an explaination
+cx <- sweep(x, 2, colMeans(x), "-")
+sv <- svd(cx)
+names(sv)
+plot(sv$u[, 1], sv$u[, 2], col = as.numeric(cols), main = "SVD", xlab = "U1", ylab = "U2")
+
+
+plot(sv$d^2/sum(sv$d^2), xlim = c(1, 12), type = "b", pch = 16, xlab = "principal components", 
+     ylab = "variance explained")
+
+
 
 # **********************************************************************************************
 
 # now for some DE
-dim(com2)
+# from a Jeff Leek post:
+#   Several recent questions have focused on removing batch effects from gene
+# expression or other high-throughput data as a cleaning step prior to
+# performing other analyses. An important point about batch effect correction
+# (whether with sva, combat, or any other currently published approach) is
+# that a regression analysis is performed and variation is removed from the
+# data. So subsequent analyses using a "cleaned" version of the data should
+# be performed with caution. In particular, methods use to infer networks or
+# to illustrate patterns (MDS/PCA) should be used with caution after
+# regressing out batch effects. All currently published batch effect removal
+# methods focus on adjusting batch effects for differential expression.
 
-#first on the common subset cdata
 ##################################################### LIMMA for DE #####################################################
 #Biological replication is needed for a valid comparison 
-
-library(limma)
-
-
-install.packages("statmod")
-library(statmod)
+# com2
 
 # Calculate the correlation between technical replicates?...
-# biolrep <- c(1, 1, 2, 2, 3, 3) 
-# corfit <- duplicateCorrelation(datanorm, ndups = 1, block = biolrep)
+# biolrep <- c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6)
+# corfit <- duplicateCorrelation(com2, ndups = 1, block = biolrep)
 
+#on the data with no NAs
+#corfit2 <- duplicateCorrelation(cdata, ndups = 1, block = biolrep)
 
 # Produce dataframe from sample means ignoring missing data
 
@@ -534,7 +598,10 @@ results <- decideTests(fit2)
 vennDiagram(results) #shazam but I need to remove outliers and the like
 
 
-# AND NOW FOR ALL THE DATA around 5K
+
+
+
+# AND NOW FOR ALL THE DATA around 5K*****************************************
 adata <- com2[rowSums(is.na(com2[ , 1:2])) < 2 & rowSums(is.na(com2[ , 3:4])) < 2 & rowSums(is.na(com2[ , 5:6])) < 2 
               & rowSums(is.na(com2[ , 7:8])) < 2 & rowSums(is.na(com2[ , 9:10])) < 2 & rowSums(is.na(com2[ , 11:12])) < 2,]                    
   
@@ -548,31 +615,12 @@ HL19160_1 <- rowMeans(adata[,9:10], na.rm = T)
 HL19160_2 <- rowMeans(adata[,11:12], na.rm = T)
 
 
-# HL18486_1 <- rowMeans(bfdata[,1:2], na.rm = T)
-# HL18486_2 <- rowMeans(bfdata[,3:4], na.rm = T)
-# HL18862_1 <- rowMeans(bfdata[,5:6], na.rm = T)
-# HL18862_2 <- rowMeans(bfdata[,7:8], na.rm = T)
-# HL19160_1 <- rowMeans(bfdata[,9:10], na.rm = T)
-# HL19160_2 <- rowMeans(bfdata[,11:12], na.rm = T)
-
-
-
-
-# Better 
-# 
-# HL18486 <- rowMeans(datanorm[,1:4], na.rm = T)
-# HL18862 <- rowMeans(datanorm[,5:8], na.rm = T)
-# HL19160 <- rowMeans(datanorm[,9:12], na.rm = T)
-
-
 pilot <- cbind(HL18486_1, HL18486_2, HL18862_1, HL18862_2, HL19160_1, HL19160_2)
 
 boxplot(pilot)
 
-# pilot <- cbind(HL18486, HL18862, HL19160)
-
-pilot2 <- na.omit(pilot)
-#note the strange outlier 
+#here pilot and pilot2 are the same
+pilot2 <- na.omit(pilot) #4,996 class 1 measurements with at least one quant in each biological replicate
 
 boxplot(pilot2)
 
@@ -583,65 +631,124 @@ design <- model.matrix(~0 + fac)
 dnames <- levels(as.factor(substr(colnames(pilot2), 1, 7))) ##check me out. use 5 digit exp name.
 colnames(design) <- dnames
 
-#limma fit using all common for now
-fit <- lmFit(pilot, design)
+#limma fit using all common for now.
+# The philosophy of the approach is as follows. You have to start by fitting a linear model to
+# your data which fully models the systematic part of your data. The model is specified by the design
+# matrix. Each row of the design matrix corresponds to an array in your experiment and each column
+# corresponds to a coefficient that is used to describe the RNA sources in your experiment.
+# The main purpose of this step is to estimate the variability in the data, hence the systematic part needs to be modelled so it can be distinguished from random variation.
 
-#Now to make all pairwise comparisons (from Smyth pg 14)
-# contrast.matrix <- makeContrasts(HL16778-HL16770, HL16788-HL16778, HL16788-HL16770, levels = design) 
+#Perhaps I can add replication correlation information. As of now sparseness throws an error. Example below:
 
+# 17.3.6 Within-patient correlations
+# The study involves multiple cell types from the same patient. Arrays from the same donor are not
+# independent, so we need to estimate the within-dinor correlation:
+#   > ct <- factor(targets$CellType)
+# > design <- model.matrix(~0+ct)
+# > colnames(design) <- levels(ct)
+# > dupcor <- duplicateCorrelation(y,design,block=targets$Donor)
+# > dupcor$consensus.correlation
+# [1] 0.134
+# As expected, the within-donor correlation is small but positive.
+
+fit <- lmFit(pilot2, design)
+
+# In practice the requirement to have exactly as many coefficients as RNA sources is too restrictive
+# in terms of questions you might want to answer. You might be interested in more or fewer comparisons
+# between the RNA source. Hence the contrasts step is provided so that you can take the initial
+# coefficients and compare them in as many ways as you want to answer any questions you might have,
+# regardless of how many or how few these might be.
+
+#Now to make all pairwise comparisons (group2-1, group3-2, group3-1)
 contrast.matrix <- makeContrasts(HL18862-HL18486, HL19160-HL18862, HL19160-HL18486, levels = design)
-
 fit2 <- contrasts.fit(fit, contrast.matrix)
+
+# For statistical analysis and assessing differential expression, limma uses an empirical Bayes method
+# to mo derate the standard errors of the estimated log-fold changes. This results in more stable
+# inference and improved p ower, esp ecially for exp eriments with small numb ers of arrays
 fit2 <- eBayes(fit2)
 
 
 
 #Look at pairwise DE using toptable and the coef parameter to id which genes you are interested in 
-topTable(fit2, coef = 1, adjust = "fdr")
+sig1 <- topTable(fit2, coef = 1, adjust = "BH", n=Inf, sort="p", p=.05)#sorts by adjusted p up to the threshold of .05, which is the default FDR chosen for differential expression ("results" function). This actually seems a conservative way to sort.
+sig2 <- topTable(fit2, coef = 2, adjust = "BH", n=Inf, sort="p", p=.05)
+sig3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf, sort="p", p=.05)
 
-results <- decideTests(fit2)
+# sig1 - 18862-18486
+# sig2 - 19160-18862
+# sig3 - 19160-18486
 
-vennDiagram(results) #shazam but I need to remove outliers and the like
-
-
-
-
-
-
-
-
-
-
-
+c1up  <- sig1[sig1$logFC > 0,]
+c1down <- sig1[sig1$logFC < 0,]
+c2up <- sig2[sig2$logFC > 0,]
+c2down <- sig2[sig2$logFC < 0,]
+c3up <- sig3[sig3$logFC > 0,]
+c3down <- sig3[sig3$logFC < 0,]
 
 
+tt1 <- topTable(fit2, coef = 1, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
+tt2 <- topTable(fit2, coef = 2, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
+tt3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
 
-# Batch effect correction on full matrix using combat
-quantiled <- as.matrix(quantiled)
-
-require(sva)
-# first start with quantiled
-#make the batch covariate string matrix which identifes which sample belongs to which batch
-batch <- rep(c("first","first", "second","second"),3)
-
-# now make the model matrix of outcome of interest
-# mod <- model.matrix(~batch) NOPE
+hist(tt1$adj.P.Val, nc=40, xlab="adjusted P values", main = colnames(contrast.matrix)[1])
+hist(tt2$adj.P.Val, nc=40, xlab="adjusted P values", main = colnames(contrast.matrix)[2])
+hist(tt3$adj.P.Val, nc=40, xlab="adjusted P values", main = colnames(contrast.matrix)[3])
 
 
+results <- decideTests(fit2, adjust.method = "BH", method = "separate")#results is a 'TestResults' matrix
+#separate compares each sample individually and is the default approach
+summary(results)
 
-fac <- factor(c(rep("one",4),rep("two",4), rep("three",4)))##codes the grouping for the ttests
-fac <- as.character(fac)
+
+vennDiagram(results, cex=c(1.2,1,0.7)) #good DE across conditions
+vennDiagram(results, cex=c(1.2,1,0.7), include = "up") #good DE across conditions
+vennDiagram(results, cex=c(1.2,1,0.7), include = "down") #good DE across conditions
+vennDiagram(results, cex=c(1.2,1,0.7), include = c("up", "down")) #good DE across conditions
 
 
-fac <- factor(c(1,1,1,1,2,2,2,2,3,3,3,3))##codes the grouping for the ttests
-design <- model.matrix(~0 + fac)
-dnames <- levels(as.factor(substr(colnames(quantiled), 1, 7))) ##check me out. use 5 digit exp name.
-colnames(design) <- dnames
+table("18862-18486" =results[,1],"19160-18862"=results[,2])
 
-quantiled1 <- na.omit(quantiled)
 
-# prepare for combat
-test <- ComBat(quantiled1,batch,design)
+volcanoplot(fit2, coef=1, main = colnames(contrast.matrix)[1])
+abline(v=1)
+abline(v=-1)
+volcanoplot(fit2, coef=2, main = colnames(contrast.matrix)[2])
+abline(v=1)
+abline(v=-1)
+volcanoplot(fit2, coef=3, main = colnames(contrast.matrix)[3])
+abline(v=1)
+abline(v=-1)
+
+
+# GSEA of differentially expressed lists across contrasts
+
+#add annotation to multexpanded DF
+head(row.names(pilot2))
+
+#add DE to table
+multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(pilot2),"+","-")
+multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
+multExpanded1$DEcont2 = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
+multExpanded1$DEcont3 = ifelse(multExpanded1$idmult %in% row.names(sig3),"+","-")
+
+#add DE direction to table
+multExpanded1$cont1up = ifelse(multExpanded1$idmult %in% row.names(c1up),"+","-")
+multExpanded1$cont1down = ifelse(multExpanded1$idmult %in% row.names(c1down),"+","-")
+multExpanded1$cont2up = ifelse(multExpanded1$idmult %in% row.names(c2up),"+","-")
+multExpanded1$cont2down = ifelse(multExpanded1$idmult %in% row.names(c2down),"+","-")
+multExpanded1$cont3up = ifelse(multExpanded1$idmult %in% row.names(c3up),"+","-")
+multExpanded1$cont3down = ifelse(multExpanded1$idmult %in% row.names(c3down),"+","-")
+
+
+# write output table to perform enrichment analysis in perseus
+write.table(multExpanded1,"multExpanded1.csv",sep=',',col.names=T,row.names=F)
+
+
+
+
+
+
 
 
 

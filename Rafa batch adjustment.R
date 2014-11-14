@@ -12,6 +12,7 @@
 # biocLite()
 
 # installing packages from github!
+library(devtools)
 install_github('rafalib','ririzarr')
 install_github('dagdata','genomicsclass')
 
@@ -84,7 +85,7 @@ mod<-model.matrix(~X)
 
 # mod<-model.matrix(~0+X) doesn't work
 
-cleandat <- ComBat(dat,Z,mod)
+cleandat <- ComBat(dat,Z,mod, prior.plots=T)
 
 tt<-genefilter::rowttests(cleandat,factor(X))
 mypar(1,1)
