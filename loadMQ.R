@@ -30,9 +30,10 @@ load.MQ <- function(type, directory) {
     ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
     ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
     expression <- data[,grep("Ratio.H.L.normalized(.*)_[12]___", colnames(data))]
+    intensity <- data[,grep("Intensity.[0-9]+_[12]_[12]", colnames(data))]
     
     ##combine the two
-    data <- cbind(expression,other_data)
+    data <- cbind(expression,intensity,other_data)
   }
   
   if(type=="protein"){
