@@ -36,9 +36,27 @@ melted$techrep <- techrep
 
 # for each unique var1 (phosphosite) make a list of values/individual/biorep/techrep
 # for i in levels for factorized for looping
+sites <- c()
+biovar <- c()
+techvar <- c()
+indvar <- c()
+for(i in 1:1562){
+  test <- melted[(melted$Var1 %in% melted$Var1[i]),]
+  sites <- c(sites,as.character(unique(test$Var1)))
+  values <- test$value
+  indvar <- c(indvar,var(values))
+  biovarTmp <- c(var(values[1:4]),var(values[5:8]),var(values[9:12]))
+  biovar <- c(biovar,mean(biovarTmp))
+  techvarTmp <- c(var(values[1:2]),var(values[3:4]),var(values[5:6]),var(values[7:8]),var(values[9:10]),var(values[11:12]))
+  techvar <- c(techvar,mean(techvarTmp))
+}
+var_breakdown <- as.data.frame(cbind(techvar,biovar,indvar))
+row.names(var_breakdown) <- sites      
+var_breakdown <- log10(var_breakdown)
+boxplot(var_breakdown, main = "log10 variance per phosphomeasurement (n=1562)")
+summary(var_breakdown)
 
-# for(i in 1:1562)
-test <- melted[(melted$Var1 %in% melted$Var1[3]),]
+
 
 #test$biorep <- as.factor(c(1,1,2,2,3,3,4,4,5,5,6,6))
 #test$techrep <- as.factor(c(1:12))
