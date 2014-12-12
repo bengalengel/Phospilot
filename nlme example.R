@@ -2,7 +2,7 @@
 # https://www.youtube.com/watch?v=VhMWPkTbXoY
 
 #how to model a nested random effects design
-librar(nlme)
+library(nlme)
 data(Oats)
 str(Oats)
 # $ Block  : Ord.factor w/ 6 levels "VI"<"V"<"III"<..: 6 6 6 6 6 6 6 6 6 6 ...
@@ -15,8 +15,11 @@ plot(Oats)#"possible only with a grouped dataset" shows the yield for for each p
 
 #naive model
 model1 <- lm(yield~Variety*nitro, data=Oats)
-summary(model1)#intercept is the yield of variety golden rain
-#the nitrogen effect is given by slopes...
+summary(model1)#intercept is the yield of variety golden rain and the other estimates are average differences
+#the nitrogen effect is given by slopes (this is an interaction effect)
+
+
+
 
 model2 <- lme(yield~Variety*nitro, data=Oats, random=~1|Block/Variety/nitro)#model now saturated with random effects (no df for within group estimates)
 
