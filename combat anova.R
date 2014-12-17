@@ -123,18 +123,31 @@ techvar <- mean(techvarTmp)
 # [1] 1.046516
 
 
+# Per peptide one-way ANOVA with hierarchical/nested measurement is the way to go I believe. I think it should be all random effects if I am interested in how much variability to expect in phosphorylation amount at the individual population level.
+
+#open questions: 
+
+# 1) what does Yoav want?; my thinking is that he wants to calculate F statistics (essentially variance) for each peptide to see if peptides that are differentially expressed between individuals tend to be more variable in general;  Doesn't the omnibus F test already do this? Well all of the variability could come from one sample. It may be more appropriate to stay within limma to calculate F statistics! 'fit2$F'
 
 
 
+# 2)Am I estimating variance appropriately above?
+
+library(nlme)
+#as of now unclear if intercept should be fixed or what. results are different for below
+lmemodel <- lme(value~individual, data=test1, random =~1|individual/biorep/techrep)
+lmemodel <- lme(value~1, data=test1, random =~1|individual/biorep/techrep)
+lmemodel <- lme(value~1, data=test1, random =~1|individual/biorep)
 
 
-
+lmemodel <- lme(value~individual, data=test1, random =~1|individual)
 ##lme model and linear models for F stats
 lmemodel <- lme(value~individual, data=test1, random =~1|biorep/techrep)#with the 1 random intercepts are fitted. Without the 1 int and slopes are fitted
 lmemodel <- lme(value~individual, data=test1, random =~1|individual/biorep/techrep)#individual must be treated as a random effect in order to get a different standard error for the slope estimates and to get variable intercept estimates depending on the individual/biological replicate level
 anova.lme(lmemodel)
 model <- lm(value~individual, data=test1)
 anova(model)
+anova(lmemodel)
 #anova table reports the same result for F stat
 summary(lmemodel)
 summary(model)
