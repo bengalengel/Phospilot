@@ -35,7 +35,7 @@ melted$techrep <- techrep
 
 
 # for each unique var1 (phosphosite) make a list of values/individual/biorep/techrep
-# for i in levels for factorized for looping
+# for i in levels for factorized for looping. Is this the same as MSE?
 sites <- c()
 biovar <- c()
 techvar <- c()
@@ -57,9 +57,7 @@ boxplot(var_breakdown, main = "log10 variance per phosphomeasurement (n=1562)")
 summary(var_breakdown)
 
 
-
-
-# here I am getting the F stat from the anova table froma simple  model <- lm(value~individual, data=test1)
+# here I am getting the F stat from the anova table froma simple  model <- lm(value~individual, data=test1). I will use the attenuated F from limma next.
 
 sites <- c()
 Fvalues <- c()
