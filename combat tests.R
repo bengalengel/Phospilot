@@ -691,9 +691,9 @@ tt1 <- topTable(fit2, coef = 1, adjust = "BH", n=Inf)#sorts by adjusted p up to 
 tt2 <- topTable(fit2, coef = 2, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
 tt3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
 
-hist(tt1$adj.P.Val, nc=40, xlab="adjusted P values", main = colnames(contrast.matrix)[1])
-hist(tt2$adj.P.Val, nc=40, xlab="adjusted P values", main = colnames(contrast.matrix)[2])
-hist(tt3$adj.P.Val, nc=40, xlab="adjusted P values", main = colnames(contrast.matrix)[3])
+hist(tt1$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[1])
+hist(tt2$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[2])
+hist(tt3$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[3])
 
 
 results <- decideTests(fit2, adjust.method = "BH", method = "separate")#results is a 'TestResults' matrix
@@ -719,6 +719,19 @@ abline(v=-1)
 volcanoplot(fit2, coef=3, main = colnames(contrast.matrix)[3])
 abline(v=1)
 abline(v=-1)
+
+# F statistic distributions and cuts by DE across individuals
+# Fvalues <- as.data.frame(Fvalues)
+# row.names(Fvalues) <- sites
+# boxplot(log10(Fvalues))
+# hist(log10(as.matrix(Fvalues)))
+# plot(density(log10(as.matrix(Fvalues))))
+# plot(density(as.matrix(Fvalues)))
+# density(as.matrix(Fvalues))
+
+plot(density(fit2$F))
+plot(density(log10(fit2$F)))
+
 
 
 # GSEA of differentially expressed lists across contrasts
