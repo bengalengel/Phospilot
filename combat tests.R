@@ -125,7 +125,7 @@ boxplot(data[,1:12], ylim=c(-4,4))
 # THE APPROACH NEEDS TO BE NORMALIZATION-BATCH EFFECT CORRECTION-RENORMALIZATION
 
 # First normalization rationale: Given that we expect the same distributions across replicates quantile normalization makes sense. It is unclear if this should be preceded by a median normalization because MQ purportedly performs median normalization on the entire quantified peptide list. From the MQ paper supplement:
-  
+
 #   To correct for mixing errors of total protein amount the SILAC ratios determined in the
 # previous section are normalized so that the median of logarithmized ratios is at zero. This
 # normalization is done in intensity bins, similarly as described in the section on the
@@ -135,7 +135,7 @@ boxplot(data[,1:12], ylim=c(-4,4))
 # mixing ratios in different runs.
 
 # Well if the samples are median normalized for every run the global median should still be zero since the median of combined median normalized vectors will be the same regardless of the length. However, according to Jurgen:
-  
+
 #   "The normalization is done on all peptides, meaning identified + unidentified, including these that do not even have an MS/MS spectrum. the evidence table contains only identified peptides. it means that there is a bias in this sample for identified peptides to have a smaller ratio."
 
 # So I am going to median normalize again to account for this 'ascertainment bias' in my experiments as well
@@ -271,11 +271,11 @@ quantiled2 <- quantiled[rowSums(is.na(quantiled[ , 1:4])) < 4 & rowSums(is.na(qu
 
 # remove exp obs if not observed in each batch
 quantiled3 <- quantiled[rowSums(is.na(quantiled[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 6 
-              & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 6,]    
+                        & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 6,]    
 
 # remove exp obs if not observed twice in each batch to ensure a variance measurement
 quantiled4 <- quantiled[rowSums(is.na(quantiled[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 5 
-              & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 5,] 
+                        & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 5,] 
 quantiled5 <- na.omit(quantiled)##common across all
 
 
@@ -363,7 +363,7 @@ swamp <- swamp[,1:12]
 ##### sample annotations (data.frame)
 set.seed(50)
 o1<-data.frame(Factor1=factor(rep(c("A","A","B","B"),3)),
-              Numeric1=rnorm(12),row.names=colnames(swamp))
+               Numeric1=rnorm(12),row.names=colnames(swamp))
 
 
 # PCA analysis
@@ -604,7 +604,7 @@ vennDiagram(results) #shazam but I need to remove outliers and the like
 # AND NOW FOR ALL THE DATA around 5K*****************************************
 adata <- com2[rowSums(is.na(com2[ , 1:2])) < 2 & rowSums(is.na(com2[ , 3:4])) < 2 & rowSums(is.na(com2[ , 5:6])) < 2 
               & rowSums(is.na(com2[ , 7:8])) < 2 & rowSums(is.na(com2[ , 9:10])) < 2 & rowSums(is.na(com2[ , 11:12])) < 2,]                    
-  
+
 # Produce dataframe from sample means ignoring missing data
 
 HL18486_1 <- rowMeans(adata[,1:2], na.rm = T)
@@ -682,7 +682,7 @@ sig3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf, sort="p", p=.05)
 c1up  <- sig1[sig1$logFC > 0,]
 c1down <- sig1[sig1$logFC < 0,]
 c2up <- sig2[sig2$logFC > 0,]
-c2down <- sig2[sig2$logFC < 0,]
+c2down <- sig2[sig2$logFC < 0,]-
 c3up <- sig3[sig3$logFC > 0,]
 c3down <- sig3[sig3$logFC < 0,]
 
@@ -731,6 +731,63 @@ abline(v=-1)
 
 plot(density(fit2$F))
 plot(density(log10(fit2$F)))
+
+# NOTE THE FOLLOWING WHEN COMPARING ALL THE CONTRASTS AT ONCE PG 62 IN LIMMA USER GUIDE - decideTests method global should be used here.
+
+# method="global" is recommended when a set of closely related contrasts are being tested. This
+# method simply appends all the tests together into one long vector of tests, i.e., it treats all the tests
+# as equivalent regardless of which probe or contrast they relate to. An advantage is that the raw
+# p-value cutoff is consistent across all contrasts. For this reason, method="global" is recommended if
+# you want to compare the number of DE genes found for different contrasts, for example interpreting
+# the number of DE genes as representing the strength of the contrast. However users need to be aware
+# that the number of DE genes for any particular contrasts will depend on which other contrasts are
+# tested at the same time. Hence one should include only those contrasts which are closely related to
+# the question at hand. Unnecessary contrasts should be excluded as these would affect the results for
+# the contrasts of interest. Another more theoretical issue is that there is no theorem which proves that
+# adjust.method="BH" in combination with method="global" will correctly control the false discovery
+# rate for combinations of negatively correlated contrasts, however simulations, experience and some
+# theory suggest that the method is safe in practice.
+
+#DE sites by contrast type
+#DE sites using 'separate' contrasts
+DE <- results[results[,1] != 0 | results[,2] != 0 | results[,3] != 0,]
+#sites only DE in exactly one contrast
+absDE <- abs(DE)
+DE1 <- absDE[rowSums(absDE)==1,]
+#sites DE in exactly two contrast
+DE2 <- absDE[rowSums(absDE)==2,]
+#site DE in all 3 contrasts
+DE3 <- results[results[,1] != 0 & results[,2] != 0 & results[,3] != 0,]
+
+#F stats by contrast type
+
+# #Sorting F Values
+# test <- topTable(fit2, coef = c(1,2,3), adjust = "BH", n=Inf, sort.by="F", p=.05)#equivalent to below
+# test2 <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)
+
+Fvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F")#all F values
+
+#subsets by contrast specific DE
+FDE1 <- Fvals[which(row.names(DE1)%in%row.names(Fvals)),5:6]
+FDE2 <- Fvals[which(row.names(DE2)%in%row.names(Fvals)),5:6]
+FDE3 <- Fvals[which(row.names(DE3)%in%row.names(Fvals)),5:6]
+
+FDE1 <- Fvals[match(row.names(DE1), row.names(Fvals), nomatch = F),5:7]
+FDE2 <- Fvals[match(row.names(DE2), row.names(Fvals), nomatch = F),5:7]
+FDE3 <- Fvals[match(row.names(DE3), row.names(Fvals), nomatch = F),5:7]
+
+boxplot(FDE1$F,FDE2$F,FDE3$F)
+boxplot(log10(FDE1$F),log10(FDE2$F),log10(FDE3$F))
+summary(FDE1$F)
+summary(FDE2$F)
+summary(FDE3$F)
+
+plot(density(log10(FDE1$F)), xlim = c(0,3))
+lines(density(log10(FDE2$F)), col = 2)
+lines(density(log10(FDE3$F)), col = 3)
+
+hist(log10(FDE1$F))
+hist(FDE1$F)
 
 
 
