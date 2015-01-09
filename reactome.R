@@ -34,6 +34,7 @@ cnetplot(x, showCategory = 1, categorySize = "pvalue", foldChange = geneList, fi
 require(clusterProfiler)
 data(gcSample)
 str(gcSample)#unclear what type of data this is
+res <- compareCluster(gcSample, fun = "enrichPathway", universe = names(geneList))
 res <- compareCluster(gcSample, fun = "enrichPathway")
 plot(res)
 

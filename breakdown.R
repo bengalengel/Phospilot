@@ -62,7 +62,8 @@ breakdown <- function(protein, phospho, multExpanded, cls=TRUE){
   
   #   Functions and definitions for phosphosite and phosphomeasurement calculations
   expCol <- grep("HL(.*)", colnames(multExpanded))
-  newnames <- colnames(multExpanded)[grep("_", colnames(multExpanded))]#assumes experimental obs have an underscore
+  #newnames <- colnames(multExpanded)[grep("_", colnames(multExpanded))]#assumes experimental obs have an underscore
+  newnames <- colnames(multExpanded)[expCol]
   idBreakdown <- ddply(multExpanded,.(id), colwise(nmeasure,newnames))##breaks down by id number of mults observed per sample
   #the subset of each vector > 0 gives the unique ids
   uniqueids <- colwise(totalgt0,newnames)(idBreakdown)##total number of unique ids

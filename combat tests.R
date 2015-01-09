@@ -470,6 +470,7 @@ heatmap.2(
   col=bluered(25),
   scale="none",
   trace="none",
+  density.info="none",
   key.xlab = "Row Z scores", key.ylab=NULL, key.title = "",
   srtCol=45,  ,adjCol = c(1,1),
   margins = c(6,5),
@@ -695,6 +696,31 @@ hist(tt1$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[1])
 hist(tt2$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[2])
 hist(tt3$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[3])
 
+plot(tt1$logFC,-log10(tt1$P.Value), xlab = colnames(contrast.matrix)[1], pch = 20, ylab = "-log10(P)",xlim = c(-5, 5))
+#sites with sig difference in comparison 1
+names <- row.names(sig1)
+names2 <- row.names(tt1)
+index <- which(names2 %in% names)
+points(tt1$logFC[index],-log10(tt1$P.Value)[index], col="red3", pch = 20)
+
+
+plot(tt2$logFC,-log10(tt2$P.Value), xlab = colnames(contrast.matrix)[2], pch = 20, ylab = "-log10(P)",xlim = c(-5, 5))
+#sites with sig difference in comparison 1
+names <- row.names(sig2)
+names2 <- row.names(tt2)
+index <- which(names2 %in% names)
+points(tt2$logFC[index],-log10(tt2$P.Value)[index], col="red3", pch = 20)
+
+
+plot(tt3$logFC,-log10(tt3$P.Value), xlab = colnames(contrast.matrix)[3], pch = 20, ylab = "-log10(P)",xlim = c(-5, 5))
+#sites with sig difference in comparison 1
+names <- row.names(sig3)
+names2 <- row.names(tt3)
+index <- which(names2 %in% names)
+points(tt3$logFC[index],-log10(tt3$P.Value)[index], col="red3", pch = 20)
+
+
+
 
 results <- decideTests(fit2, adjust.method = "BH", method = "separate")#results is a 'TestResults' matrix
 #separate compares each sample individually and is the default approach
@@ -710,8 +736,8 @@ vennDiagram(results, cex=c(1.2,1,0.7), include = c("up", "down")) #good DE acros
 table("18862-18486" =results[,1],"19160-18862"=results[,2])
 
 
-volcanoplot(fit2, coef=1, main = colnames(contrast.matrix)[1])
-abline(v=1)
+volcanoplot(fit2, coef=1, main = colnames(contrast.matrix)[1], highlight = 900)
+abline(v=1))
 abline(v=-1)
 volcanoplot(fit2, coef=2, main = colnames(contrast.matrix)[2])
 abline(v=1)
@@ -766,12 +792,14 @@ DE3 <- results[results[,1] != 0 & results[,2] != 0 & results[,3] != 0,]
 # test2 <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)
 
 Fvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F")#all F values
+sigFvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)#gives 1355 compared to 1549 DE total for separate comparisons
 
 #subsets by contrast specific DE
 FDE1 <- Fvals[which(row.names(DE1)%in%row.names(Fvals)),5:6]
 FDE2 <- Fvals[which(row.names(DE2)%in%row.names(Fvals)),5:6]
 FDE3 <- Fvals[which(row.names(DE3)%in%row.names(Fvals)),5:6]
 
+#below gives adjusted pvalue
 FDE1 <- Fvals[match(row.names(DE1), row.names(Fvals), nomatch = F),5:7]
 FDE2 <- Fvals[match(row.names(DE2), row.names(Fvals), nomatch = F),5:7]
 FDE3 <- Fvals[match(row.names(DE3), row.names(Fvals), nomatch = F),5:7]
@@ -782,7 +810,7 @@ summary(FDE1$F)
 summary(FDE2$F)
 summary(FDE3$F)
 
-plot(density(log10(FDE1$F)), xlim = c(0,3))
+plot(density(log10(FDE1$F)),xlim = c(0,3))
 lines(density(log10(FDE2$F)), col = 2)
 lines(density(log10(FDE3$F)), col = 3)
 
@@ -795,6 +823,10 @@ hist(FDE1$F)
 
 #add annotation to multexpanded DF
 head(row.names(pilot2))
+
+#add F test values to the table
+multExpanded1$globalFsig = ifelse(multExpanded1$idmult %in% row.names(sigFvals),"+","-")
+
 
 #add DE to table
 multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(pilot2),"+","-")
@@ -812,7 +844,7 @@ multExpanded1$cont3down = ifelse(multExpanded1$idmult %in% row.names(c3down),"+"
 
 
 # write output table to perform enrichment analysis in perseus
-write.table(multExpanded1,"multExpanded1.csv",sep=',',col.names=T,row.names=F)
+write.table(multExpanded1,"multExpanded1_withDE.csv",sep=',',col.names=T,row.names=F)
 
 
 
