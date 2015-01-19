@@ -1,5 +1,7 @@
 #Here I will extract all sequence windows and the modified residues 7 AAs on either side.Subsetted by modified AA of course
 
+#Subjected to DE
+DE <- multExpanded1[multExpanded1$SubtoDE == "+",]#4996
 
 #DE contrasts
 DE1 <- multExpanded1[multExpanded1$DEcont1 == "+",]#945
@@ -26,6 +28,7 @@ DE3down <- multExpanded1[multExpanded1$cont3down == "+",]#945
 
 #for networKIN
 
+DE <- DE[,c("Protein","Position","Amino.acid")]
 DE1nk <- DE1[,c("Protein","Position","Amino.acid")]
 DE2nk <- DE2[,c("Protein","Position","Amino.acid")]
 DE3nk <- DE3[,c("Protein","Position","Amino.acid")]
@@ -36,6 +39,7 @@ DE2nkdown <- DE2down[,c("Protein","Position","Amino.acid")]
 DE3nkup <- DE3up[,c("Protein","Position","Amino.acid")]
 DE3nkdown <- DE3down[,c("Protein","Position","Amino.acid")]
 
+write.csv(DE,"subtoDE.csv", row.names=F)
 write.csv(DE1nk,"DE1nk.csv", row.names=F)
 write.csv(DE2nk,"DE2nk.csv", row.names=F)
 write.csv(DE3nk,"DE3nk.csv", row.names=F)

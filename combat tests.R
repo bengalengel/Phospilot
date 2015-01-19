@@ -14,6 +14,9 @@ data <- multExpanded1[,expCol]
 
 # add experiment intensities
 intCol <- grep("Intensity", colnames(multExpanded1))
+
+#a quick fix..> intCol <- intCol[1:(length(intCol)-3)]
+
 data <- cbind(data,multExpanded1[,intCol])
 
 # add row names with site id and multiplicity designation 
@@ -141,6 +144,21 @@ boxplot(data[,1:12], ylim=c(-4,4))
 # So I am going to median normalize again to account for this 'ascertainment bias' in my experiments as well
 
 #***********************************************************************************************************************
+# #another option is cyclic loess normalization, which may or may not be more robust to values missing in a non-random way.
+# loessdata <- normalizeCyclicLoess(data[1:12])
+# plot.new()
+# par(mfrow = c(1, 1))
+# for (i in 1:(ncol(loessdata)-1)){
+#   if(i==1) plot(density(loessdata[, i], na.rm=T), col = i, ylim = c(0,.7))
+#   else lines(density(loessdata[, i], na.rm=T), col = i)
+# }
+# loessdata2 <- colwise(median.subtract, names)(as.data.frame(loessdata))#median subtract using function below
+# plot.new()
+# for (i in 1:(ncol(loessdata2)-1)){
+#   if(i==1) plot(density(loessdata2[, i], na.rm=T), col = i, ylim = c(0,.7))
+#   else lines(density(loessdata2[, i], na.rm=T), col = i)
+# }
+
 
 #median normalize
 names <- colnames(data)[1:12]
