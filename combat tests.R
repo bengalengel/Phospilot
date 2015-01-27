@@ -145,7 +145,7 @@ boxplot(data[,1:12], ylim=c(-4,4))
 
 #***********************************************************************************************************************
 # #another option is cyclic loess normalization, which may or may not be more robust to values missing in a non-random way.
-# loessdata <- normalizeCyclicLoess(data[1:12])
+loessdata <- normalizeCyclicLoess(data[1:12])
 # plot.new()
 # par(mfrow = c(1, 1))
 # for (i in 1:(ncol(loessdata)-1)){
@@ -284,7 +284,23 @@ plot(change, quantiled$HL18486_1_1-quantiled$HL18862_2_2, ylim=c(-6,6), xlim=c(-
 # END OF NORMALIZATION
 
 
-# remove exp obs if not observed in each sample 
+# remove exp obs if not observed in each sample cyclic loess
+loessdata2 <- loessdata[rowSums(is.na(loessdata[ , 1:4])) < 4 & rowSums(is.na(loessdata[ , 5:8])) < 4 & rowSums(is.na(loessdata[ , 9:12])) < 4,]    
+
+# remove exp obs if not observed in each batch
+loessdata3 <- loessdata[rowSums(is.na(loessdata[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 6 
+                        & rowSums(is.na(loessdata[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 6,]    
+
+# remove exp obs if not observed twice in each batch to ensure a variance measurement
+loessdata4 <- loessdata[rowSums(is.na(loessdata[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 5 
+                        & rowSums(is.na(loessdata[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 5,] 
+loessdata5 <- na.omit(loessdata)##common across all
+
+
+
+
+
+# remove exp obs if not observed in each sample quantiled
 quantiled2 <- quantiled[rowSums(is.na(quantiled[ , 1:4])) < 4 & rowSums(is.na(quantiled[ , 5:8])) < 4 & rowSums(is.na(quantiled[ , 9:12])) < 4,]    
 
 # remove exp obs if not observed in each batch
@@ -396,6 +412,13 @@ prince.plot(prince=res1)
 
 ##batch adjustment using the fully denuded data
 com1<-combat(swamp,o1$Factor1,batchcolumn=1)
+
+##batch adjustment using loessdata4
+swamp <- as.matrix(loessdata4)
+swamp <- swamp[,1:12]
+com2<-combat(swamp,o1$Factor1,batchcolumn=1) #WORKS AFTER ENSURING AT LEAST TWO IN A BATCH. How to interpret plots...
+
+
 
 ##batch adjustment using quantiled4
 swamp <- as.matrix(quantiled4)
@@ -701,7 +724,7 @@ sig3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf, sort="p", p=.05)
 c1up  <- sig1[sig1$logFC > 0,]
 c1down <- sig1[sig1$logFC < 0,]
 c2up <- sig2[sig2$logFC > 0,]
-c2down <- sig2[sig2$logFC < 0,]-
+c2down <- sig2[sig2$logFC < 0,]
 c3up <- sig3[sig3$logFC > 0,]
 c3down <- sig3[sig3$logFC < 0,]
 
@@ -861,8 +884,31 @@ multExpanded1$cont3up = ifelse(multExpanded1$idmult %in% row.names(c3up),"+","-"
 multExpanded1$cont3down = ifelse(multExpanded1$idmult %in% row.names(c3down),"+","-")
 
 
+#add F test values to the table loess
+multExpanded1$globalFsigloess = ifelse(multExpanded1$idmult %in% row.names(sigFvals),"+","-")
+
+
+#add DE to table loess
+multExpanded1$SubtoDEloess = ifelse(multExpanded1$idmult %in% row.names(pilot2),"+","-")
+multExpanded1$DEcont1loess = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
+multExpanded1$DEcont2loess = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
+multExpanded1$DEcont3loess = ifelse(multExpanded1$idmult %in% row.names(sig3),"+","-")
+
+#add DE direction to table loess
+multExpanded1$cont1uploess = ifelse(multExpanded1$idmult %in% row.names(c1up),"+","-")
+multExpanded1$cont1downloess = ifelse(multExpanded1$idmult %in% row.names(c1down),"+","-")
+multExpanded1$cont2uploess = ifelse(multExpanded1$idmult %in% row.names(c2up),"+","-")
+multExpanded1$cont2downloess = ifelse(multExpanded1$idmult %in% row.names(c2down),"+","-")
+multExpanded1$cont3uploess = ifelse(multExpanded1$idmult %in% row.names(c3up),"+","-")
+multExpanded1$cont3downloess = ifelse(multExpanded1$idmult %in% row.names(c3down),"+","-")
+
+
+
+
+
+
 # write output table to perform enrichment analysis in perseus
-write.table(multExpanded1,"multExpanded1_withDE.csv",sep=',',col.names=T,row.names=F)
+write.table(multExpanded1,"multExpanded1_withDE and loess.csv",sep=',',col.names=T,row.names=F)
 
 
 
