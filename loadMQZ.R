@@ -16,14 +16,15 @@ load.MQZ <- function(directory) {
     
     #select the columns of interest 
     vars <- c("id", "Protein.IDs", "Majority.protein.IDs",  "Protein.names", "Gene.names", "Number.of.proteins", "Peptides", 
-              "Razor...unique.peptides", "Unique.peptides", "Sequence.coverage....", "Mol..weight..kDa.", "Sequence.length", "PEP", 
-              "Peptide.IDs", "Mod..peptide.IDs", "Only.identified.by.site", "Potential.contaminant", "Reverse")
+              "Razor...unique.peptides", "Unique.peptides", "Sequence.coverage....", "Mol..weight..kDa.", "Sequence.length",
+              "PEP", "Peptide.IDs", "Mod..peptide.IDs", "Only.identified.by.site", "Potential.contaminant", "Reverse",
+              "Razor...unique.peptides.18862", "Razor...unique.peptides.18486", "Razor...unique.peptides.19160")
     
     other_data <- data[,vars]
     
     ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
     ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
-    expression <- data[,grep("Ratio.H.L.normalized(.*)", colnames(data))]
+    expression <- data[,grep("Ratio.H.L.normalized.(.*)", colnames(data))]
     
     ##combine the two
     data <- cbind(expression,other_data)
