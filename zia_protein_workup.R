@@ -149,6 +149,23 @@ row.names(SubtoDEtable) <- substr(row.names(SubtoDEtable),1,6)#eventually
 SubtoDEproteins <- row.names(SubtoDEtable)
 SubtoDEproteins <- unique(SubtoDEproteins)#1115 unique proteins (excluding isoforms) subjected to DE
 
+#*******************************************************************************
+
+#table for comparison with protein. 
+
+# I need protein ID without isoform and ID_multiplicity for phosphopeptide. For matches with Ziaproteins, a new column will be added to that datatable, "norm_id_mult" that maps to the ids this protein group will normalize. For proteins that map to multiple ID_mults they will be added as a semicolon separated list. 
+
+# This Ziaprotein table will be crossed with the original multexpanded table to identify any sites with matching ids. if there is a match, the three measurments of that protein group will be appended to the data table. Three new columns will then be populated containing the "normalized" measurements. 
+
+#How many protiens subject to DE?
+SubtoDEtable <- SubtoDE[c("Protein","idmult")]
+SubtoDEtable$Protein <- substr(SubtoDEtable$Protein,1,6)#remove isoform designation
+
+
+
+
+
+
 #****************************************************************************************************************
 #How many proteins that are subjected to DE analysis are also IDd and quantified by proteomic analysis (Zia)? Here I will use the majority protein IDs. I will use the majority protein IDs for each protein group quantification (these proteins have at least half the peptides of the leading protein within the group)
 Ziaproteins <- datacomp$Majority.protein.IDs
@@ -179,35 +196,85 @@ table(SubtoDEproteins%in%test)
 
 
 #look for a uniuque identifier within a list of colon separated identifiers (grep?)
-row.names(DEtable)%in%as.character(Ziaproteins)#fix isoforms
+#row.names(DEtable)%in%as.character(Ziaproteins)#fix isoforms
 
-Ziaproteins2 <- substr(Ziaproteins,1,6)
-row.names(DEtable)%in%as.character(Ziaproteins2)#better but removes the other majority proteins
-table(row.names(DEtable)%in%as.character(Ziaproteins2))#
+# Ziaproteins2 <- substr(Ziaproteins,1,6)
+# row.names(DEtable)%in%as.character(Ziaproteins2)#better but removes the other majority proteins
+# table(row.names(DEtable)%in%as.character(Ziaproteins2))#
 
+# Ziaproteins <- datacomp[c("Majority.protein.IDs"v)]
+# Ziaproteins3 <- gsub("-.", "", Ziaproteins)#removes the isoform indicator
+# Ziaproteins$id <- row.names(datacomp)
+# Ziaproteins <- cbind(Ziaproteins,datacomp[c("Razor...unique.peptides", "Unique.peptides"             "Razor...unique.peptides.18862", "Razor...unique.peptides.18486", "Razor...unique.peptides.19160")]
 
-Ziaproteins3 <- gsub("-.", "", Ziaproteins)#removes the isoform indicator
+Ziaproteins <- datacomp[c("Majority.protein.IDs","Razor...unique.peptides", "Unique.peptides", "Razor...unique.peptides.18862", "Razor...unique.peptides.18486", "Razor...unique.peptides.19160")]
+Ziaproteins$id <- row.names(datacomp)
+Ziaproteins$Majority.protein.IDs <- gsub("-.", "", Ziaproteins$Majority.protein.IDs)#removes the isoform indicator
 
-table(row.names(DEtable)%in%as.character(Ziaproteins3))#hmm need it to match ANY of the semicolon separated values within an element
+                     
+
+                     # table(row.names(DEtable)%in%as.character(Ziaproteins3))#hmm need it to match ANY of the semicolon separated values within an element
 
 
 
 # a quick for loop for each level of rownames that returns the number of hits and the protein ids that they match
-facttemp <- as.factor(row.names(DEtable))
+facttemp <- as.factor(row.names(SubtoDEtable))
 proteinindex <- c()
 morethan1 <- c()
-#for each unique kinase in the DE1 kinases table I need to make a contingency table
-for(i in seq_along(DEtable)){
-  tmp <- grep(row.names(DEtable)[i], Ziaproteins3)
-  #more than one value? this should not happen
+
+## I need protein ID without isoform and ID_multiplicity from the phosphopeptide table (multexpanded). For matches with Ziaproteins, a new column will be added to that datatable, "norm_id_mult" that maps to the ids this protein group will normalize. For Ziaproteins that map to multiple phosphoobservations they will be added as a semicolon separated list. 
+
+#for every protein linked to an id_mult from the phosphotable, a paired protein group from the ziaproteins table is found (if present) using any of the majority protein ids within that group. If the phospho id maps to multiple protein groups, the one with the most peptides is used.
+
+#are there any problems with this?
+
+for(i in seq_along(SubtoDEtable[,1])){
+  tmp <- grep(SubtoDEtable$Protein[i], Ziaproteins$Majority.protein.IDs)
+  #more than one value? This can happen with isoforms
   if(length(tmp)>1){
+    #compare the razor plus unique count across the two matches and choose the one with the most   matches
+    counts <- Ziaproteins$Razor...unique.peptides[tmp]
+    proteinindex[i] <- tmp[which.max(counts)]
     morethan1 <- c(morethan1,tmp)
   }
   #if length of tmp >0 add to index
-  if(length(tmp)>0){
-    proteinindex <- c(proteinindex,tmp)
+  if(length(tmp) == 1){
+    proteinindex[i] <- tmp
   }
 }
+
+SubtoDE$ziaindex <- proteinindex
+
+##for each index value add the three values and the majority ids. next for loop performs the normalization.
+
+protein_norm <- data.frame()
+for(i in seq_along(proteinindex)){
+  if(!is.na(proteinindex[i])){
+    tmp <- datacomp[c("Majority.protein.IDs","HL18862", "HL18486", "HL19160")][proteinindex[i],]
+    protein_norm <- rbind(protein_norm,tmp)
+  }
+  
+  if(is.na(proteinindex[i])){
+    tmp <- rep("NA",4)
+    protein_norm <- rbind(protein_norm,tmp)
+  }
+}    
+
+#make values numeric
+protein_norm$HL18862 <- as.numeric(protein_norm$HL18862)
+protein_norm$HL19160 <- as.numeric(protein_norm$HL19160)
+protein_norm$HL18486 <- as.numeric(protein_norm$HL18486)
+
+#add values to subtoDE dataframe
+SubtoDE$Majority_proteins_Zia <- protein_norm$Majority.protein.IDs
+SubtoDE$protein_ratio_HL18862 <- protein_norm$HL18862
+SubtoDE$protein_ratio_HL18486 <- protein_norm$HL18486
+SubtoDE$protein_ratio_HL19160 <- protein_norm$HL19160
+
+#since the normalized and batch treated samples are also not included they need to be added.
+
+
+
 
 # When there are two matches this tends to mean that here is unique evidence for an isoform which is quantified separately. I will use the measurements from the (major) isoform with the most razor + unique peptide for normalization. (for the DE peptides only two fulfill this criteria)
 
