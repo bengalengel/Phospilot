@@ -10,6 +10,8 @@ source("loadMQ.R")
 source("ExpandPhos.R")
 source("counts.R")
 source("breakdown.R")
+source("BatchNorm.R")
+source("DiffPhos.R")
 
 # load phospho and protein files with particular variables populated using "loadMQ"
 phospho <- load.MQ(directory = "C:/Users/Brett/Documents/Pilot/10_9_14/txt/", type = "phospho")
@@ -48,6 +50,14 @@ proteincount(protein)
 breakdown(protein, phospho, multExpanded, cls=F)
 breakdown(protein, phospho1, multExpanded1)
 
+
+#normalization and batch correction (as of now only for class 1 sites). Accepts expanded phospho file and returns "pilot" dataframe. This dataframe is also written out.
+pilot <- BatchNorm(multExpanded1)
+
+#DE analysis uding DiffPhos function. Here I perform limma based DE across contrasts and add annotation to the multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned and written
+multExpanded1_withDE <- DiffPhos(pilot)
+
+#next is GSEA, networkin, motifs, etc?
 
 
 

@@ -23,7 +23,7 @@ source("loadMQZ.R")
 protein <- load.MQZ(directory = "D:/November Zia MBR MQ analysis/txt/")#7710 protein groups/81 variables
 
 # load protein files with particular variables populated using "loadMQ" at home
-#protein <- load.MQZ(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")#7,710 protein groups
+protein <- load.MQZ(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")#7,710 protein groups
 
 
 # remove contaminants and reverse database hits
@@ -46,7 +46,7 @@ expCol <- grep("HL(.*)", colnames(protein1))
 
 protein1 <- protein1[rowSums(is.na(protein1[,expCol]))!=length(expCol),]##removes rows containing all 
 #'NA's using the sums of the logical per row 
-#6413 now I have 6421 (previous workflow uploaded incorrect column)
+#6421
 
 data <- protein1[,expCol]#60 cell lines
 
@@ -77,7 +77,7 @@ boxplot(data)#
 data <- data[,c("HL18862","HL18486","HL19160")]
 
 #remove if protein group not found in all samples
-data <- na.omit(data)#3,925 now this is 4270? Confirm from home
+data <- na.omit(data)#4270
 boxplot(data)#differences in distribution shape for sure with HL18486 and HL19160
 par(mfrow = c(1, 1))
 for (i in 1:(ncol(data))){
@@ -126,7 +126,7 @@ datacomp <- cbind(quantiled,tmp[c("Protein.IDs","Majority.protein.IDs","Protein.
 #now how many unique proteins in the phospho data are subjected to DE analysis? 
 
 #subset of multExpanded that are subjected to DE (load a local file with DE information)
-multExpanded1_withDE <- read.csv("multExpanded1.csv", header=T)
+multExpanded1_withDE <- read.csv("multExpanded1_withDE.csv", header=T)
 
 #names(multExpanded1_withDE) <- sub("X.","",names(multExpanded1_withDE))#replace Xs
 #names(multExpanded1_withDE) <- sub(".$","",names(multExpanded1_withDE))#replace dot at the end
@@ -137,17 +137,23 @@ SubtoDE <- multExpanded1_withDE[as.character(multExpanded1_withDE$SubtoDE) == "+
 #DEany <- multExpanded1_withDE[multExpanded1_withDE$DEcont1=="+"|multExpanded1_withDE$DEcont2=="+"|multExpanded1_withDE$DEcont3=="+",]
 
 #remove the reverse for now
-SubtoDE <- SubtoDE[SubtoDE$Protein[!grepl("REV",SubtoDE$Protein)],]#4991 observations
+SubtoDE <- SubtoDE[!grepl(SubtoDE$Protein, pattern = "REV"),]#the logical subsets the DF by row. 4991 observations.
+
+
+
+# #remove the reverse for now
+# SubtoDE$Protein <- as.character(SubtoDE$Protein)
+# SubtoDE <- SubtoDE[SubtoDE$Protein[!grepl("REV",SubtoDE$Protein)],]#4991 observations but messes up id_mult. change to character results in all NAs.
 
 #How many protiens subject to DE?
 SubtoDEtable <- as.matrix(table(SubtoDE$Protein))
-SubtoDEtable <- SubtoDEtable[SubtoDEtable!=0,,drop=F]#1122 proteins
+SubtoDEtable <- SubtoDEtable[SubtoDEtable!=0,,drop=F]#1991 proteins
 
 #Remove isoform designation (this should be noted in the discussion of the paper. Unless there is a specific sequence aligning the peptide to a particular isoform the peptide could reasonably belong to any of the isoforms. Is there a designator in the table indicating if this is so?)
 
 row.names(SubtoDEtable) <- substr(row.names(SubtoDEtable),1,6)#eventually 
 SubtoDEproteins <- row.names(SubtoDEtable)
-SubtoDEproteins <- unique(SubtoDEproteins)#1115 unique proteins (excluding isoforms) subjected to DE
+SubtoDEproteins <- unique(SubtoDEproteins)#1968 unique proteins (excluding isoforms) subjected to DE
 
 #*******************************************************************************
 
@@ -178,12 +184,10 @@ test <- unique(test)
 any(duplicated(test))#no duplicates with 11500 proteins (now 12642 proteins with proper workflow)
 
 test <- substr(test,1,6)#now I have some duplicates (3500 duplicates)
-test <- unique(test)#around 8116 unique proteins with at least 1/2 of the peptides of the majority protein within 3925 protien groups. Now I have 8885 unique protein with at least 1/2 of the peptides of the majority proteins within 4270 groups.
+test <- unique(test) #Now I have 8885 unique protein with at least 1/2 of the peptides of the majority proteins within 4270 groups.
 
 table(SubtoDEproteins%in%test)
-#171 of 270 (63.3% are quantified through Zia's work) (of the DE in any contrast phosphosites using the flawed workflow).
-#713 of 1115 (63.9% are quantified in all three samples in Zia's work)
-
+#1206 of 1968 (61.2% are quantified in all three samples in Zia's work)
 
 
 
@@ -211,22 +215,21 @@ Ziaproteins <- datacomp[c("Majority.protein.IDs","Razor...unique.peptides", "Uni
 Ziaproteins$id <- row.names(datacomp)
 Ziaproteins$Majority.protein.IDs <- gsub("-.", "", Ziaproteins$Majority.protein.IDs)#removes the isoform indicator
 
-                     
-
-                     # table(row.names(DEtable)%in%as.character(Ziaproteins3))#hmm need it to match ANY of the semicolon separated values within an element
 
 
 
 # a quick for loop for each level of rownames that returns the number of hits and the protein ids that they match
-facttemp <- as.factor(row.names(SubtoDEtable))
-proteinindex <- c()
-morethan1 <- c()
+# facttemp <- as.factor(row.names(SubtoDEtable))
+
 
 ## I need protein ID without isoform and ID_multiplicity from the phosphopeptide table (multexpanded). For matches with Ziaproteins, a new column will be added to that datatable, "norm_id_mult" that maps to the ids this protein group will normalize. For Ziaproteins that map to multiple phosphoobservations they will be added as a semicolon separated list. 
 
 #for every protein linked to an id_mult from the phosphotable, a paired protein group from the ziaproteins table is found (if present) using any of the majority protein ids within that group. If the phospho id maps to multiple protein groups, the one with the most peptides is used.
 
-#are there any problems with this?
+#are there any problems with this? Nope
+
+proteinindex <- c()
+morethan1 <- c()#need to come back to this
 
 for(i in seq_along(SubtoDEtable[,1])){
   tmp <- grep(SubtoDEtable$Protein[i], Ziaproteins$Majority.protein.IDs)
@@ -247,73 +250,228 @@ SubtoDE$ziaindex <- proteinindex
 
 ##for each index value add the three values and the majority ids. next for loop performs the normalization.
 
+
+#declare empty dataframe with proper names
+
+#declare empty data frame and note issues below..
 protein_norm <- data.frame()
 for(i in seq_along(proteinindex)){
   if(!is.na(proteinindex[i])){
     tmp <- datacomp[c("Majority.protein.IDs","HL18862", "HL18486", "HL19160")][proteinindex[i],]
     protein_norm <- rbind(protein_norm,tmp)
   }
-  
   if(is.na(proteinindex[i])){
-    tmp <- rep("NA",4)
+    tmp <- rep(NA,4)
     protein_norm <- rbind(protein_norm,tmp)
+    if(dim(protein_norm)[1]==1){#reset names etc
+      names(protein_norm) <- c("Majority.protein.IDs","HL18862", "HL18486", "HL19160")
+      protein_norm$Majority.protein.IDs <- as.factor(protein_norm$Majority.protein.IDs)
+      protein_norm$HL18862 <- as.numeric(protein_norm$HL18862)
+      protein_norm$HL18486 <- as.numeric(protein_norm$HL18486)
+      protein_norm$HL19160 <- as.numeric(protein_norm$HL19160)
+    }
   }
 }    
 
-#make values numeric
-protein_norm$HL18862 <- as.numeric(protein_norm$HL18862)
-protein_norm$HL19160 <- as.numeric(protein_norm$HL19160)
-protein_norm$HL18486 <- as.numeric(protein_norm$HL18486)
+#***************************************************************************************************************88
+#data frame for normalization
 
-#add values to subtoDE dataframe
-SubtoDE$Majority_proteins_Zia <- protein_norm$Majority.protein.IDs
-SubtoDE$protein_ratio_HL18862 <- protein_norm$HL18862
-SubtoDE$protein_ratio_HL18486 <- protein_norm$HL18486
-SubtoDE$protein_ratio_HL19160 <- protein_norm$HL19160
+#phospho information. id, id_mult, protein and "pilot dataframe"
+normphos <- SubtoDE[,c("id","idmult")]
+normphos$PhosphoProtein <- SubtoDE$Protein
 
-#since the normalized and batch treated samples are also not included they need to be added.
+#add the pilot data after removing the REV proteins
+rowsofbadness <- which(grepl(multExpanded1_withDE$Protein, pattern = "REV") & multExpanded1_withDE$SubtoDE == "+")
+idmultsofbadness <- as.character(multExpanded1_withDE$idmult[rowsofbadness])
 
+#subset out normalized batch corrected pilot dataframe
+pilot2 <- pilot[!rownames(pilot) %in% idmultsofbadness,]
 
+#combine the two
+normphos <- cbind(normphos,pilot2)
 
+#now add the protein data to make a table of normalized/processed data from both molecular phenotypes:
+Phos_Protein <- cbind(normphos,protein_norm)
 
-# When there are two matches this tends to mean that here is unique evidence for an isoform which is quantified separately. I will use the measurements from the (major) isoform with the most razor + unique peptide for normalization. (for the DE peptides only two fulfill this criteria)
+#write out this table
+write.csv(Phos_Protein, "Phos_Protein.csv", row.names=F)
 
+##now subset and normalize to make a final table for limma DE and all other downstream analysis
+expCol <- grep("HL(.*)", colnames(Phos_Protein))
+data <- Phos_Protein[,expCol]
+row.names(data) <- Phos_Protein$idmult
+data <- na.omit(data)
 
+#perform the normalization
 
+HL18486_1norm <- data$HL18486_1-data$HL18486
+HL18486_2norm <- data$HL18486_2-data$HL18486
+HL18862_1norm <- data$HL18862_1-data$HL18862
+HL18862_2norm <- data$HL18862_2-data$HL18862
+HL19160_1norm <- data$HL19160_1-data$HL19160
+HL19160_2norm <- data$HL19160_2-data$HL19160
 
+ProtNormalized <- cbind(HL18486_1norm, HL18486_2norm, HL18862_1norm, HL18862_2norm, HL19160_1norm, HL19160_2norm)
+row.names(ProtNormalized) <- row.names(data)
 
-
-
-
-
-mt1test <- 
-proteinindex <- c(proteinindex,tmp)
-    DErow <- c(DEtable[as.character(i),],(sum(DEtable)-DEtable[as.character(i),]))
-    NotDErow <- c(NotDE[as.character(i),],(sum(NotDE)-NotDE[as.character(i),]))
-    contmatrix <- rbind(DErow,NotDErow)
-    tmp <- fisher.test(contmatrix, alternative = "g")
-    pvals <- c(pvals,tmp$p.value)
-  
+boxplot(ProtNormalized)
+summary(ProtNormalized)
+par(mfrow = c(1, 1))
+for (i in 1:(ncol(ProtNormalized))){
+  if(i==1) plot(density(ProtNormalized[, i], na.rm=T), col = i, ylim = c(0,1.5))
+  else lines(density(ProtNormalized[, i], na.rm=T), col = i)
 }
 
+#do these still cluster?..scary YES!!!
+
+dataZ <- scale(ProtNormalized)##Z-scored column wise the complete data matrix
+
+# now all data excepting complete cases (note that the sample dendograms look the same)
+#hist(dataZ[,6], breaks = 100)
+
+# dendogram using euclidian distance (default) and ward or complete agglomeration
+dend.ward<- as.dendrogram(hclust(dist(t(dataZ)),method="ward"))
+dend.complete<- as.dendrogram(hclust(dist(t(dataZ))))
+
+ward.o<- order.dendrogram(dend.ward)
+complete.o<- order.dendrogram(dend.complete)
+
+plot(dend.complete,ylab="height", main = "Euclidian/Complete")
+plot(dend.ward, leaflab = "perpendicular", ylab = "height", main = "Euclidian/Ward")
+
+
+
+# row scaled
+r <- t(scale(t(ProtNormalized)))#transpose to zscale the rows then transpose back to original format
+
+# sample scaled
+c <- scale(ProtNormalized)
+
+
+# install heatmap.2 package
+# install.packages("gplots")
+library(gplots)
+
+# Create dendrogram using the data without NAs
+feature.dend<- as.dendrogram(hclust(dist(r),method="ward"))
+sample.dend<- as.dendrogram(hclust(dist(t(c)),method="ward"))##note that dist caclculates distance between rows by default
+
+
+##produce the heatmap. Note that the help page has a nice section on identifying subregions by color. Although I will likely have to cut the dendogram to id clusters of interest
+
+heatmap.2(
+  r,#row Z scores
+  Colv=sample.dend,
+  Rowv=feature.dend,
+  col=bluered(25),
+  scale="none",
+  trace="none",
+  density.info="none",
+  key.xlab = "Row Z scores", key.ylab=NULL, key.title = "",
+  srtCol=45,  ,adjCol = c(1,1),
+  margins = c(6,5),
+  cexCol=1,
+  labRow = NA#remove row labels
+)
+
+
+# plot.new()
+
+#PCA analysis 
+# Rafa PCA plots!
+x <- t(ProtNormalized)#samples are the rows of the column matrix
+pc <- prcomp(x)#scale = T, center = T) as of now I am not scaling
+
+cols <- as.factor(substr(colnames(ProtNormalized), 3, 7))##check me out. use 5 digit exp name.
+plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "PCA", xlab = "PC1", ylab = "PC2")
+legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1)
+
+
+summary(pc)
+
+#SVD for calculating variance explained; see Rafa's notes for an explaination
+cx <- sweep(x, 2, colMeans(x), "-")
+sv <- svd(cx)
+names(sv)
+plot(sv$u[, 1], sv$u[, 2], col = as.numeric(cols), main = "SVD", xlab = "U1", ylab = "U2")
+
+
+plot(sv$d^2/sum(sv$d^2), xlim = c(1, 12), type = "b", pch = 16, xlab = "principal components", 
+     ylab = "variance explained")
+
+
+#***Differential Expression******************************************************
+
+fac <- factor(c(1,1,2,2,3,3))##codes the grouping for the ttests
+design <- model.matrix(~0 + fac)
+dnames <- levels(as.factor(substr(colnames(ProtNormalized), 1, 7))) ##check me out. use 5 digit exp name.
+colnames(design) <- dnames
+
+fit <- lmFit(ProtNormalized, design)
+# Now to make all pairwise comparisons (group2-1, group3-2, group3-1)
+contrast.matrix <- makeContrasts(HL18862-HL18486, HL19160-HL18862, HL19160-HL18486, levels = design)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+
+sig1 <- topTable(fit2, coef = 1, adjust = "BH", n=Inf, sort="p", p=.05)#sorts by adjusted p up to the threshold of .05, which is the default FDR chosen for differential expression ("results" function). This actually seems a conservative way to sort.
+sig2 <- topTable(fit2, coef = 2, adjust = "BH", n=Inf, sort="p", p=.05)
+sig3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf, sort="p", p=.05)
+
+# sig1 - 18862-18486
+# sig2 - 19160-18862
+# sig3 - 19160-18486
+
+c1up  <- sig1[sig1$logFC > 0,]
+c1down <- sig1[sig1$logFC < 0,]
+c2up <- sig2[sig2$logFC > 0,]
+c2down <- sig2[sig2$logFC < 0,]
+c3up <- sig3[sig3$logFC > 0,]
+c3down <- sig3[sig3$logFC < 0,]
+
+
+tt1 <- topTable(fit2, coef = 1, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
+tt2 <- topTable(fit2, coef = 2, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
+tt3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
+
+hist(tt1$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[1])
+hist(tt2$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[2])
+hist(tt3$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[3])
+
+plot(tt1$logFC,-log10(tt1$P.Value), xlab = colnames(contrast.matrix)[1], pch = 20, ylab = "-log10(P)",xlim = c(-6, 6))
+#sites with sig difference in comparison 1
+names <- row.names(sig1)
+names2 <- row.names(tt1)
+index <- which(names2 %in% names)
+points(tt1$logFC[index],-log10(tt1$P.Value)[index], col="red3", pch = 20)
+
+
+plot(tt2$logFC,-log10(tt2$P.Value), xlab = colnames(contrast.matrix)[2], pch = 20, ylab = "-log10(P)",xlim = c(-6, 6))
+#sites with sig difference in comparison 1
+names <- row.names(sig2)
+names2 <- row.names(tt2)
+index <- which(names2 %in% names)
+points(tt2$logFC[index],-log10(tt2$P.Value)[index], col="red3", pch = 20)
+
+
+plot(tt3$logFC,-log10(tt3$P.Value), xlab = colnames(contrast.matrix)[3], pch = 20, ylab = "-log10(P)",xlim = c(-6, 6))
+#sites with sig difference in comparison 1
+names <- row.names(sig3)
+names2 <- row.names(tt3)
+index <- which(names2 %in% names)
+points(tt3$logFC[index],-log10(tt3$P.Value)[index], col="red3", pch = 20)
 
 
 
 
+results <- decideTests(fit2, adjust.method = "BH", method = "separate")#results is a 'TestResults' matrix
+#separate compares each sample individually and is the default approach
+summary(results)
 
 
-
-pmatch(row.names(DEtable),as.character(Ziaproteins3))
-
-lapply(grep(row.names(DEtable), as.character(Ziaproteins3)))
-grep(row.names(DEtable), as.character(Ziaproteins3))
-
-apply(row.names()
-
-
-
-
-
+vennDiagram(results, cex=c(1.2,1,0.7)) #good DE across conditions
+vennDiagram(results, cex=c(1.2,1,0.7), include = "up") #good DE across conditions
+vennDiagram(results, cex=c(1.2,1,0.7), include = "down") #good DE across conditions
+vennDiagram(results, cex=c(1.2,1,0.7), include = c("up", "down")) #good DE across conditions
 
 
 
