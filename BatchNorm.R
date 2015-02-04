@@ -5,6 +5,7 @@ BatchNorm <- function(multExpanded1){
   require(sva)
   require(plyr)
   require(swamp)
+  require(limma)
   
   #make the sparse matrix from real data (all quants of class 1 here) 
   expCol <- grep("HL(.*)", colnames(multExpanded1))

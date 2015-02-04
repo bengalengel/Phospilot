@@ -2,7 +2,7 @@
 
 #these measurements will then be subjected to the same workflow as the confounded phosphomeasurements. 
 
-rm(list=ls(all=TRUE)) #start with empty workspace
+rm(list=ls(all=TRUE)) #start with empty workspace if desired
 
 
 # First perform all processing steps using plyr and related tools.
@@ -54,8 +54,8 @@ row.names(data) <- protein1$id
 data <- log2(data)
 
 #18871 is all over the place. actually its 18871?
-boxplot(data)
-which.max(sapply(data,median,na.rm=T))
+#boxplot(data)
+#which.max(sapply(data,median,na.rm=T))
 
 #I am going to remove it for now
 drop <- names(which.max(sapply(data,median,na.rm=T)))
@@ -81,12 +81,12 @@ data <- na.omit(data)#4270
 boxplot(data)#differences in distribution shape for sure with HL18486 and HL19160
 par(mfrow = c(1, 1))
 for (i in 1:(ncol(data))){
-  if(i==1) plot(density(data[, i], na.rm=T), col = i, ylim = c(0,1.5))
+  if(i==1) plot(density(data[, i], na.rm=T), col = i, ylim = c(0,2))
   else lines(density(data[, i], na.rm=T), col = i)
 }
 
 
-#quantile normalize using all data for now
+#quantile normalize data being compared
 quantiled <- normalizeQuantiles(data,ties = T)#ties are all assigned the same value for the common quantile
 summary(quantiled)
 boxplot(data)
@@ -125,6 +125,7 @@ datacomp <- cbind(quantiled,tmp[c("Protein.IDs","Majority.protein.IDs","Protein.
 
 #now how many unique proteins in the phospho data are subjected to DE analysis? 
 
+#LOAD FILE ONLY IF STARTING HERE
 #subset of multExpanded that are subjected to DE (load a local file with DE information)
 multExpanded1_withDE <- read.csv("multExpanded1_withDE.csv", header=T)
 
@@ -303,7 +304,6 @@ row.names(data) <- Phos_Protein$idmult
 data <- na.omit(data)
 
 #perform the normalization
-
 HL18486_1norm <- data$HL18486_1-data$HL18486
 HL18486_2norm <- data$HL18486_2-data$HL18486
 HL18862_1norm <- data$HL18862_1-data$HL18862
@@ -378,7 +378,6 @@ heatmap.2(
 # plot.new()
 
 #PCA analysis 
-# Rafa PCA plots!
 x <- t(ProtNormalized)#samples are the rows of the column matrix
 pc <- prcomp(x)#scale = T, center = T) as of now I am not scaling
 
@@ -469,9 +468,140 @@ summary(results)
 
 
 vennDiagram(results, cex=c(1.2,1,0.7)) #good DE across conditions
-vennDiagram(results, cex=c(1.2,1,0.7), include = "up") #good DE across conditions
-vennDiagram(results, cex=c(1.2,1,0.7), include = "down") #good DE across conditions
-vennDiagram(results, cex=c(1.2,1,0.7), include = c("up", "down")) #good DE across conditions
+vennDiagram(results, cex=c(1.2,1,0.7), include = "up")
+vennDiagram(results, cex=c(1.2,1,0.7), include = "down") 
+vennDiagram(results, cex=c(1.2,1,0.7), include = c("up", "down")) #reproduces 'signature'
 
+
+#F statistics
+#DE sites by contrast type
+#DE sites using 'separate' contrasts
+DE <- results[results[,1] != 0 | results[,2] != 0 | results[,3] != 0,]
+#sites only DE in exactly one contrast
+absDE <- abs(DE)
+DE1 <- absDE[rowSums(absDE)==1,]
+#sites DE in exactly two contrast
+DE2 <- absDE[rowSums(absDE)==2,]
+#site DE in all 3 contrasts
+DE3 <- results[results[,1] != 0 & results[,2] != 0 & results[,3] != 0,]
+
+
+
+Fvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F")#all F values
+sigFvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)#gives 1355 compared to 1549 DE total for separate comparisons
+
+#subsets by contrast specific DE
+FDE1 <- Fvals[which(row.names(DE1)%in%row.names(Fvals)),5:6]
+FDE2 <- Fvals[which(row.names(DE2)%in%row.names(Fvals)),5:6]
+FDE3 <- Fvals[which(row.names(DE3)%in%row.names(Fvals)),5:6]
+
+#below gives adjusted pvalue
+FDE1 <- Fvals[match(row.names(DE1), row.names(Fvals), nomatch = F),5:7]
+FDE2 <- Fvals[match(row.names(DE2), row.names(Fvals), nomatch = F),5:7]
+FDE3 <- Fvals[match(row.names(DE3), row.names(Fvals), nomatch = F),5:7]
+
+#boxplot(FDE1$F,FDE2$F,FDE3$F)
+boxplot(log10(FDE1$F),log10(FDE2$F),log10(FDE3$F))
+summary(FDE1$F)
+summary(FDE2$F)
+summary(FDE3$F)
+
+plot(density(log10(FDE1$F)),xlim = c(0,3))
+lines(density(log10(FDE2$F)), col = 2)
+lines(density(log10(FDE3$F)), col = 3)
+
+
+
+
+
+##overlap with phospho dataset
+#add annotation to multExpanded withDE and save the new file
+
+
+#add annotation to multexpanded DF
+multExpanded1_withDE$SubtoDEpn = ifelse(multExpanded1_withDE$idmult %in% row.names(ProtNormalized),"+","-")
+
+#add F test values to the table
+multExpanded1_withDE$globalFsigpn = ifelse(multExpanded1_withDE$idmult %in% row.names(sigFvals),"+","-")
+
+#add DE to table
+multExpanded1_withDE$DEcont1pn = ifelse(multExpanded1_withDE$idmult %in% row.names(sig1),"+","-")
+multExpanded1_withDE$DEcont2pn = ifelse(multExpanded1_withDE$idmult %in% row.names(sig2),"+","-")
+multExpanded1_withDE$DEcont3pn = ifelse(multExpanded1_withDE$idmult %in% row.names(sig3),"+","-")
+
+#add DE direction to table
+multExpanded1_withDE$cont1uppn = ifelse(multExpanded1_withDE$idmult %in% row.names(c1up),"+","-")
+multExpanded1_withDE$cont1downpn = ifelse(multExpanded1_withDE$idmult %in% row.names(c1down),"+","-")
+multExpanded1_withDE$cont2uppn = ifelse(multExpanded1_withDE$idmult %in% row.names(c2up),"+","-")
+multExpanded1_withDE$cont2downpn = ifelse(multExpanded1_withDE$idmult %in% row.names(c2down),"+","-")
+multExpanded1_withDE$cont3uppn = ifelse(multExpanded1_withDE$idmult %in% row.names(c3up),"+","-")
+multExpanded1_withDE$cont3downpn = ifelse(multExpanded1_withDE$idmult %in% row.names(c3down),"+","-")
+
+#write the multExpanded table with DE information
+write.table(multExpanded1_withDE,"multExpanded1_withDE_protein.csv", sep=',',col.names=T, row.names=F)
+
+
+##check for overlap using omnibus F
+
+#subset
+SubtoDEpn <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEpn == "+",]
+
+#for an apples to apples comparison I will need to subject the same subset to DE in both cases.
+
+#limma on common subset for phosphodata
+
+#subset the phospho data by id_mult found in the protein data
+phosdata <- pilot[row.names(pilot) %in% SubtoDEpn$idmult,]
+
+require(limma)
+require(statmod)
+#Produce the design matrix
+
+fac <- factor(c(1,1,2,2,3,3))##codes the grouping for the ttests
+design <- model.matrix(~0 + fac)
+dnames <- levels(as.factor(substr(colnames(phosdata), 1, 7))) ##check me out. use 5 digit exp name.
+colnames(design) <- dnames
+
+fit <- lmFit(phosdata, design)
+
+#Now to make all pairwise comparisons (group2-1, group3-2, group3-1)
+contrast.matrix <- makeContrasts(HL18862-HL18486, HL19160-HL18862, HL19160-HL18486, levels = design)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+
+Fvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F")#all F values
+sigFvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)#gives 1355 compared to 1549 DE total for separate comparisons
+
+diffphos <- nrow(phosdata[row.names(phosdata) %in% row.names(sigFvals),])
+diffphosnorm <- nrow(SubtoDEpn[SubtoDEpn$globalFsigpn == "+",])
+
+##append to SubtoDEpn
+SubtoDEpn$diffphos = ifelse(SubtoDEpn$idmult %in% row.names(sigFvals),"+","-")
+
+intersection <- nrow(SubtoDEpn[SubtoDEpn$globalFsigpn == "+" & SubtoDEpn$diffphos == "+",])
+
+
+#make a double venn
+require(VennDiagram)
+require(gridExtra)
+plot.new()
+venn.plot <- draw.pairwise.venn(
+  area1 = nrow(SubtoDEpn[SubtoDEpn$globalFsig == "+",]),
+  area2 = nrow(SubtoDEpn[SubtoDEpn$globalFsigpn == "+",]),
+  cross.area = nrow(SubtoDEpn[SubtoDEpn$globalFsigpn == "+" & SubtoDEpn$globalFsig == "+",]),
+  category = c("PhosDE", "normPhosDE"),
+  fill = c("green", "blue"),
+  lty = "blank",
+  cex = 2,
+  cat.cex = 2,
+  cat.col = c("green", "blue"), 
+  margin = .1,
+  main="test"
+)
+plot.new()
+grid.arrange(gTree(children=venn.plot), main="Differential Phosphorylation")
+
+
+##almost all of the phosDE is picked up. But there is just as many new DE in the non-confounded data!...
 
 

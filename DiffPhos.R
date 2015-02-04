@@ -195,18 +195,18 @@ DiffPhos <- function(pilot){
   
   
   
-  
-  # GSEA of differentially expressed lists across contrasts
-  
+  #add idmult annotation to multexpanded table
+  idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
+  multExpanded1 <- cbind(multExpanded1,idmult)
+
   #add annotation to multexpanded DF
-  head(row.names(pilot))
-  
+  multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(pilot),"+","-")
+
   #add F test values to the table
   multExpanded1$globalFsig = ifelse(multExpanded1$idmult %in% row.names(sigFvals),"+","-")
   
   
   #add DE to table
-  multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(pilot),"+","-")
   multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
   multExpanded1$DEcont2 = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
   multExpanded1$DEcont3 = ifelse(multExpanded1$idmult %in% row.names(sig3),"+","-")

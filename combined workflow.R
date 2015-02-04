@@ -14,8 +14,8 @@ source("BatchNorm.R")
 source("DiffPhos.R")
 
 # load phospho and protein files with particular variables populated using "loadMQ"
-phospho <- load.MQ(directory = "C:/Users/Brett/Documents/Pilot/10_9_14/txt/", type = "phospho")
-protein <- load.MQ(directory = "C:/Users/Brett/Documents/Pilot/10_9_14/txt/", type = "protein")
+phospho <- load.MQ(directory = "D:/10_9_14/txt/", type = "phospho")
+protein <- load.MQ(directory = "D:/10_9_14/txt/", type = "protein")
 
 
 # load phospho and protein files with particular variables populated using "loadMQ" at home

@@ -4,7 +4,7 @@ require(plyr)
 require(reshape2)
 library(qdapRegex)
 
-melted <- melt(com2, measure.vars = names(com2))
+#melted <- melt(com2, measure.vars = names(com2))
 
 #no missing values version
 com3 <- na.omit(com2)
@@ -79,7 +79,7 @@ density(as.matrix(Fvalues))
 
 
 
-lot.new()
+plot.new()
 par(mfrow = c(1, 1))
 for (i in 1:(ncol(data)-1)){
   if(i==1) plot(density(data[, i], na.rm=T), col = i, ylim = c(0,.7))
