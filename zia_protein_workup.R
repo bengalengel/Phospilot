@@ -51,7 +51,11 @@ protein1 <- protein1[rowSums(is.na(protein1[,expCol]))!=length(expCol),]##remove
 data <- protein1[,expCol]#60 cell lines
 
 row.names(data) <- protein1$id
+data <- 1/data
 data <- log2(data)
+
+#inverse because I want light heavy here because the light sample is the standard 
+
 
 #18871 is all over the place. actually its 18871?
 #boxplot(data)
@@ -99,6 +103,24 @@ for (i in 1:(ncol(quantiled))){
   else lines(density(quantiled[, i], na.rm=T), col = i)
 }
 
+##now to try some SVA. I need to create the model matrix (adjustment variables and variables of interest) and the null model matrix (only adjustment variables).
+mod <- model.matrix(~levels(as.factor(colnames(quantiled))), data=quantiled)
+colnames(mod) <- levels(as.factor(colnames(quantiled)))
+
+tmp <- data.frame(x=c(1,1,1))
+mod0 <- model.matrix(~1, data=tmp)#only an intercept is included since we are not adjusting for any other variables...
+
+#how many 'latent factors' are present in the protein data?
+num.sv(quantiled,mod,method = "be")
+
+svobj = sva(quantile,mod,mod0)
+
+
+
+fac <- factor(c(1,1,2,2,3,3))##codes the grouping for the ttests
+  design <- model.matrix(~0 + fac)
+  dnames <- levels(as.factor(substr(colnames(pilot), 1, 7))) ##check me out. use 5 digit exp name.
+  colnames(design) <- dnames
 
 ##normalized protein ratios from the three samples of interest
 #quantiled <- quantiled[,c("HL18862","HL18486","HL19160")]
