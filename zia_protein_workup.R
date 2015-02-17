@@ -58,11 +58,11 @@ data <- log2(data)
 
 
 #18871 is all over the place. actually its 18871?
-#boxplot(data)
-#which.max(sapply(data,median,na.rm=T))
+boxplot(data)
+which.min(sapply(data,median,na.rm=T))
 
 #I am going to remove it for now
-drop <- names(which.max(sapply(data,median,na.rm=T)))
+drop <- names(which.min(sapply(data,median,na.rm=T)))
 data <- data[,!(names(data) %in% drop)]
 
 #median normalize
@@ -625,5 +625,5 @@ grid.arrange(gTree(children=venn.plot), main="Differential Phosphorylation")
 
 
 ##almost all of the phosDE is picked up. But there is just as many new DE in the non-confounded data!...
-
+##better now that the inverse is used!!!
 
