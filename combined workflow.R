@@ -57,7 +57,20 @@ pilot <- BatchNorm(multExpanded1)
 #DE analysis uding DiffPhos function. Here I perform limma based DE across contrasts and add annotation to the multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned and written
 multExpanded1_withDE <- DiffPhos(pilot)
 
-#next is GSEA, networkin, motifs, etc?
+#Zia protein workup using the multExpanded1_withDE data frame and 'pilot' dataframe as input. This program outputs a protein normalized matrix 'pilot2' which can be used for other puproses. Note the protein normalization of phospho data word file for the methods section of the paper. 
+multExpanded1_withDE <- DiffPhosNorm(multExpanded1_withDE)
+
+#next is GSEA, networkin, motifs to show that this is real functional biology
+
+#next is the nested analysis to assess variation at the different levels of the experimental design to show biologically significant variation in each?
+
+#next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite. Correction for protein length (bootstrapping here). 
+
+#something at the level of the differential network...
+
+
+
+
 
 
 

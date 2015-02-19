@@ -104,23 +104,23 @@ for (i in 1:(ncol(quantiled))){
 }
 
 ##now to try some SVA. I need to create the model matrix (adjustment variables and variables of interest) and the null model matrix (only adjustment variables).
-mod <- model.matrix(~levels(as.factor(colnames(quantiled))), data=quantiled)
-colnames(mod) <- levels(as.factor(colnames(quantiled)))
-
-tmp <- data.frame(x=c(1,1,1))
-mod0 <- model.matrix(~1, data=tmp)#only an intercept is included since we are not adjusting for any other variables...
-
-#how many 'latent factors' are present in the protein data?
-num.sv(quantiled,mod,method = "be")
-
-svobj = sva(quantile,mod,mod0)
-
-
-
-fac <- factor(c(1,1,2,2,3,3))##codes the grouping for the ttests
-  design <- model.matrix(~0 + fac)
-  dnames <- levels(as.factor(substr(colnames(pilot), 1, 7))) ##check me out. use 5 digit exp name.
-  colnames(design) <- dnames
+# mod <- model.matrix(~levels(as.factor(colnames(quantiled))), data=quantiled)
+# colnames(mod) <- levels(as.factor(colnames(quantiled)))
+# 
+# tmp <- data.frame(x=c(1,1,1))
+# mod0 <- model.matrix(~1, data=tmp)#only an intercept is included since we are not adjusting for any other variables...
+# 
+# #how many 'latent factors' are present in the protein data?
+# num.sv(quantiled,mod,method = "be")
+# 
+# svobj = sva(quantile,mod,mod0)
+# 
+# 
+# 
+# fac <- factor(c(1,1,2,2,3,3))##codes the grouping for the ttests
+#   design <- model.matrix(~0 + fac)
+#   dnames <- levels(as.factor(substr(colnames(pilot), 1, 7))) ##check me out. use 5 digit exp name.
+#   colnames(design) <- dnames
 
 ##normalized protein ratios from the three samples of interest
 #quantiled <- quantiled[,c("HL18862","HL18486","HL19160")]
@@ -621,7 +621,7 @@ venn.plot <- draw.pairwise.venn(
   main="test"
 )
 plot.new()
-grid.arrange(gTree(children=venn.plot), main="Differential Phosphorylation")
+grid.arrange(gTree(children=venn.plot), main="Differential Phosphorylation Overlap")
 
 
 ##almost all of the phosDE is picked up. But there is just as many new DE in the non-confounded data!...

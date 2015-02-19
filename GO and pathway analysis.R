@@ -1,3 +1,13 @@
+GOpath <- function(multExpandedwithDE){
+  #I will need to decide on the imput matrix. This function recieves Uniprot annotations and significance binary indicators.
+#   It then performs enrichment analysis using the zia proteome (I think) as background. 
+#   GO biological process and reactome pathway enrichmet is performed.
+#   Open question is whether or not subtoDE should be the background or ziaproteins should be the background.
+#   I have already performed a selection with the subtoDE subset that is driven by the data so I think enrichment should be recognized within
+#   this subset because enrichment should be analyzed relative to what 'could be' enriched.
+#   However if there is no bias in the selection of the subtoDE set then this should be moot. however there will be bias due to concentration dependent identification.Whatever the bias (ID or quantification), if there is no bias in the expression level and length of the protein in determining differential phosphorylation (biologically small and large proteins are equally probable of being differentially phosphorylated) The background needs to be the subtoDE cohort.
+#will a multiply phosphorylated protein be more likely to be represented in diffphos than singly phosphorylated proteins? Is the degree of 
+
 #converting uniprotIDs to entrezIDs
 # biocLite("mygene")
 # library(mygene)
