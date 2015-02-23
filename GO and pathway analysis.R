@@ -5,7 +5,11 @@ GOpath <- function(multExpandedwithDE){
 #   Open question is whether or not subtoDE should be the background or ziaproteins should be the background.
 #   I have already performed a selection with the subtoDE subset that is driven by the data so I think enrichment should be recognized within
 #   this subset because enrichment should be analyzed relative to what 'could be' enriched.
-#   However if there is no bias in the selection of the subtoDE set then this should be moot. however there will be bias due to concentration dependent identification.Whatever the bias (ID or quantification), if there is no bias in the expression level and length of the protein in determining differential phosphorylation (biologically small and large proteins are equally probable of being differentially phosphorylated) The background needs to be the subtoDE cohort.
+#   However if there is no bias in the selection of the subtoDE set then this should be moot. however there will be bias due to concentration dependent identification.Whatever the bias (ID or quantification), if there is no bias in the expression level and length of the protein in determining differential phosphorylation (biologically small and large proteins are equally probable of being differentially phosphorylated) However this must take into account the length of the protein. 
+  Did Banovich do this with the methylation data? any sort of enrichment analysis?
+  
+  
+  The background needs to be the subtoDE cohort.
 #will a multiply phosphorylated protein be more likely to be represented in diffphos than singly phosphorylated proteins? Is the degree of 
 
 #converting uniprotIDs to entrezIDs
@@ -13,7 +17,9 @@ GOpath <- function(multExpandedwithDE){
 # library(mygene)
 
 source("uniprot to entrezID.R")
-
+# source("http://bioconductor.org/biocLite.R")
+# biocLite("biomaRt")
+require("biomaRt")
 # ##subset of DE in any contrast
 # DE <- multExpanded1[(multExpanded1$DEcont1 == "+"| multExpanded1$DEcont2 == "+"| multExpanded1$DEcont3 == "+"),]
 # #convert row of uniprot ids to ensemble ids
@@ -27,13 +33,20 @@ source("uniprot to entrezID.R")
 ##subset of global DE using F statistics
 DE <- multExpanded1[multExpanded1$globalFsig == "+",]
 #convert row of uniprot ids to ensemble ids
-test <- strsplit(as.character(DE$Proteins), ";")
-test <- as.character(unlist(test))
-test <- unique(test)
-out <- Uniprot2EG(test)
-DEentrez <- as.character(out$entrezgene)
-DEentrez <- unique(DEentrez)
+MajorityProteins <- strsplit(as.character(DE$Proteins), ";")
+MajorityProteins <- as.character(unlist(test))
+#test <- unique(test)
+out <- Uniprot2EG(MajorityProteins)
+##add (potentially redundant)
 
+
+DEentrezwithdup <- as.character(out$entrezgene)
+#DEentrez <- unique(DEentrez)
+
+
+##now to add the enrezid next to the 'test' vector if it is found in the enrezid list.
+poopy <- out[which(duplicated(out$uniprot)),1]
+write.table(poopy, "duplicateduniprot.csv", sep=',',row.names=FALSE, col.names=F)
 
 
 ##subset of DEcont1
@@ -147,13 +160,37 @@ names(Directioncontrasts) <- c("18862-18486up","18862-18486down","19160-18862up"
 #used bioDBnet to convert ensemble to entrez gene ids and kept all unique (n=10827)
 ziac <- read.table("E:/My Documents/Dropbox/Postdoc-Gilad/Zia/ziaConversion.txt", sep = "\t", header=T, fill = T)
 entrezbg <- strsplit(as.character(ziac$Gene.ID), ";")
-entrezbg <- as.character(unlist(test))
-entrezbg <- unique(test)
+entrezbgdups <- as.character(unlist(entrezbg))
+entrezbg <- unique(entrezbgdups)
 ####################################################################################
+
+require(ReactomePA)
 
 ##all DE pathway enrichment using the F-statistics. pvalue cutoff is the adjusted p value using BH! minimum geneset and minimum geneset size of 5. uses the union of annotated genes and the genes expressed in the LCLs.
 Reactome <- enrichPathway(gene=DEentrez,pvalueCutoff=0.05, readable=T, universe = entrezbg)#see help file. uses hypergeometric distribution.
 ReactomeDEenrich <- as.data.frame(summary(Reactome))
+
+##some tests here. First with no duplication
+Reactome <- enrichPathway(gene=DEentrez,pvalueCutoff=0.05, readable=T)#see help file. uses hypergeometric distribution.
+ReactomeDEenrich <- as.data.frame(summary(Reactome))
+
+##some tests here. With duplication
+Reactomedups <- enrichPathway(gene=DEentrezwithdup,pvalueCutoff=0.05, readable=T)#see help file. uses hypergeometric distribution.
+ReactomeDEenrichdups <- as.data.frame(summary(Reactome))
+
+#seems to return the same result
+
+
+#lets look at the source
+capture.output(getAnywhere('enrichPathway'), file='source_enrichPathway.r')
+
+
+capture.output(getAnywhere('enrich.internal'), file='enrich.internal.r')
+
+EXTID2TERMID
+capture.output(getAnywhere('EXTID2TERMID'), file='enrich.internal.r')
+
+
 
 #now for each contrast
 ReactomeDE1 <- enrichPathway(gene=DE1entrez,pvalueCutoff=0.05, readable=T, universe = entrezbg)#see help file. uses hypergeometric distribution.
