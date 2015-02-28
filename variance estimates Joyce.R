@@ -96,9 +96,39 @@ plot(density(log10(stdDevs)))
 
 
 #does this have something to do with combat or the normalization scheme?...
+# quantiled5 is median and quantile normalized with no missing values
+
+require(plyr)
+require(reshape2)
+library(qdapRegex)
 
 
+#no missing values version
+quantiled6 <- as.matrix(quantiled5)
+melted <- melt(quantiled6, measure.vars = names(quantiled6))
 
 
+#identify individual name and add it to the table
+matches <- gregexpr("[0-9]{5}", melted$Var2, perl=T)
+individual <- regmatches(melted$Var2,matches)
+individual <- as.character(individual)
+individual <- as.factor(individual)
+melted$individual <- individual
 
 
+#identify the biological replicate
+biorep <- rm_between(melted$Var2, "_", "_", extract=TRUE)
+biorep <- as.character(biorep)
+biorep <- as.factor(biorep)
+melted$biorep <- biorep
+
+
+#identify the technical replicate
+matches <- gregexpr("[0-9]$", melted$Var2, perl=T)
+techrep <- regmatches(melted$Var2,matches)
+techrep <- as.character(techrep)
+techrep <- as.factor(techrep)
+melted$techrep <- techrep
+
+
+#after running above it seems that there is the same signature in the non batch corrected data.
