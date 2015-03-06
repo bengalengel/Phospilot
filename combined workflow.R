@@ -8,15 +8,19 @@ library(stringr)
 library(plyr)
 source("loadMQ.R")
 source("ExpandPhos.R")
+source("ExpandPhos2.R")
 source("counts.R")
 source("breakdown.R")
 source("BatchNorm.R")
 source("DiffPhos.R")
+source("loadMQ2.R")
 
 # load phospho and protein files with particular variables populated using "loadMQ"
 phospho <- load.MQ(directory = "D:/10_9_14/txt/", type = "phospho")
 protein <- load.MQ(directory = "D:/10_9_14/txt/", type = "protein")
 
+#loading unnormalized values
+phospho <- load.MQ2(directory = "D:/10_9_14/txt/", type = "phospho")
 
 # load phospho and protein files with particular variables populated using "loadMQ" at home
 phospho <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
@@ -40,6 +44,9 @@ protein1 <- protein[(protein$Only.identified.by.site != "+"),]
 
 # Class 1 sites with each source of quantification for that site (singly/doubly/3+) explicitly accounted for 
 multExpanded1 <- ExpandPhos(phospho1)
+
+#for non normalized data
+multExpanded1 <- ExpandPhos2(phospho1)
 
 #make tables of basic counts of proteins and phosphopeptides (may have to update when performing the normalization)
 phoscount(phospho,phospho1,multExpanded,multExpanded1)
