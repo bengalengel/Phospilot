@@ -18,12 +18,6 @@ BatchNorm <- function(multExpanded1){
   multExpanded1 <- cbind(multExpanded1,idmult)
   data <- log2(data)
   
-  #median normalize
-  names <- colnames(data)[1:12]
-  median.subtract <- function(x){ x - median(x, na.rm = TRUE)}##create a wrapper for median subtraction
-  data <- colwise(median.subtract, names)(data)
-  row.names(data) <- idmult##add back the row names
-  
   #summaries
   # summary(data)
   # boxplot(data[,1:12])#extreme outlier in HL18486_1_2
@@ -32,6 +26,17 @@ BatchNorm <- function(multExpanded1){
   #remove outlier which is 3X greater than any other datapoint
   data[,2][which.max(data[,2])] <- NaN
   boxplot(data[,1:12])#extreme outlier in HL18486_1_2 removed
+  
+  RawRatios <- data
+  
+  #median normalize
+  names <- colnames(data)[1:12]
+  median.subtract <- function(x){ x - median(x, na.rm = TRUE)}##create a wrapper for median subtraction
+  data <- colwise(median.subtract, names)(data)
+  row.names(data) <- idmult##add back the row names
+  
+  MedianNorm <- data
+ 
   
   # quantile normalization. from normalize.quantiles {preprocessCore}  
   # "This functions will handle missing data (ie NA values), based on the assumption that the data is missing at random."
@@ -182,7 +187,6 @@ BatchNorm <- function(multExpanded1){
   # plot.new()
   
   #PCA analysis 
-  # Rafa PCA plots!
   x <- t(cdata)#samples are the rows of the column matrix
   pc <- prcomp(x)#scale = T, center = T) as of now I am not scaling
   
@@ -195,13 +199,11 @@ BatchNorm <- function(multExpanded1){
   
   summary(pc)
   
-  #SVD for calculating variance explained; see Rafa's notes for an explaination
+  #SVD for calculating variance explained;
   cx <- sweep(x, 2, colMeans(x), "-")
   sv <- svd(cx)
   names(sv)
-  plot(sv$u[, 1], sv$u[, 2], col = as.numeric(cols), main = "SVD", xlab = "U1", ylab = "U2")
-  
-  
+  plot(sv$u[, 1], sv$u[, 2], col = as.numeric(cols), main = "SVD", xlab = "U1", ylab = "U2")  
   plot(sv$d^2/sum(sv$d^2), xlim = c(1, 12), type = "b", pch = 16, xlab = "principal components", 
        ylab = "variance explained")
   
@@ -229,6 +231,9 @@ BatchNorm <- function(multExpanded1){
   #write the normalized and batch corrected "pilot" matrix
   write.csv(pilot,"pilot_dataframe.csv", row.names = T)
   
-  return(pilot)
+  #data frames to be returned; quantiled1-5, com2, adata, pilot
+  DFs <- list(RawRatios, MedianNorm, quantiled, quantiled2, quantiled3, quantiled4, quantiled5, com2, adata, pilot)
+  
+  return(DFs)
   
 }

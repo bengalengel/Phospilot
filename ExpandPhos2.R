@@ -5,7 +5,7 @@ ExpandPhos2 <- function(phospho){
   require(plyr)
   require(reshape2)
   
-  expression <- phospho[,grep("Ratio.H.L.[0-9]+_[12]_[12]___", colnames(phospho))]
+  expression <- phospho[,grep("Ratio.H.L.[0-9]+_[12]_[12]___", colnames(phospho))]  
   
   melted <- melt(phospho, measure.vars = names(expression))
   

@@ -33,6 +33,9 @@ head(Varcomp)
 ##scatter plots show discrete groupings?
 plot(log10(Varcomp[,1]),log10(Varcomp[,2]), xlab = "biological variance", ylab = "technical variance")
 
+plot(Varcomp[,1],Varcomp[,2], xlab = "biological variance", ylab = "technical variance")
+
+
 #histograms of log10 variance are bimodal for biological and individual variance.
 hist(log10(Varcomp[,1]))
 hist(log10(Varcomp[,2]))
