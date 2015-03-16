@@ -111,6 +111,62 @@ NestedVar <- function(ratios, batch = F, balanced = T){
   plot(density(log10(Varcomp[,1])), xlab = "variance", main = "hist of individual variance components")
   plot(density(log10(Varcomp[,2])), xlab = "variance", main = "hist of biological variance components")
   plot(density(log10(Varcomp[,3])), xlab = "variance", main = "hist of technical variance components")
+  
+  
+  ##Some Joyce additions below
+  hist(log10(colSums(Varcomp)),breaks=30)
+  
+#   As expected, larger sample variability (total VC) permits variability between individual samples, between biological replicates, and betweeen techincial replicates. 
+#   
+#   Note that individual VC and biological VC are extremely small in a good amount phosphopeptides. More importantly, these phosphopeptides are not limited in the range of sample variability and span the entire range of total VC.
+par(mfrow=c(2,2))
+ylims=c(-16,0);xlims=c(-3,0)
+plot(log10(colSums(Varcomp)),log10(Varcomp[1,]),xlim=xlims,ylim=ylims,
+     xlab="log10 total VC",ylab="log10 individual VC",axes=F)
+axis(1);axis(2)
+plot(log10(colSums(Varcomp)),log10(Varcomp[2,]),xlim=xlims,ylim=ylims,
+     xlab="log10 total VC",ylab="log10 biorep VC",axes=F)
+axis(1);axis(2)
+plot(log10(colSums(Varcomp)),log10(Varcomp[3,]),xlim=xlims,ylim=ylims,
+     xlab="log10 total VC",ylab="log10 tech VC",axes=F)
+axis(1);axis(2)
+# Here we'd like to identify phosphpeptides with little or no variability at the individual level and at the biological replicate level. To do so, we standardized the values of the variance components for each phosphopeptides with respect to its sum of variance components. The standardized variance components are the proportion of the total variation in each phosphopeptides attributed to individuals, biological replicates, and technical replicates. 
+
+
+# Boxplots of the standardized VCs confirm our observations from the raw VC values. Proportion of variability attributed to biological replicates is the smallest, followed by technical replicates, with individaul samples contribute the large portion of variabilty in expression levels. 
+par(mfrow = c(1,1))
+varprop = t(t(Varcomp)/colSums(Varcomp))
+varprop = t(varprop)
+
+labs = c("individual","biorep","tech")
+boxplot((varprop),axes=F)
+axis(1,at=c(1,2,3),labels=labs,col="white");axis(2)
+
+
+# Heatmap representation of the standardized VCs. 
+require(gplots)
+require(RColorBrewer)
+colnames(varprop) = c("individual","bio","tech")
+heatmap.2(as.matrix(varprop),col=brewer.pal(9,"YlGnBu"),Colv=F,labRow="",trace="none")
+```
+
+
+
+```{r}
+# Some phospeptides with large biological variability. 
+melted$techrep = as.factor(unlist(melted$techrep))
+ii = rownames(varprop)[which(rank(varprop[,2])<10)]
+i=1
+par(mfrow=c(2,2))
+# 
+foo = melted[melted$Var1==ii[i],]
+grand = mean(foo$value)
+bio=aggregate(value ~ biorep,data=foo,FUN=mean)
+tech=aggregate(value ~ techrep,data=foo,FUN=mean)
+plot(rep(1,5),c(grand,bio$value,tech$value))
+# 
+boxplot(foo$value~foo$biorep)
+  
   }
   
   else{
