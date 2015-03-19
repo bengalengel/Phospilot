@@ -90,7 +90,6 @@ NestedVar <- function(ratios, batch = F, balanced = T){
   
   
   #Expected Variance components
-  boxplot(Expindvar,Expbiovar)
   ExpVars <- cbind(Expindvar,Expbiovar,Exptechvar)
   boxplot(log10(ExpVars), ylab = "log10 Expected variance")
   
@@ -114,29 +113,28 @@ NestedVar <- function(ratios, batch = F, balanced = T){
   
   
   ##Some Joyce additions below
-  hist(log10(colSums(Varcomp)),breaks=30)
+  hist(log10(rowSums(Varcomp)))
   
 #   As expected, larger sample variability (total VC) permits variability between individual samples, between biological replicates, and betweeen techincial replicates. 
 #   
 #   Note that individual VC and biological VC are extremely small in a good amount phosphopeptides. More importantly, these phosphopeptides are not limited in the range of sample variability and span the entire range of total VC.
 par(mfrow=c(2,2))
-ylims=c(-16,0);xlims=c(-3,0)
-plot(log10(colSums(Varcomp)),log10(Varcomp[1,]),xlim=xlims,ylim=ylims,
+ylims=c(-20,0);xlims=c(-3,1)
+plot(log10(rowSums(Varcomp)),log10(Varcomp[,1]),xlim=xlims,ylim=ylims,
      xlab="log10 total VC",ylab="log10 individual VC",axes=F)
 axis(1);axis(2)
-plot(log10(colSums(Varcomp)),log10(Varcomp[2,]),xlim=xlims,ylim=ylims,
+plot(log10(rowSums(Varcomp)),log10(Varcomp[,2]),xlim=xlims,ylim=ylims,
      xlab="log10 total VC",ylab="log10 biorep VC",axes=F)
 axis(1);axis(2)
-plot(log10(colSums(Varcomp)),log10(Varcomp[3,]),xlim=xlims,ylim=ylims,
+plot(log10(rowSums(Varcomp)),log10(Varcomp[,3]),xlim=xlims,ylim=ylims,
      xlab="log10 total VC",ylab="log10 tech VC",axes=F)
 axis(1);axis(2)
 # Here we'd like to identify phosphpeptides with little or no variability at the individual level and at the biological replicate level. To do so, we standardized the values of the variance components for each phosphopeptides with respect to its sum of variance components. The standardized variance components are the proportion of the total variation in each phosphopeptides attributed to individuals, biological replicates, and technical replicates. 
 
 
-# Boxplots of the standardized VCs confirm our observations from the raw VC values. Proportion of variability attributed to biological replicates is the smallest, followed by technical replicates, with individaul samples contribute the large portion of variabilty in expression levels. 
+# Boxplots of the standardized VCs confirm our observations from the raw VC values. Proportion of variability attributed to biological replicates is the smallest, followed by technical replicates, with individaul samples contributing the largest portion of variabilty in expression levels. 
 par(mfrow = c(1,1))
-varprop = t(t(Varcomp)/colSums(Varcomp))
-varprop = t(varprop)
+varprop = Varcomp/rowSums(Varcomp)
 
 labs = c("individual","biorep","tech")
 boxplot((varprop),axes=F)
@@ -147,25 +145,34 @@ axis(1,at=c(1,2,3),labels=labs,col="white");axis(2)
 require(gplots)
 require(RColorBrewer)
 colnames(varprop) = c("individual","bio","tech")
-heatmap.2(as.matrix(varprop),col=brewer.pal(9,"YlGnBu"),Colv=F,labRow="",trace="none")
-```
+heatmap.2(as.matrix(varprop),
+          col=brewer.pal(9,"YlGnBu"),
+          Colv=F,
+          labRow="",
+          trace="none",
+          srtCol=45,  ,adjCol = c(1,1),
+          margins = c(6,5),
+          cexCol=1.5,
+          key.xlab = "Standardized VC", key.ylab=NULL, key.title = "",
+          )
 
 
 
-```{r}
+
+#```{r}
 # Some phospeptides with large biological variability. 
-melted$techrep = as.factor(unlist(melted$techrep))
-ii = rownames(varprop)[which(rank(varprop[,2])<10)]
-i=1
-par(mfrow=c(2,2))
-# 
-foo = melted[melted$Var1==ii[i],]
-grand = mean(foo$value)
-bio=aggregate(value ~ biorep,data=foo,FUN=mean)
-tech=aggregate(value ~ techrep,data=foo,FUN=mean)
-plot(rep(1,5),c(grand,bio$value,tech$value))
-# 
-boxplot(foo$value~foo$biorep)
+# melted$techrep = as.factor(unlist(melted$techrep))
+# ii = rownames(varprop)[which(rank(varprop[,2])<10)]
+# i=1
+# par(mfrow=c(2,2))
+# # 
+# foo = melted[melted$Var1==ii[i],]
+# grand = mean(foo$value)
+# bio=aggregate(value ~ biorep,data=foo,FUN=mean)
+# tech=aggregate(value ~ techrep,data=foo,FUN=mean)
+# plot(rep(1,5),c(grand,bio$value,tech$value))
+# # 
+# boxplot(foo$value~foo$biorep)
   
   }
   

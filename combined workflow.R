@@ -13,18 +13,18 @@ source("counts.R")
 source("breakdown.R")
 source("BatchNorm.R")
 source("DiffPhos.R")
+source("DiffPhosProt.R")
 source("loadMQ2.R") #non normalized data
 source("NestedVar.R")
+source("NormProt.R")
 
 # load phospho and protein files with particular variables populated using "loadMQ"
 phospho <- load.MQ(directory = "D:/10_9_14/txt/", type = "phospho")
 protein <- load.MQ(directory = "D:/10_9_14/txt/", type = "protein")
 
-
 # load phospho and protein files with particular variables populated using "loadMQ" at home
-phospho <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
-protein <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "protein")
-
+# phospho <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
+# protein <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "protein")
 
 # remove contaminants and reverse database hits
 phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]
@@ -44,18 +44,46 @@ protein1 <- protein[(protein$Only.identified.by.site != "+"),]
 # Class 1 sites with each source of quantification for that site (singly/doubly/3+) explicitly accounted for 
 multExpanded1 <- ExpandPhos(phospho1)
 
-#remove an outlier, normalize (median and quantile), and batch correct (combat). outputted are EDA plots and a list of DFs.See BatchNorm for details
-CorrectedData <- BatchNorm(multExpanded1=multExpanded1)
-com2 <- CorrectedData[[8]]
+#make tables of basic counts of proteins and phosphopeptides (may have to update when performing the normalization)
+phoscount(phospho,phospho1,multExpanded,multExpanded1)
+proteincount(protein)
+
+# make breakdown charts of phospho and protein overlap. This function produces barplots of number of sites/obs and proteins per experiment and
+# cumulative over experiments. It also has extensive phospo info, including number of phospho per protein, multiplicity breakdown, and venns
+breakdown(protein, phospho, multExpanded, cls=F)
+breakdown(protein, phospho1, multExpanded1)
+
+
+#remove an outlier, normalize (median and quantile), and batch correct (combat). Returned are EDA plots and a list of DFs.See BatchNorm for details
+CorrectedData <- BatchNorm(multExpanded1=multExpanded1)#class 1 sites
+com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
+adata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
+pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
+
+#DE analysis uding DiffPhos function. Here I perform limma based DE across contrasts and add annotation to the multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned and written
+multExpanded1_withDE <- DiffPhos(pilot)
+
+#loads output from the analysis of the 60 lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 3 DFs:
+#MQoutput,median normalized, and quantile normalized. Choose directory containing proteomics data to pass to 'NormProt'
+#directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/"
+CorrectedDataProt <- NormProt(directory = "D:/November Zia MBR MQ analysis/txt/")
+ProtQuantiled <- CorrectedDataProt[[4]]
+ProteinZia <- CorrectedDataProt[[1]]
+
+
+#protein normalization is in progressk
+
+#Zia protein workup using the multExpanded1_withDE data frame and 'pilot' dataframe as input. This program outputs a protein normalized matrix 'pilot2' which can be used for other puproses. Note the protein normalization of phospho data word file for the methods section of the paper. 
+multExpanded1_withDE <- DiffPhosProt(protein1 = ProteinZia, quantiled = ProtQuantiled, multExpanded1_withDE)
 
 # remove exp obs if not observed at least two times in each sample
 com3 <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]  
 
-#send unbalanced data to NestedVar. Here a nested random effect model is fitted for each phosphopeptide
+#send unbalanced data to NestedVar. Here a nested random effect model is fitted for each phosphopeptide. The peptide model variance components are returned. 
 varcomp <- NestedVar(ratios=com3, balanced = F)
 
 
-#********************************************variance components tests***********************************************
+##########################################variance components tests###############################################
 ##bimodal viarance component signature could be caused by artifacts derived from: norm, batch correct, multiplicity, MS acquisition type, and SILAC pair assignments. These tests are meant to examine the presense of such artifacts.
 
 #test 1. MS acquisition and SILAC pair assignment bias. Result is bimodal signature stil present.
@@ -100,7 +128,7 @@ varcompSingleMult <- NestedVar(ratios=com2single)
 
 #test #3. Impact of normalization and batch correction.
 
-#feed unnormalized (MQ still has normalized these ratios by intensity) data into model
+#feed 'non-normalized' (MQ still has normalized these ratios by intensity) data into model
 RawRatios <- CorrectedData[[1]]
 varcompMQnormonly <- NestedVar(ratios=RawRatios)
 
@@ -122,7 +150,7 @@ phosphoRaw1 <- phosphoRaw[(phosphoRaw$Localization.prob >= .75),]
 #for non normalized data
 multExpandedRaw1 <- ExpandPhos2(phospho=phosphoRaw1)
 
-#some curious inversion of the outlier. Here is the code from BatchNorm to extract dataframe for nestedvar
+#a curious inversion of the outlier. Here is the code from BatchNorm to extract dataframe for nestedvar
 
 expCol <- grep("HL(.*)", colnames(multExpandedRaw1))
 data <- multExpandedRaw1[,expCol]
@@ -150,43 +178,13 @@ varcompRaw <- NestedVar(ratios=TotallyRawRatios)
 TotallyRawRatiosB1 <- TotallyRawRatios[,c(1:2,5:6,9:10)]
 TotallyRawRatiosB2 <- TotallyRawRatios[,c(3:4,7:8,11:12)]
 
-#Do unnormalized bataches have this signature?
+#Do unnormalized bataches have this signature? Yes
 varcompRawB1 <- NestedVar(ratios=TotallyRawRatiosB1, batch=T)
 varcompRawB2 <- NestedVar(ratios=TotallyRawRatiosB2, batch=T)
 
-
-#****************************************
-
+############################
 
 
-
-
-
-
-
-
-
-
-
-#make tables of basic counts of proteins and phosphopeptides (may have to update when performing the normalization)
-phoscount(phospho,phospho1,multExpanded,multExpanded1)
-proteincount(protein)
-
-# make breakdown charts of phospho and protein overlap. This function produces barplots of number of sites/obs and proteins per experiment and
-# cumulative over experiments. It also has extensive phospo info, including number of phospho per protein, multiplicity breakdown, and venns
-breakdown(protein, phospho, multExpanded, cls=F)
-breakdown(protein, phospho1, multExpanded1)
-
-
-#normalization and batch correction (as of now only for class 1 sites). Accepts expanded phospho file and returns "pilot" dataframe. This dataframe is also written out.
-pilot <- BatchNorm(multExpanded1)
-
-
-#DE analysis uding DiffPhos function. Here I perform limma based DE across contrasts and add annotation to the multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned and written
-multExpanded1_withDE <- DiffPhos(pilot)
-
-#Zia protein workup using the multExpanded1_withDE data frame and 'pilot' dataframe as input. This program outputs a protein normalized matrix 'pilot2' which can be used for other puproses. Note the protein normalization of phospho data word file for the methods section of the paper. 
-multExpanded1_withDE <- DiffPhosNorm(multExpanded1_withDE)
 
 #next is GSEA, networkin, motifs to show that this is real functional biology
 

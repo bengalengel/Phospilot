@@ -6,6 +6,7 @@ BatchNorm <- function(multExpanded1){
   require(plyr)
   require(swamp)
   require(limma)
+  library(gplots)
   
   #make the sparse matrix from real data (all quants of class 1 here) 
   expCol <- grep("HL(.*)", colnames(multExpanded1))
@@ -159,8 +160,7 @@ BatchNorm <- function(multExpanded1){
   
   # install heatmap.2 package
   # install.packages("gplots")
-  library(gplots)
-  
+ 
   # Create dendrogram using the data without NAs
   feature.dend<- as.dendrogram(hclust(dist(r),method="ward"))
   sample.dend<- as.dendrogram(hclust(dist(t(c)),method="ward"))##note that dist caclculates distance between rows by default
