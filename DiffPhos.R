@@ -1,4 +1,4 @@
-DiffPhos <- function(pilot){
+DiffPhos <- function(pilot, multExpanded1){
   #this function accepts the pilot dataframe and runs DE analysis using limma. Columns are appended
   #to the multexpanded1 file according to the presence of DE or not.
   
@@ -192,12 +192,6 @@ DiffPhos <- function(pilot){
   plot(density(log10(FDE1$F)),xlim = c(0,3))
   lines(density(log10(FDE2$F)), col = 2)
   lines(density(log10(FDE3$F)), col = 3)
-  
-  
-  
-  #add idmult annotation to multexpanded table
-  idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
-  multExpanded1 <- cbind(multExpanded1,idmult)
 
   #add annotation to multexpanded DF
   multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(pilot),"+","-")

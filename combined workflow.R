@@ -17,6 +17,7 @@ source("DiffPhosProt.R")
 source("loadMQ2.R") #non normalized data
 source("NestedVar.R")
 source("NormProt.R")
+source("ProtAssignment.R")
 
 # load phospho and protein files with particular variables populated using "loadMQ"
 phospho <- load.MQ(directory = "D:/10_9_14/txt/", type = "phospho")
@@ -60,24 +61,57 @@ com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
 adata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
 pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
 
-#DE analysis uding DiffPhos function. Here I perform limma based DE across contrasts and add annotation to the multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned and written
-multExpanded1_withDE <- DiffPhos(pilot)
+#DE analysis uding DiffPhos function. Below is limma based DE across contrasts with annotation to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
 
-#loads output from the analysis of the 60 lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 3 DFs:
-#MQoutput,median normalized, and quantile normalized. Choose directory containing proteomics data to pass to 'NormProt'
-#directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/"
-CorrectedDataProt <- NormProt(directory = "D:/November Zia MBR MQ analysis/txt/")
-ProtQuantiled <- CorrectedDataProt[[4]]
-ProteinZia <- CorrectedDataProt[[1]]
+#!!BEFORE passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (32 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping to Zia's dataset more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets.
+
+#add idmult annotation to multexpanded table
+idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
+multExpanded1 <- cbind(multExpanded1,idmult)
+#remove reverse hits and acquire an index to subset corrected data
+RevHits <- grep(multExpanded1_withDE$Protein, pattern = "REV")
+RevHitsidmult <- multExpanded1$idmult[RevHits]
+multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] #18238
+
+#remove reverse hits from dataframe passed to Diffphos. Right now 'pilot' is used.
+pilot <- pilot[!rownames(pilot)%in%RevHitsidmult,]
+
+multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
+
+#protein normalization. First assign phosphopeptide to protein group identified from 60 lcl analysis. Second perform diffphos using protein as a covariate.
+
+#Load and normalize protein data.
+#loads MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 3 DFs: MQoutput,median normalized, and quantile normalized. 
+# Choose directory containing proteomics data to pass to 'NormProt'
+# CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")
+CorrectedDataProt <- NormProt(directory = "D:/November Zia MBR MQ analysis/txt/")#
+ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
+ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
+
+#ProtAssignment matches the two datasets. It returns a DF with the normalized protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
+NormalizedResults <- ProtAssignment(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1_withDE, phosphonorm=adata)
+multExpanded1_withDE <- NormalizedResults[[1]]
+ProtNormalized <- NormalizedResults[[2]]
+
+#This function performs diffphos analysis on phosphodata using normalized protein data as a covariate. Returns proteinnormalizedDE annotated ME dataframe and produces diff phos plots.
+multExpanded1_withDE <- DiffPhosProt(multExpanded1_withDE)
 
 
-#protein normalization is in progressk
 
-#Zia protein workup using the multExpanded1_withDE data frame and 'pilot' dataframe as input. This program outputs a protein normalized matrix 'pilot2' which can be used for other puproses. Note the protein normalization of phospho data word file for the methods section of the paper. 
-multExpanded1_withDE <- DiffPhosProt(protein1 = ProteinZia, quantiled = ProtQuantiled, multExpanded1_withDE)
+#nested random effects model. Performs analysis and also returns an annotated ME DF with each phosphosite annotated for downstream enrichment analysis.
 
 # remove exp obs if not observed at least two times in each sample
-com3 <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]  
+com3 <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]
+
+
+
+
+#send to VarComp. Note this is the same dataframe. Com2 used next!!
+ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 & rowSums(is.na(ProtNormalized[ , 5:8])) <= 2 
+                                    & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]
+
+varcomp <- NestedVar(ratios=ProtNormalizedVar, balanced = F)#same result
+
 
 #send unbalanced data to NestedVar. Here a nested random effect model is fitted for each phosphopeptide. The peptide model variance components are returned. 
 varcomp <- NestedVar(ratios=com3, balanced = F)
