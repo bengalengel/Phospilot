@@ -126,9 +126,9 @@ for(i in seq_along(proteinindex)){
 }    
 #link the protein quants to the phospho ids to make a dataframe with normalized protein quants appended. Note "REV_" entries are removed.
 AllPhos <- cbind(AllPhos,protein_norm2)
-colnames(AllPhos)[87] <- "ProtPrep Majority Protein IDs"
+colnames(AllPhos)[76] <- "ProtPrep Majority Protein IDs"
 #change to proper designation
-names(AllPhos)[88:90] <- gsub(names(AllPhos)[88:90], pattern = "HL", replacement = "LH")
+names(AllPhos)[77:79] <- gsub(names(AllPhos)[77:79], pattern = "HL", replacement = "LH")
 #AllPhos is to be returned
 #############################
 
