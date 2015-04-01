@@ -26,8 +26,8 @@ phospho <- load.MQ(directory = "D:/10_9_14/txt/", type = "phospho")
 protein <- load.MQ(directory = "D:/10_9_14/txt/", type = "protein")
 
 # load phospho and protein files with particular variables populated using "loadMQ" at home
-# phospho <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
-# protein <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "protein")
+phospho <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
+protein <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "protein")
 
 # remove contaminants and reverse database hits
 phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]
@@ -90,8 +90,8 @@ multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 #Load and normalize protein data.
 #loads MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: MQoutput heavy,MQ output just data, median normalized, and quantile normalized. 
 # Choose directory containing proteomics data to pass to 'NormProt'
-# CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")
-CorrectedDataProt <- NormProt(directory = "D:/November Zia MBR MQ analysis/txt/")#
+CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")
+#CorrectedDataProt <- NormProt(directory = "D:/November Zia MBR MQ analysis/txt/")#
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
 
@@ -225,7 +225,7 @@ varcompRawB2 <- NestedVar(ratios=TotallyRawRatiosB2, batch=T)
 
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc
 
-#enrichment analysis of phosphoproteins using annotations. Absoulte protein concentration estimates (iBAQ or 'protein ruler'), GO, reactome, corum, phosphositeplut, nonsynSNPs, pQTLs, within motif nonsynsnps
+#enrichment analysis of phosphoproteins using annotations. Absoulte protein concentration estimates (iBAQ or 'protein ruler'), GO, reactome, corum, phosphositeplus, nonsynSNPs, pQTLs, within motif nonsynsnps
 
 #motif based analysis: enrichment of kinase/PBD substrates/targets. motif description across all contrasts
 
