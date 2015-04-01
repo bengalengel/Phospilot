@@ -23,14 +23,15 @@ columns(Homo.sapiens)
 # To list the kinds of things that can be used as keys we can use the keytypes method
 keytypes(Homo.sapiens)
 # And to extract viable keys of a particular kind (keytype), we can use the keys method.
-head(keys(Homo.sapiens, keytype="ENTREZID"))
+idtest <- head(keys(Homo.sapiens, keytype="GOID"),25)
 # Since the keys method can tell us specific things that can be used as keys, here we will use it to extract a few ids to use for demonstrating the fourth method type.
 ids = head(keys(Homo.sapiens, keytype="UNIPROT"),25)
 # Once you have some ids that you want to look up data for, the select method allows you to map these ids as long as you use the columns argument to indicate what you need to know and the keytype argument to specify what kind of keys they are.
 select(Homo.sapiens, keys=ids, columns="GOID", keytype="UNIPROT")
 head(select(Homo.sapiens, keys=ids, columns="GOALL", keytype="UNIPROT"))#above is more direct
 ######################
-
+#idtest <- head(keys(Homo.sapiens, keytype="GOID"),25)
+#write.csv(file = "idtest.csv", idtest)
 
 #load the GO.db and reactome.db packages
 library(GO.db)
@@ -38,7 +39,46 @@ columns(GO.db)#requires GOID to map to ontology term
 
 #retrieve the GOIDs from the 'proteins' column of the ME DF for the confounded data and the "ProtPrep Majority Protein IDs" from the protein normalized dataset. Should the annotation be performed for each 'ontology' separately?
 
-testids
+#preliminary question 1 - Do isoforms retrieve different GOIDs than the parent uniprot identifiers? Isoforms may be uniquely assigned to different biological processes.
+##################
+MEtest <- multExpanded1_withDE
+MEtest$Protein <- as.character(MEtest$Protein)
+uniIDS <- MEtest[nchar(MEtest$Protein) > 6, ]
+uniIDs <- head(uniIDS$Protein, 25)
+uniIDs <- c(uniIDs, substr(uniIDs,1,6))
+
+isotest <- select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT")#hmm, no isoforms produce good maps
+
+uniIDs2 <- uniIDs[1:25]#just isoforms
+isotest2 <- select(Homo.sapiens, keys=uniIDs2, columns="GOID", keytype="UNIPROT")#isoforms in fact throw an error in uniprot mapping
+uniIDs3 <- uniIDs[26:length(uniIDs)]
+isotest3 <- select(Homo.sapiens, keys=uniIDs3, columns="GOID", keytype="UNIPROT")#warning message says that duplicate query results in 1:many mapping issues. however I don't see this.
+#are duplicate uniprot entries mapped to duplicate GO entries?
+uniIDs4 <- unique(uniIDs3)
+isotest4 <- select(Homo.sapiens, keys=uniIDs4, columns="GOID", keytype="UNIPROT")
+
+#No, this is not the case
+dim(isotest3)==dim(isotest4)
+#[1] TRUE TRUE
+##########################
+#ANSWER - isoforms do not retrieve GO IDs at all and duplicate entries return the same number of GOIDs as unique entries despite warning message.
+
+#for each site retrive the proteins, de-isoform, convert from uniprot to GOID and add as a semicolon separated list to a new column of a growing dataframe.
+GOIDs <- c()#allocate length of vector appropriately
+uniIDs <- c()
+#Test case
+
+#BELOW SHOULD EITHER BE A DATAFRAME OR A LIST!!!
+for(i in 1:length(multExpanded1_withDE$Proteins)){
+uniIDs <- strsplit(as.character(multExpanded1_withDE$Proteins[i]), ";")
+uniIDs <- as.character(unlist(uniIDs))
+uniIDs <- substr(uniIDs,1,6)#de-isoform
+tmp <- select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT")#retrieve GOIDs I should use the list form!
+GOIDs <- c(GOIDs,tmp)
+}
+#add to a GOID
+str(GOIDs)
+
 
 ##subset of DEcont1
 DE1 <- multExpanded1[multExpanded1$DEcont1 == "+",]
