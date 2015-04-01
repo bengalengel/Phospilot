@@ -17,6 +17,7 @@ MQ output/*
 NetKinout/*
 perseus enrichment/*
 test_pca/*
+PSP/*
 
 # Compiled source #
 ###################
