@@ -14,6 +14,8 @@ AddAnnotation <- function(multExpanded1_withDE){
 #biocLite("OrganismDbi")
 #biocLite("Homo.sapiens")
 library(Homo.sapiens)
+library(GO.db)
+
 
 
 #Examples
@@ -63,32 +65,56 @@ dim(isotest3)==dim(isotest4)
 ##########################
 #ANSWER - isoforms do not retrieve GO IDs at all and duplicate entries return the same number of GOIDs as unique entries despite warning message.
 
-#for each site retrive the proteins, de-isoform, convert from uniprot to GOID and add as a semicolon separated list to a new column of a growing dataframe.
-GOIDs <- c()#allocate length of vector appropriately
+#for each unique set of proteins assigned to a site retrieve GOIDs.
 uniIDs <- c()
-#Test case
-
-#BELOW SHOULD EITHER BE A DATAFRAME OR A LIST!!!
-for(i in 1:length(multExpanded1_withDE$Proteins)){
-uniIDs <- strsplit(as.character(multExpanded1_withDE$Proteins[i]), ";")
-uniIDs <- as.character(unlist(uniIDs))
-uniIDs <- substr(uniIDs,1,6)#de-isoform
-tmp <- select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT")#retrieve GOIDs I should use the list form!
-GOIDs <- c(GOIDs,tmp)
+tmp <- c()
+proteins <- unique(multExpanded1_withDE$Proteins)
+proteins <- as.character(proteins)
+GOIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$Proteins)))#vector function flexible for preallocation
+for(i in 1:length(proteins)){
+  #unique protein groups require annotation assignment
+  names(GOIDs)[i] <- proteins[i]
+  uniIDs <- strsplit(proteins[i], ";")
+  uniIDs <- as.character(unlist(uniIDs))
+  uniIDs <- substr(uniIDs,1,6)#de-isoform becuase if not it throws an error
+  pos_err <- tryCatch(select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT"),error=function(e) e)
+  if(!inherits(pos_err, "error")){
+    tmp <- select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT")#retrieve GOIDs I should use the list form!
+    GOIDs[[i]] <- as.character(tmp$GOID)
+  }
 }
-#add to a GOID
-str(GOIDs)
 
+#takes way too long. Trying parallelization with 'foreach' 'iterators' and 'doParallel'
+library(iterators)
+library(foreach)
+# install.packages("doParallel")
+library(doParallel)
 
-##subset of DEcont1
-DE1 <- multExpanded1[multExpanded1$DEcont1 == "+",]
-#convert row of uniprot ids to ensemble ids
-test <- strsplit(as.character(DE1$Proteins), ";")
-test <- as.character(unlist(test))
-test <- unique(test)
-out <- Uniprot2EG(test)
-DE1entrez <- as.character(out$entrezgene)
-DE1entrez <- unique(DE1entrez)
+proteins <- unique(multExpanded1_withDE$Proteins)
+proteins <- as.character(proteins)
+uniIDs <- c()
+tmp <- c()
+GOIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$Proteins)))#vector function flexible for preallocation
+names(GOIDs) <- proteins
+#using 7 cores
+cl <- makeCluster(7)#I have 8 cores but had a crash when using all 8
+registerDoParallel(cl)
+system.time(GOIDs <- foreach(i=1:length(proteins), .packages = "Homo.sapiens") %dopar% {
+  uniIDs <- strsplit(proteins[i], ";")
+  uniIDs <- as.character(unlist(uniIDs))
+  uniIDs <- substr(uniIDs,1,6)#de-isoform becuase if not it throws an error
+  pos_err <- tryCatch(select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT"),error=function(e) e)
+  if(!inherits(pos_err, "error")){
+    tmp <- select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT")#retrieve GOIDs I should use the list form!
+    GOIDs[[i]] <- as.character(tmp$GOID)
+  }
+}
+)
+# user  system elapsed 
+# 7.30    0.67 5016.08 
+
+stopCluster(cl)
+getDoParName()
 
 
 
