@@ -226,6 +226,7 @@ varcompRawB2 <- NestedVar(ratios=TotallyRawRatiosB2, batch=T)
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc
 
 #enrichment analysis of phosphoproteins using annotations. Absoulte protein concentration estimates (iBAQ or 'protein ruler'), GO, reactome, corum, phosphositeplus, nonsynSNPs, pQTLs, within motif nonsynsnps
+multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
 
 #motif based analysis: enrichment of kinase/PBD substrates/targets. motif description across all contrasts
 

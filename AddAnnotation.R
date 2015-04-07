@@ -1,21 +1,24 @@
 AddAnnotation <- function(multExpanded1_withDE){
-#This funciotn adds the annotations from GO, reactome, phosphositeplus, and corum? ME DF passed with DiffPhos analysis performed on confounded and non-confounded datasets. 
+#This function adds the annotations from GO, reactome, phosphositeplus, and corum? ME DF passed with DiffPhos analysis already performed on confounded and non-confounded datasets. 
 
-#curated kinase annotation and known modifications from phosphositeplus? can't get access so downloaded manually
+#curated kinase annotation and known modifications from phosphositeplus downloaded manually
 # #files downloaded on 3/31/15
 # PSPdwnload <- date()
 
-#assign to multExpanded1 (proteins - that is the majority proteins from each of the protein groups assigned to a phosphopeptide. Perhaps the number of isoforms has to do with the lack of tie-breaker approach used at the protein group level. That is, simply the highest ranked protein is returned.) GO terms using R annotation packages
+#assign to multExpanded1 (proteins - that is the majority proteins from each of the protein groups assigned to a phosphopeptide. Perhaps the number of isoforms has to do with the lack of tie-breaker approach used at the protein group level. That is, simply the highest ranked protein is returned.) 
+  
+#GO terms and reactome added using R annotation packages
 
-
-# Here I attempt to create my own organismDb object that combines the OrgDb and OntDb objects into one object 
 
 #source("http://bioconductor.org/biocLite.R")
 #biocLite("OrganismDbi")
 #biocLite("Homo.sapiens")
-library(Homo.sapiens)
-library(GO.db)
-
+require(Homo.sapiens)
+require(GO.db)
+require(reactome.db)
+require(iterators)
+require(foreach)
+require(doParallel)
 
 
 #Examples
@@ -32,14 +35,9 @@ ids = head(keys(Homo.sapiens, keytype="UNIPROT"),25)
 select(Homo.sapiens, keys=ids, columns="GOID", keytype="UNIPROT")
 head(select(Homo.sapiens, keys=ids, columns="GOALL", keytype="UNIPROT"))#above is more direct
 ######################
-#idtest <- head(keys(Homo.sapiens, keytype="GOID"),25)
-#write.csv(file = "idtest.csv", idtest)
 
-#load the GO.db and reactome.db packages
-library(GO.db)
-columns(GO.db)#requires GOID to map to ontology term
 
-#retrieve the GOIDs from the 'proteins' column of the ME DF for the confounded data and the "ProtPrep Majority Protein IDs" from the protein normalized dataset. Should the annotation be performed for each 'ontology' separately?
+#retrieve the GOIDs from the 'proteins' column of the ME DF for the confounded data and the "ProtPrep Majority Protein IDs" from the protein normalized dataset. The annotation should be performed for each 'ontology' separately unfortunately.
 
 #preliminary question 1 - Do isoforms retrieve different GOIDs than the parent uniprot identifiers? Isoforms may be uniquely assigned to different biological processes.
 ##################
@@ -65,31 +63,34 @@ dim(isotest3)==dim(isotest4)
 ##########################
 #ANSWER - isoforms do not retrieve GO IDs at all and duplicate entries return the same number of GOIDs as unique entries despite warning message.
 
+#normal for loop takes way too long
+##################
 #for each unique set of proteins assigned to a site retrieve GOIDs.
-uniIDs <- c()
-tmp <- c()
-proteins <- unique(multExpanded1_withDE$Proteins)
-proteins <- as.character(proteins)
-GOIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$Proteins)))#vector function flexible for preallocation
-for(i in 1:length(proteins)){
-  #unique protein groups require annotation assignment
-  names(GOIDs)[i] <- proteins[i]
-  uniIDs <- strsplit(proteins[i], ";")
-  uniIDs <- as.character(unlist(uniIDs))
-  uniIDs <- substr(uniIDs,1,6)#de-isoform becuase if not it throws an error
-  pos_err <- tryCatch(select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT"),error=function(e) e)
-  if(!inherits(pos_err, "error")){
-    tmp <- select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT")#retrieve GOIDs I should use the list form!
-    GOIDs[[i]] <- as.character(tmp$GOID)
-  }
-}
+# uniIDs <- c()
+# tmp <- c()
+# proteins <- unique(multExpanded1_withDE$Proteins)
+# proteins <- as.character(proteins)
+# GOIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$Proteins)))#vector function flexible for preallocation
+# for(i in 1:length(proteins)){
+#   #unique protein groups require annotation assignment
+#   names(GOIDs)[i] <- proteins[i]
+#   uniIDs <- strsplit(proteins[i], ";")
+#   uniIDs <- as.character(unlist(uniIDs))
+#   uniIDs <- substr(uniIDs,1,6)#de-isoform becuase if not it throws an error
+#   pos_err <- tryCatch(select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT"),error=function(e) e)
+#   if(!inherits(pos_err, "error")){
+#     tmp <- select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT")#retrieve GOIDs I should use the list form!
+#     GOIDs[[i]] <- as.character(tmp$GOID)
+#   }
+# }
+#############################
 
-#takes way too long. Trying parallelization with 'foreach' 'iterators' and 'doParallel'
-library(iterators)
-library(foreach)
-# install.packages("doParallel")
-library(doParallel)
+# Trying parallelization with 'foreach' 'iterators' and 'doParallel'
 
+# Adding annotations
+############
+
+#first is GOIDs
 proteins <- unique(multExpanded1_withDE$Proteins)
 proteins <- as.character(proteins)
 uniIDs <- c()
@@ -97,7 +98,7 @@ tmp <- c()
 GOIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$Proteins)))#vector function flexible for preallocation
 names(GOIDs) <- proteins
 #using 7 cores
-cl <- makeCluster(7)#I have 8 cores but had a crash when using all 8
+cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
 registerDoParallel(cl)
 system.time(GOIDs <- foreach(i=1:length(proteins), .packages = "Homo.sapiens") %dopar% {
   uniIDs <- strsplit(proteins[i], ";")
@@ -110,74 +111,291 @@ system.time(GOIDs <- foreach(i=1:length(proteins), .packages = "Homo.sapiens") %
   }
 }
 )
+stopCluster(cl)
+getDoParName()
+names(GOIDs) <- proteins
 # user  system elapsed 
 # 7.30    0.67 5016.08 
 
+
+#for the protein normalized data
+
+# replace the name of the ProtPrep column
+names(multExpanded1_withDE)[grep(names(multExpanded1_withDE), pattern = "ProtPrep")] <- "ProtPrepIds"
+
+proteins <- unique(multExpanded1_withDE$ProtPrepIds)
+proteins <- as.character(proteins)
+proteins <- na.omit(proteins)
+uniIDs <- c()
+tmp <- c()
+ppGOIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$ProtPrepIds)))#vector function flexible for preallocation
+names(ppGOIDs) <- proteins
+#using 7 cores
+cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+registerDoParallel(cl)
+system.time(ppGOIDs <- foreach(i=1:length(proteins), .packages = "Homo.sapiens") %dopar% {
+  uniIDs <- strsplit(proteins[i], ";")
+  uniIDs <- as.character(unlist(uniIDs))
+  uniIDs <- substr(uniIDs,1,6)#de-isoform becuase if not it throws an error
+  pos_err <- tryCatch(select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT"),error=function(e) e)
+  if(!inherits(pos_err, "error")){
+    tmp <- select(Homo.sapiens, keys=uniIDs, columns="GOID", keytype="UNIPROT")#retrieve ppGOIDs I should use the list form!
+    ppGOIDs[[i]] <- as.character(tmp$GOID)
+  }
+}
+)
 stopCluster(cl)
 getDoParName()
+names(ppGOIDs) <- proteins
+
+
+
+#Produce a reactome list in a similar fashion. first EntrezIDs
+uniIDs <- c()
+tmp <- c()
+EntrezIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$Proteins)))#vector function flexible for
+#using 7 cores
+cl <- makeCluster(5)#I had a crash when using all 8
+registerDoParallel(cl)
+system.time(EntrezIDs <- foreach(i=1:length(proteins), .packages = "Homo.sapiens") %dopar% {
+  uniIDs <- strsplit(proteins[i], ";")
+  uniIDs <- as.character(unlist(uniIDs))
+  uniIDs <- substr(uniIDs,1,6)#de-isoform becuase if not it throws an error
+  pos_err <- tryCatch(select(Homo.sapiens, keys=uniIDs, columns="ENTREZID", keytype="UNIPROT"),error=function(e) e)
+  if(!inherits(pos_err, "error")){
+    tmp <- select(Homo.sapiens, keys=uniIDs, columns="ENTREZID", keytype="UNIPROT")#retrieve Entrezids I should use the list form!
+    EntrezIDs[[i]] <- as.character(tmp$ENTREZID)
+  }
+}
+)
+stopCluster(cl)
+names(EntrezIDs) <- proteins
+
+
+# ppEntrezIDs
+uniIDs <- c()
+tmp <- c()
+ppEntrezIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$ProtPrepIds)))#vector function flexible for
+#using 7 cores
+cl <- makeCluster(5)#I had a crash when using all 8
+registerDoParallel(cl)
+system.time(ppEntrezIDs <- foreach(i=1:length(proteins), .packages = "Homo.sapiens") %dopar% {
+  uniIDs <- strsplit(proteins[i], ";")
+  uniIDs <- as.character(unlist(uniIDs))
+  uniIDs <- substr(uniIDs,1,6)#de-isoform becuase if not it throws an error
+  pos_err <- tryCatch(select(Homo.sapiens, keys=uniIDs, columns="ENTREZID", keytype="UNIPROT"),error=function(e) e)
+  if(!inherits(pos_err, "error")){
+    tmp <- select(Homo.sapiens, keys=uniIDs, columns="ENTREZID", keytype="UNIPROT")#retrieve ppEntrezIDs I should use the list form!
+    ppEntrezIDs[[i]] <- as.character(tmp$ENTREZID)
+  }
+}
+)
+stopCluster(cl)
+names(ppEntrezIDs) <- proteins
+
+
+
+#now for the reactomeIds
+ReactIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$Proteins)))#vector function flexible for preallocation
+#using 7 cores
+cl <- makeCluster(5)#I had a crash when using all 8
+registerDoParallel(cl)
+system.time(ReactIDs <- foreach(i=seq_along(EntrezIDs), .packages = "reactome.db") %dopar% {
+  pos_err2 <- tryCatch(select(reactome.db, keys=EntrezIDs[[i]], columns="REACTOMEID", keytype="ENTREZID"),error=function(e) e)
+  if(!inherits(pos_err2, "error")){
+    tmp <- select(reactome.db, keys=EntrezIDs[[i]], columns="REACTOMEID", keytype="ENTREZID")
+    ReactIDs[[i]] <- as.character(tmp$REACTOMEID)
+  }
+}
+)
+stopCluster(cl)
+names(ReactIDs) <- proteins
+
+
+ppReactIDs <- vector(mode = 'list', length = length(unique(multExpanded1_withDE$ProtPrepIds)))#vector function flexible for preallocation
+#using 7 cores
+cl <- makeCluster(5)#I had a crash when using all 8
+registerDoParallel(cl)
+system.time(ppReactIDs <- foreach(i=seq_along(EntrezIDs), .packages = "reactome.db") %dopar% {
+  pos_err2 <- tryCatch(select(reactome.db, keys=EntrezIDs[[i]], columns="REACTOMEID", keytype="ENTREZID"),error=function(e) e)
+  if(!inherits(pos_err2, "error")){
+    tmp <- select(reactome.db, keys=EntrezIDs[[i]], columns="REACTOMEID", keytype="ENTREZID")
+    ppReactIDs[[i]] <- as.character(tmp$REACTOMEID)
+  }
+}
+)
+stopCluster(cl)
+names(ppReactIDs) <- proteins
+
+#################################################
 
 
 
 
-#load the reactome package
-library(reactome.db)
-columns(reactome.db)#requires entrez id to map to reactomeid,pathname, pathid (reactomeid vs pathid? pathid shorter)
+#Add these annotation IDs to the original ME dataframe.
+
+#Identify protein matches from GOIDs list
+GOmatch <- sapply(as.character(multExpanded1_withDE$Proteins), FUN = function(x) {
+  match = which(names(GOIDs) %in% x)
+  GOIDs[[match]]
+})
+#I need GOmatch as a character vector of length one so that I may create a data.frame/matrix
+GOmatch <- lapply(GOmatch, function(x) paste(x,collapse = ";"))
+GOmatch <- as.matrix(GOmatch)#as data frame doesn't work becuase can't have duplicate row names.
+#add to the dataframe
+multExpanded1_withDE$GOIDs <- as.character(GOmatch[,1])
+
+
+#Identify protein matches from ppGOIDs list
+GOmatch <- sapply(as.character(multExpanded1_withDE$ProtPrepIds), FUN = function(x) {
+  if(is.na(x)){"NA"}
+  else{
+    match = which(names(ppGOIDs) %in% x)
+    ppGOIDs[[match]]
+  }
+})
+#I need GOmatch as a character vector of length one so that I may create a data.frame/matrix
+GOmatch <- lapply(GOmatch, function(x) paste(x,collapse = ";"))
+GOmatch <- as.matrix(GOmatch)#as data frame doesn't work becuase can't have duplicate row names.
+#add to the dataframe
+multExpanded1_withDE$ppGOIDs <- as.character(GOmatch[,1])
+
+
+#Identify protein matches from EntrezIDs list
+Entmatch <- sapply(as.character(multExpanded1_withDE$Proteins), FUN = function(x) {
+  match = which(names(EntrezIDs) %in% x)
+  EntrezIDs[[match]]
+})
+#I need Entmatch as a character vector of length one so that I may create a data.frame/matrix
+Entmatch <- lapply(Entmatch, function(x) paste(x,collapse = ";"))
+Entmatch <- as.matrix(Entmatch)#as data frame doesn't work becuase can't have duplicate row names.
+#add to the dataframe
+multExpanded1_withDE$EntrezIDs <- as.character(Entmatch[,1])
 
 
 
-#get the Enrezids from a set of uniprot ids
-Entids <- select(Homo.sapiens, keys = ids, keytype = "UNIPROT", columns = "ENTREZID")
-
-##note that sometimes the same entrezid is returned for different uniprot ids. I need to correct for this somehow. Can use annotation status on uniprot website.
-
-
-#retrieve the reactome ids
-reactids <- select(reactome.db, keys = Entids$ENTREZID, keytype = "ENTREZID", columns = "REACTOMEID")
-reactids <- select(reactome.db, keys = Entids$ENTREZID, keytype = "ENTREZID", columns = c("PATHNAME","PATHID"))
-
-#must perform enrichment using only the unique sites per protein and not the multiplicities. Also need to subset background to ensure that sites mapped to uniprot ids without annotation in a given database are not counted.
-
-
-
-
-
-## ----echo=FALSE----------------------------------------------------------
-suppressPackageStartupMessages(library(org.Hs.eg.db))
-
-#load the human gene centric OrgDb package.
-## ------------------------------------------------------------------------
-library(org.Hs.eg.db)
-
-#I can create my own OrganismDb package or use an existing one with diverse annotations
-
-#annotationhub packages allow me to get access to a LARGE variety of external databases.
-
-library(AnnotationHub)
-
-#I have to create my own ah object
-ah = AnnotationHub()#must be online. This is pretty powerful
+#Identify protein matches from ppEntrezIDs list
+Entmatch <- sapply(as.character(multExpanded1_withDE$ProtPrepIds), FUN = function(x) {
+  if(is.na(x)){"NA"}
+  else{
+    match = which(names(ppEntrezIDs) %in% x)
+    ppEntrezIDs[[match]]
+  }
+})
+#I need Entmatch as a character vector of length one so that I may create a data.frame/matrix
+Entmatch <- lapply(Entmatch, function(x) paste(x,collapse = ";"))
+Entmatch <- as.matrix(Entmatch)#as data frame doesn't work becuase can't have duplicate row names.
+#add to the dataframe
+multExpanded1_withDE$ppEntrezIDs <- as.character(Entmatch[,1])
 
 
-#biomaRt exposes a huge family of online annotation resources called marts. Load the backage and decide which 'mart' I want to use. useMart() selects the annoation mart.
 
-library("biomaRt")
-listMarts()#need the interwebs for this. Data is current and should work from this locally once it is downloaded so that things are reproducible.
 
-#anyway after I choose a mart I need to decide on the dataset. use the listDatasets(martobject) function
-#use the useMart() function again to decide on a dataset.
+#Identify protein matches from ReactIDs list
+Rmatch <- sapply(as.character(multExpanded1_withDE$Proteins), FUN = function(x) {
+  match = which(names(ReactIDs) %in% x)
+  ReactIDs[[match]]
+})
+#I need Rmatch as a character vector of length one so that I may create a data.frame/matrix
+Rmatch <- lapply(Rmatch, function(x) paste(x,collapse = ";"))
+Rmatch <- as.matrix(Rmatch)#as data frame doesn't work becuase can't have duplicate row names.
+#add to the dataframe
+multExpanded1_withDE$ReactIDs <- as.character(Rmatch[,1])
 
-#using a combination of filters and attributes I can retrieve stuff using 'getBM'
 
-#I NEED TO PAY ATTENTION TO THE GENOME BUILD WHEN RETRIEVING ANNOTATIONS!!
 
-#BSgenome objects exist for extracting sequence information
-library(AnnotationDbi)
-help(package="AnnotationDbi")
+#Identify protein matches from ReactIDs list
+Rmatch <- sapply(as.character(multExpanded1_withDE$ProtPrepIds), FUN = function(x) {
+  if(is.na(x)){"NA"}
+  else{
+    match = which(names(ppReactIDs) %in% x)
+    ppReactIDs[[match]]
+  }
+})
+#I need Rmatch as a character vector of length one so that I may create a data.frame/matrix
+Rmatch <- lapply(Rmatch, function(x) paste(x,collapse = ";"))
+Rmatch <- as.matrix(Rmatch)#as data frame doesn't work becuase can't have duplicate row names.
+#add to the dataframe
+multExpanded1_withDE$ppReactIDs <- as.character(Rmatch[,1])
 
-!!!!!!!!!!!!!!!!!!!!!!
-#variantannotation package to assess if something is within a coding region or what. I should produce a figure using this package. 
+return(multExpanded1_withDE)
+}
 
-# OrganismDb packages are named for the species they represent (such as the Homo.sapiens package). These packages contain references to other key annotations packages and can thus represent all the underlying data as if it were coming from one place. So for example, the Homo.sapiens package can allow you to retrieve data about the ranges of a genes transcripts at the same time that you extract it's gene name because it represents both a the transcriptome and the relevant org package for Homo sapiens. These can be generated using functions in the OrganismDbi package if you have specific packages that you want to link together.
+
+# Enrichment. Will be a separate function
+##########################
+#for now not worrying about multiple phosphorylations and such.
+
+backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE=="+",]
+backgroundGO <- backgroundGO$GOIDs
+x <- sapply(backgroundGO, function(x) strsplit(x, ";"))
+x <- as.vector(x)
+x <- unlist(x)
+x <- x[x!='NA']
+#unique protein groups require annotation assignment
+#   names(GOIDs)[i] <- proteins[i]
+#   uniIDs <- strsplit(proteins[i], ";")
+#   uniIDs <- as.character(unlist(uniIDs))
+#   uniIDs <- substr(uniIDs,1,6)#de-isoform becuase if not it throws an error
+
+
+
+
+Enrich <- function(x,y){
+  #This function accepts lists of kinases found in a DE subset and background subset identified by the networkin program and return a list of adjusted pvalues for categorical enrichment using a fisher's exact test.x=background and y=enriched
+  
+  BGtable <- as.matrix(table(x))#the parenthetical should be a factor vector of ids passed to this function
+  #remove entries with 0
+  BGtable <- BGtable[BGtable!=0,,drop=F]#sum of table 2 is 4643
+  DEtable <- as.matrix(table(y))#the parenthetical should be a passed DE factor vector of networKin output
+  DEtable <- as.matrix(DEtable[row.names(DEtable) %in% row.names(BGtable),])#removing zeros and all factors not present in BG data
+  #note the use of the %in% statement to control for rownames in DeTable but not in background
+  #subset the background table in a similar way to ensure we are making the proper comparisons
+  BGtable <- as.matrix(BGtable[row.names(BGtable) %in% row.names(DEtable),])
+  NotDE <- BGtable-DEtable
+  facttemp <- as.factor(row.names(DEtable))###########not quite working as a factor
+  pvals <- c()
+  #for each unique kinase in the DE1 kinases table I need to make a contingency table
+  for(i in levels(facttemp)){#this would be the DE dataframe
+    #make the first row of the contingency table
+    if(DEtable[as.character(i),] & NotDE[as.character(i),] >= 0){
+      DErow <- c(DEtable[as.character(i),],(sum(DEtable)-DEtable[as.character(i),]))
+      NotDErow <- c(NotDE[as.character(i),],(sum(NotDE)-NotDE[as.character(i),]))
+      contmatrix <- rbind(DErow,NotDErow)
+      tmp <- fisher.test(contmatrix, alternative = "g")
+      pvals <- c(pvals,tmp$p.value)
+    }
+  }
+  ##multiple testing correction for pvals
+  adjps <- p.adjust(pvals,method="BH")#none pass significance in this instance
+  return(adjps)
+}
+
+
+##Enrich use for GO
+Background <- BGkinases$id
+Enriched1 <- DE1kinases$id
+Enriched2 <- DE2kinases$id
+Enriched3 <- DE3kinases$id
+
+Enriched1up <- DE1upkinases$id
+Enriched1down <- DE1downkinases$id
+Enriched2up <- DE2upkinases$id
+Enriched2down <- DE2downkinases$id
+Enriched3up <- DE3upkinases$id
+Enriched3down <- DE3downkinases$id
+
+
+#for testing
+#x=Background
+#y=Enriched2
+
+DE1ps <- NetEnrich(Background,Enriched1)
+DE2ps <- NetEnrich(Background,Enriched2)
+DE3ps <- NetEnrich(Background,Enriched3)
+
+
+
 
 
 
