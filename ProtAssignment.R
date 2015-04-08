@@ -80,36 +80,66 @@ AllPhostable$Protein <- substr(AllPhostable$Protein,1,6)#remove isoform designat
 
 #For every protein assigned to an id_mult from the phosphotable, a paired protein group from the ziaproteins table is found (if present) using any of the majority protein ids within that group. If the phospho id maps to multiple protein groups, the one with the most peptides is used.
 
+source("http://bioconductor.org/biocLite.R")
+biocLite("UniProt.ws")
+require(UniProt.ws)
+help("UniProt.ws")
 
 #all phos loops. I can pre-allocate memory in this loop by defining the length of the poroteinindex
 nPTable <- length(AllPhostable[,1])
 proteinindex <- integer(nPTable)
+Majority.protein.IDs <- c()
 #morethan1 <- c()#need to come back to this because this isn't work properly
-for(i in seq_along(AllPhostable[,1])){#for every protein assigned to a phosphopeptide ask is this protein found in the zia dataset? 
-  tmp <- grep(AllPhostable$Protein[i], Ziaproteins$Majority.protein.IDs)#Searches all IDs in comma separated majority protein list.
-  #more than one value? This can happen with isoforms
-  if(length(tmp)>1){
+for(i in seq_along(AllPhostable[,1])){#for every protein assigned to a phosphopeptide ask - Is this protein found in the zia dataset? 
+  tmp <- grep(AllPhostable$Protein[i], Ziaproteins$Majority.protein.IDs)#Searches all IDs in the comma separated majority protein list.
+  # process the match if found. more than one value? This can happen with isoforms and paralogs
+   if(length(tmp) >=  1){
     #first one needs to ensure that the phosphopeptide is within the matching protein sequences, then picks the best match amongst the remaining protein groups
-    
     #peptide to search within matches
     peptide <- as.character(AllPhostable$Phospho..STY..Probabilities[i])
     peptide <- gsub(pattern = " *\\(.*?\\) *", replacement = "", peptide)#see this http://stackoverflow.com/questions/13529360
+    
     #collect the matching majority protein ids from the protein prep
-    tmp <- c(421,5)
-    test <- Ziaproteins$Majority.protein.IDs[tmp]
+    proteins <- Ziaproteins$Majority.protein.IDs[tmp]#character vector where each element is a protein group
+    proteins <- strsplit(proteins, ";")
     
+    #find the sequences for the 'majority protein IDs' from each group. Isoforms!! Are only an issue if the peptide maps uniquely to an isoform...However, for protein quant these isoform quants are not easily distinguishable
+    sequences <- select(UniProt.ws, keys = unlist(proteins), columns = "SEQUENCE", keytype = "UNIPROTKB")
+    #note some uniprot ids don't return a sequence
     
-    #compare the razor plus unique count across the two matches and choose the one with the most   matches
-    counts <- Ziaproteins$Razor...unique.peptides[tmp]
-    proteinindex[i] <- tmp[which.max(counts)]
-    #morethan1 <- c(morethan1,tmp)
-  }
-  #if length of tmp >0 add to index
-  if(length(tmp) == 1){
-    proteinindex[i] <- tmp
-  }
+    #add the tmp id to each protein group member
+    tmpindex <- c()
+    for(j in seq_along(tmp)){#may need a new counter here
+    tmpindex <- c(tmpindex, rep(tmp[j],length(proteins[[j]])))
+    }
+    sequences$tmpindex <- tmpindex
+    
+    #Test for matches of the peptide with sequences of proteins within the group
+    matchindex <- grep(pattern = peptide, sequences$SEQUENCE)
+    
+    #remove members of the protein groups that do not have a match to the phosphopeptide
+    matching  <- sequences[matchindex,c(1,3)]
+    
+    #MUST UPDATE THIS SCRIPT TO CHANGE THE MAJORITY PROTEIN IDS RETURNED
+    #     Majority.protein.IDs[i]
+    
+    #if still more than one protein group matches to a phosphopeptide then use the group with the greatest counts
+    if(length(unique(matching$tmpindex)) > 1){
+      #compare the razor plus unique count across the two matches and choose the one with the most   matches
+      counts <- Ziaproteins$Razor...unique.peptides[tmp]
+      proteinindex[i] <- tmp[which.max(counts)]
+      #morethan1 <- c(morethan1,tmp)
+    }
+    #if length of tmp >0 add to index
+    if(length(unique(matching$tmpindex)) == 1){
+      proteinindex[i] <- tmp
+    }
+    
+    Majority.protein.IDs[i] <- matching[matching$tmpindex == proteinindex[i], 1]  #this sould be a character vector
+   }
   else{
     proteinindex[i] <- NA
+    Majority.protein.IDs[i] <- NA
   }
 }
 
