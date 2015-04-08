@@ -72,10 +72,10 @@ Ziaproteins <- datacomp[c("Majority.protein.IDs","Razor...unique.peptides", "Uni
 Ziaproteins$id <- row.names(datacomp)#this is a bit redundant
 Ziaproteins$Majority.protein.IDs <- gsub("-.", "", Ziaproteins$Majority.protein.IDs)#removes the isoform indicator
 
-#tables for comparison with protein with protein data. 
+#tables for comparison with protein data. 
 SubtoDEtable <- SubtoDE[c("Protein","idmult")]#note that reverse entries have already been removed above
 SubtoDEtable$Protein <- substr(SubtoDEtable$Protein,1,6)#remove isoform designation
-AllPhostable <- AllPhos[c("Protein","idmult")]#note that reverse entries have already been removed above
+AllPhostable <- AllPhos[c("Protein", "Proteins", "idmult","Phospho..STY..Probabilities")]#note that reverse entries have already been removed above
 AllPhostable$Protein <- substr(AllPhostable$Protein,1,6)#remove isoform designation
 
 #For every protein assigned to an id_mult from the phosphotable, a paired protein group from the ziaproteins table is found (if present) using any of the majority protein ids within that group. If the phospho id maps to multiple protein groups, the one with the most peptides is used.
@@ -89,6 +89,16 @@ for(i in seq_along(AllPhostable[,1])){#for every protein assigned to a phosphope
   tmp <- grep(AllPhostable$Protein[i], Ziaproteins$Majority.protein.IDs)#Searches all IDs in comma separated majority protein list.
   #more than one value? This can happen with isoforms
   if(length(tmp)>1){
+    #first one needs to ensure that the phosphopeptide is within the matching protein sequences, then picks the best match amongst the remaining protein groups
+    
+    #peptide to search within matches
+    peptide <- as.character(AllPhostable$Phospho..STY..Probabilities[i])
+    peptide <- gsub(pattern = " *\\(.*?\\) *", replacement = "", peptide)#see this http://stackoverflow.com/questions/13529360
+    #collect the matching majority protein ids from the protein prep
+    tmp <- c(421,5)
+    test <- Ziaproteins$Majority.protein.IDs[tmp]
+    
+    
     #compare the razor plus unique count across the two matches and choose the one with the most   matches
     counts <- Ziaproteins$Razor...unique.peptides[tmp]
     proteinindex[i] <- tmp[which.max(counts)]
