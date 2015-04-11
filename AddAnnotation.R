@@ -322,7 +322,9 @@ return(multExpanded1_withDE)
 }
 
 
-# Enrichment. Will be a separate function
+
+
+# Enrichment below. Will be a separate function
 ##########################
 
 #First is GO. 
@@ -430,7 +432,7 @@ length(intersect(y,x))#22
 length(setdiff(y,x))#60
 
 
-################################################33
+################################################
 
 #same steps for reactome
 ###################
@@ -485,7 +487,7 @@ ROannotationpn <- select(reactome.db, keys = as.character(RODFpn$ID), keytype = 
 ROenrichmentpn <- cbind(RODFpn,ROannotationpn)
 
 
-##############################33
+##############################
 
 
 

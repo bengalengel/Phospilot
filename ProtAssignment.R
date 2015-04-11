@@ -92,6 +92,11 @@ Majority.protein.IDs <- c()
 #morethan1 <- c()#need to come back to this because this isn't work properly
 for(i in seq_along(AllPhostable[,1])){#for every protein assigned to a phosphopeptide ask - Is this protein found in the zia dataset? 
   tmp <- grep(AllPhostable$Protein[i], Ziaproteins$Majority.protein.IDs)#Searches all IDs in the comma separated majority protein list.
+  
+  #need to search the de-isoformed 'protein' from phosphosite to find the ids in zia's work with isoforms. 
+  #first is ensure that peptide matches to proteins within the matching protein groups.
+  #second - if multiple groups match with shared peptide, assign phosphosite to protein group with the most ids.
+  
   # process the match if found. more than one value? This can happen with isoforms and paralogs
    if(length(tmp) >=  1){
     #first one needs to ensure that the phosphopeptide is within the matching protein sequences, then picks the best match amongst the remaining protein groups
@@ -103,10 +108,41 @@ for(i in seq_along(AllPhostable[,1])){#for every protein assigned to a phosphope
     proteins <- Ziaproteins$Majority.protein.IDs[tmp]#character vector where each element is a protein group
     proteins <- strsplit(proteins, ";")
     
+    
+    
+    
     #find the sequences for the 'majority protein IDs' from each group. Isoforms!! Are only an issue if the peptide maps uniquely to an isoform...However, for protein quant these isoform quants are not easily distinguishable
-    sequences <- select(UniProt.ws, keys = unlist(proteins), columns = "SEQUENCE", keytype = "UNIPROTKB")
+#     sequences <- select(UniProt.ws, keys = unlist(proteins), columns = "SEQUENCE", keytype = "UNIPROTKB")
     #note some uniprot ids don't return a sequence
     
+    
+    #uniprot.ws is not returning sequences for all ids. Therefore, I need to grab the sequences directly from the fasta and return a sequence dataframe just like what was shown above. Trying 'seqinr' package from CRAN to do this.
+    
+    
+    require(seqinr)
+    ##read in the proteome fasta file
+    proteome <- read.fasta( file = "E:/My Documents/MQ SS/fasta/HUMAN.fasta", seqtype = "AA", as.string = TRUE)#will have to update
+    
+    proteome2 <- read.fasta( file = "E:/My Documents/MQ SS/fasta/HUMAN.fasta", seqtype = "AA", as.string = TRUE, set.attributes = FALSE)#no attributes
+    
+    #how many fasta sequences are in this file?
+#     length(proteome)#86725
+#     [1] 86725
+#     
+        
+# Each element is a sequence object of the class SeqFastadna or SeqFastaAA.
+# is.SeqFastaAA(proteome[[1]])
+# [1] TRUE
+    
+#retrieve the sequence for a given uniprot ID. This will be within the loop
+    toMatch <- unlist(proteins)
+    toMatch <- paste(toMatch, collapse = "|")
+    matches <- (grep(toMatch,names(proteome), value=TRUE))
+    tt <- getSequence(proteome[matches], as.string = T)
+    tt <- sapply(tt,as.character)
+
+
+
     #add the tmp id to each protein group member
     tmpindex <- c()
     for(j in seq_along(tmp)){#may need a new counter here
