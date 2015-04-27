@@ -16,9 +16,10 @@ load.MQZ <- function(directory) {
     
     #select the columns of interest 
     vars <- c("id", "Protein.IDs", "Majority.protein.IDs",  "Protein.names", "Gene.names", "Number.of.proteins", "Peptides", 
-              "Razor...unique.peptides", "Unique.peptides", "Sequence.coverage....", "Mol..weight..kDa.", "Sequence.length",
-              "PEP", "Peptide.IDs", "Mod..peptide.IDs", "Only.identified.by.site", "Potential.contaminant", "Reverse",
-              "Razor...unique.peptides.18862", "Razor...unique.peptides.18486", "Razor...unique.peptides.19160")
+              "Razor...unique.peptides", "Unique.peptides", "Sequence.coverage....", "Sequence.length", "Sequence.lengths",
+              "Mol..weight..kDa.", "PEP", "Peptide.IDs", "Mod..peptide.IDs", "Only.identified.by.site", 
+              "Potential.contaminant", "Reverse", "Razor...unique.peptides.18862", "Razor...unique.peptides.18486", 
+              "Razor...unique.peptides.19160")
     
     other_data <- data[,vars]
     

@@ -6,6 +6,7 @@ rm(list=ls(all=TRUE)) #start with empty workspace
 library(reshape2)
 library(stringr)
 library(plyr)
+library(seqinr)
 source("loadMQ.R")
 source("ExpandPhos.R")
 source("ExpandPhos2.R") #for expanding the non-normalized data
@@ -17,8 +18,9 @@ source("DiffPhosProt.R")
 source("loadMQ2.R") #non normalized data
 source("NestedVar.R")
 source("NormProt.R")
-source("ProtAssignment.R")
+source("ProtAssignment2.R")
 source("DiffPhosProt.R")
+
 #load, reformat and characterize MQ outputted mass spectrometry data
 #######
 # load phospho and protein files with particular variables populated using "loadMQ"
@@ -90,13 +92,17 @@ multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 #Load and normalize protein data.
 #loads MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: MQoutput heavy,MQ output just data, median normalized, and quantile normalized. 
 # Choose directory containing proteomics data to pass to 'NormProt'
-CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")
-#CorrectedDataProt <- NormProt(directory = "D:/November Zia MBR MQ analysis/txt/")#
+# CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")
+CorrectedDataProt <- NormProt(directory = "D:/November Zia MBR MQ analysis/txt/")#
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
 
 #ProtAssignment matches the two datasets. It returns a DF with the normalized protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
-NormalizedResults <- ProtAssignment(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1_withDE, phosphonorm=adata)#pass com2 perhaps
+
+##read in the proteome fasta file
+proteome <- read.fasta( file = "D:/HUMAN.fasta", seqtype = "AA", as.string = TRUE)#updataed to local machine. FASTA file used for search
+
+NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1_withDE, phosphonorm=adata, proteome)#pass com2 perhaps
 multExpanded1_withDE <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
 
