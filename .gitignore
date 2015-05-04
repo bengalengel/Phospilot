@@ -18,6 +18,7 @@ NetKinout/*
 perseus enrichment/*
 test_pca/*
 PSP/*
+FASTA/*
 
 # Compiled source #
 ###################
