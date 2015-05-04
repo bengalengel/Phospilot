@@ -146,6 +146,7 @@ system.time(ppGOIDs <- foreach(i=1:length(proteins), .packages = "Homo.sapiens")
 )
 stopCluster(cl)
 getDoParName()
+
 names(ppGOIDs) <- proteins
 
 
