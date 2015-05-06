@@ -42,11 +42,29 @@ cat $OUTDIR/snpeff/$BASE.snpeff.vcf | $ONE_EFFECT_PER_LINE  > $OUTDIR/snpeff_one
 
 # Filter
 # http://snpeff.sourceforge.net/SnpSift.html#filter
+# See section "Effect prediction details" in http://snpeff.sourceforge.net/SnpEff_manual.html#input 
+# for full list of potential effects.
+# Use =~ operator to get regular expression matching in order to get joint effects like
+# missense_variant&splice_region_variant and frameshift_variant&stop_gained.
 mkdir -p $OUTDIR/snpeff_filter/
 $JAVA -Xmx6g -jar $SNPSIFT filter \
-"(ANN[0].EFFECT == 'missense_variant') | (ANN[0].EFFECT == 'disruptive_inframe_deletion') | (ANN[0].EFFECT == 'frameshift_variant') | (ANN[0].EFFECT == 'frameshift_variant&stop_gained') | (ANN[0].EFFECT == 'inframe_deletion') | (ANN[0].EFFECT == 'inframe_insertion') | (ANN[0].EFFECT == 'missense_variant&splice_region_variant') | (ANN[0].EFFECT == 'start_gained') | (ANN[0].EFFECT == 'start_lost') | (ANN[0].EFFECT == 'stop_gained') | (ANN[0].EFFECT == 'stop_lost')" \
-$OUTDIR/snpeff_oneperline/$BASE.snpeff.oneperline.vcf  \
-> $OUTDIR/snpeff_filter/$BASE.snpeff.filter.vcf
+  "(ANN[0].EFFECT =~ 'coding_sequence_variant') |
+ (ANN[0].EFFECT =~ 'inframe_insertion') |
+ (ANN[0].EFFECT =~ 'disruptive_inframe_insertion') |
+ (ANN[0].EFFECT =~ 'inframe_deletion') |
+ (ANN[0].EFFECT =~ 'disruptive_inframe_deletion') |
+ (ANN[0].EFFECT =~ 'exon_loss_variant') |
+ (ANN[0].EFFECT =~ 'frameshift_variant') |
+ (ANN[0].EFFECT =~ 'gene_variant') |
+ (ANN[0].EFFECT =~ 'missense_variant') |
+ (ANN[0].EFFECT =~ 'initiatior_codon_variant') |
+ (ANN[0].EFFECT =~ 'rare_amino_acid_variant') |
+ (ANN[0].EFFECT =~ 'stop_lost') |
+ (ANN[0].EFFECT =~ 'start_lost') |
+ (ANN[0].EFFECT =~ 'stop_gained') |
+ (ANN[0].EFFECT =~ 'transcript_variant')" \
+  $OUTDIR/snpeff_oneperline/$BASE.snpeff.oneperline.vcf  \
+  > $OUTDIR/snpeff_filter/$BASE.snpeff.filter.vcf
 
 # Extract fields
 # http://snpeff.sourceforge.net/SnpSift.html#Extract
