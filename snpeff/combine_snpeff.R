@@ -7,8 +7,13 @@ ensembl <- useMart(host = "grch37.ensembl.org",
 filenames <- list.files(path = "results/tables", pattern = "hg19.txt",
                         full.names = TRUE)
 
+samples <- read.table("/mnt/lustre/data/internal/genotypes/hg19/YRI/YRI_samples.txt",
+                      header = FALSE, stringsAsFactors = FALSE)
+
 # Write header
-cat("gene\ttranscript\tpeptide\tbiotype\teffect\tsnp\tref\talt\taf\tchr\tpos\tcdna\taa\n")
+cat("gene\ttranscript\tpeptide\tbiotype\teffect\tsnp\tref\talt\taf\tchr\tpos\tcdna\taa")
+cat(samples[, 1], sep = "\t")
+cat("\n")
 
 for (f in filenames) {
   snps <- read.table(f, header = FALSE, sep = "\t", quote = "", skip = 1,
