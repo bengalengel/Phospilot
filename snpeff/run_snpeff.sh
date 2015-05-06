@@ -2,6 +2,7 @@
 
 # Usage: bash run_snpeff.sh [ IMPUTE file ] [ Output directory ]
 # Ex: bash run_snpeff.sh /mnt/lustre/data/internal/Yoruba/IMPUTE/YRI/hg19/chr21.hg19.impute2_haps.gz results/
+# Note: Needs to be run from snpeff subdirectory so that it can find accessory scripts.
 
 IMPUTE_FILE=$1
 #IMPUTE_FILE=/mnt/lustre/data/internal/Yoruba/IMPUTE/YRI/hg19/chr21.hg19.impute2_haps.gz
@@ -11,7 +12,7 @@ mkdir -p $OUTDIR
 
 # Software
 PYTHON=/mnt/lustre/home/y.fourne/bin/virtualenv-1.11/py2.7/bin/python
-CONVERT_VCF=/mnt/gluster/home/jdblischak/phospho/convert_impute2_to_vcf.py
+CONVERT_VCF=./convert_impute2_to_vcf.py
 JAVA=/mnt/lustre/home/jdblischak/src/java/jre1.7.0_51/bin/java
 SNPEFF=/mnt/lustre/home/jdblischak/src/snpEff/snpEff.jar
 ONE_EFFECT_PER_LINE=/mnt/lustre/home/jdblischak/src/snpEff/scripts/vcfEffOnePerLine.pl
@@ -40,6 +41,7 @@ mkdir -p $OUTDIR/snpeff_oneperline
 cat $OUTDIR/snpeff/$BASE.snpeff.vcf | $ONE_EFFECT_PER_LINE  > $OUTDIR/snpeff_oneperline/$BASE.snpeff.oneperline.vcf
 
 # Filter
+# http://snpeff.sourceforge.net/SnpSift.html#filter
 mkdir -p $OUTDIR/snpeff_filter/
 $JAVA -Xmx6g -jar $SNPSIFT filter \
 "(ANN[0].EFFECT == 'missense_variant') | (ANN[0].EFFECT == 'disruptive_inframe_deletion') | (ANN[0].EFFECT == 'frameshift_variant') | (ANN[0].EFFECT == 'frameshift_variant&stop_gained') | (ANN[0].EFFECT == 'inframe_deletion') | (ANN[0].EFFECT == 'inframe_insertion') | (ANN[0].EFFECT == 'missense_variant&splice_region_variant') | (ANN[0].EFFECT == 'start_gained') | (ANN[0].EFFECT == 'start_lost') | (ANN[0].EFFECT == 'stop_gained') | (ANN[0].EFFECT == 'stop_lost')" \
@@ -47,7 +49,9 @@ $OUTDIR/snpeff_oneperline/$BASE.snpeff.oneperline.vcf  \
 > $OUTDIR/snpeff_filter/$BASE.snpeff.filter.vcf
 
 # Extract fields
+# http://snpeff.sourceforge.net/SnpSift.html#Extract
 mkdir -p $OUTDIR/tables
 $JAVA -Xmx6g -jar $SNPSIFT extractFields $OUTDIR/snpeff_filter/$BASE.snpeff.filter.vcf \
-"ANN[*].GENEID" "ANN[*].FEATUREID" "ANN[*].EFFECT" "ID" "REF" "ALT" "AF" "CHROM" "POS" "ANN[*].HGVS_P" "GEN[*].GT" \
-> $OUTDIR/tables/$BASE.txt
+  "ANN[*].GENEID" "ANN[*].FEATUREID" "ANN[*].BIOTYPE" "ANN[*].EFFECT" "ID" "REF" "ALT" "AF" \
+  "CHROM" "POS" "ANN[*].HGVS_C" "ANN[*].HGVS_P" "GEN[*].GT" \
+  > $OUTDIR/tables/$BASE.txt
