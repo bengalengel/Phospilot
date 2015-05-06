@@ -13,7 +13,7 @@ indir <- args[1]
 samples_file <- args[2]
 
 suppressPackageStartupMessages(library("biomaRt"))
-ensembl <- useMart(host = "grch37.ensembl.org",
+ensembl <- useMart(host = "feb2014.archive.ensembl.org",
                    biomart = "ENSEMBL_MART_ENSEMBL",
                    dataset = "hsapiens_gene_ensembl")
 
