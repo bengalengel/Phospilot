@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # Usage: bash run_snpeff.sh [ IMPUTE file ] [ Output directory ]
-# Ex: bash run_snpeff.sh /mnt/lustre/data/internal/Yoruba/IMPUTE/YRI/hg19/chr21.hg19.impute2_haps.gz results/
+# Ex: bash run_snpeff.sh /mnt/lustre/data/internal/genotypes/hg19/YRI/chr21.hg19.impute2_haps.gz results/
 # Note: Needs to be run from snpeff subdirectory so that it can find accessory scripts.
 
 IMPUTE_FILE=$1
-#IMPUTE_FILE=/mnt/lustre/data/internal/Yoruba/IMPUTE/YRI/hg19/chr21.hg19.impute2_haps.gz
+#IMPUTE_FILE=/mnt/lustre/data/internal/genotypes/hg19/YRI/chr21.hg19.impute2_haps.gz
 
 OUTDIR=$2
 mkdir -p $OUTDIR
