@@ -1,14 +1,28 @@
+# Combine per-chromosome snpeff results into one file.
+# Add Ensembl peptide IDs.
+# Add Yoruba sample IDs to header.
+
+# Usage: Rscript combine_snpeff.R [ Input directory ] [ Samples file ]
+# Ex: Rscript combine_snpeff.R results/tables /mnt/lustre/data/internal/genotypes/hg19/YRI/YRI_samples.txt > results/snpeff_final.txt
+# Args:
+#   Input directory: Tab-separated snpeff results from run_snpeff.sh
+#   Samples file: Contains order of samples in IMPUTE2 files
+
+args <- commandArgs(trailingOnly = TRUE)
+indir <- args[1]
+samples_file <- args[2]
 
 suppressPackageStartupMessages(library("biomaRt"))
 ensembl <- useMart(host = "grch37.ensembl.org",
                    biomart = "ENSEMBL_MART_ENSEMBL",
                    dataset = "hsapiens_gene_ensembl")
 
-filenames <- list.files(path = "results/tables", pattern = "hg19.txt",
+filenames <- list.files(path = indir, pattern = "hg19.txt",
                         full.names = TRUE)
 
-samples <- read.table("/mnt/lustre/data/internal/genotypes/hg19/YRI/YRI_samples.txt",
-                      header = FALSE, stringsAsFactors = FALSE)
+samples <- read.table(samples_file, header = FALSE, stringsAsFactors = FALSE)
+# Test that all sample IDs start with NA
+stopifnot(grepl("NA", samples[, 1]))
 
 # Write header
 cat("gene\ttranscript\tpeptide\tbiotype\teffect\tsnp\tref\talt\taf\tchr\tpos\tcdna\taa")
