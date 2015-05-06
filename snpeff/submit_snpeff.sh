@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Submit one job per chromosome to run with run_snpeff.sh.
+
 # Usage: bash submit_snpeff.sh [ Input directory ] [ Output directory ]
 # Ex: bash submit_snpeff.sh /mnt/lustre/data/internal/genotypes/hg19/YRI/ results/
 # Note: Needs to be run from snpeff subdirectory so that it can find accessory scripts.

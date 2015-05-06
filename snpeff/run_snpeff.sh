@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Run IMPUTE2 result through SnpEff and keep coding sequence changes.
+
 # Usage: bash run_snpeff.sh [ IMPUTE file ] [ Output directory ]
 # Ex: bash run_snpeff.sh /mnt/lustre/data/internal/genotypes/hg19/YRI/chr21.hg19.impute2_haps.gz results/
 # Note: Needs to be run from snpeff subdirectory so that it can find accessory scripts.
@@ -49,20 +51,20 @@ cat $OUTDIR/snpeff/$BASE.snpeff.vcf | $ONE_EFFECT_PER_LINE  > $OUTDIR/snpeff_one
 mkdir -p $OUTDIR/snpeff_filter/
 $JAVA -Xmx6g -jar $SNPSIFT filter \
   "(ANN[0].EFFECT =~ 'coding_sequence_variant') |
- (ANN[0].EFFECT =~ 'inframe_insertion') |
- (ANN[0].EFFECT =~ 'disruptive_inframe_insertion') |
- (ANN[0].EFFECT =~ 'inframe_deletion') |
- (ANN[0].EFFECT =~ 'disruptive_inframe_deletion') |
- (ANN[0].EFFECT =~ 'exon_loss_variant') |
- (ANN[0].EFFECT =~ 'frameshift_variant') |
- (ANN[0].EFFECT =~ 'gene_variant') |
- (ANN[0].EFFECT =~ 'missense_variant') |
- (ANN[0].EFFECT =~ 'initiatior_codon_variant') |
- (ANN[0].EFFECT =~ 'rare_amino_acid_variant') |
- (ANN[0].EFFECT =~ 'stop_lost') |
- (ANN[0].EFFECT =~ 'start_lost') |
- (ANN[0].EFFECT =~ 'stop_gained') |
- (ANN[0].EFFECT =~ 'transcript_variant')" \
+  (ANN[0].EFFECT =~ 'inframe_insertion') |
+  (ANN[0].EFFECT =~ 'disruptive_inframe_insertion') |
+  (ANN[0].EFFECT =~ 'inframe_deletion') |
+  (ANN[0].EFFECT =~ 'disruptive_inframe_deletion') |
+  (ANN[0].EFFECT =~ 'exon_loss_variant') |
+  (ANN[0].EFFECT =~ 'frameshift_variant') |
+  (ANN[0].EFFECT =~ 'gene_variant') |
+  (ANN[0].EFFECT =~ 'missense_variant') |
+  (ANN[0].EFFECT =~ 'initiatior_codon_variant') |
+  (ANN[0].EFFECT =~ 'rare_amino_acid_variant') |
+  (ANN[0].EFFECT =~ 'stop_lost') |
+  (ANN[0].EFFECT =~ 'start_lost') |
+  (ANN[0].EFFECT =~ 'stop_gained') |
+  (ANN[0].EFFECT =~ 'transcript_variant')" \
   $OUTDIR/snpeff_oneperline/$BASE.snpeff.oneperline.vcf  \
   > $OUTDIR/snpeff_filter/$BASE.snpeff.filter.vcf
 
