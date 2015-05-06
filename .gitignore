@@ -20,6 +20,7 @@ perseus enrichment/*
 test_pca/*
 PSP/*
 FASTA/*
+snpeff/log/*
 
 # Compiled source #
 ###################
