@@ -1,0 +1,71 @@
+
+Read in snpeff table:
+
+```{r input-snpeff}
+snpeff <- read.table("results/tables/chr21.hg19.txt", header = FALSE,
+                     sep = "\t", stringsAsFactors = FALSE)
+dim(snpeff)
+colnames(snpeff)[1:12] <- c("gene", "transcript", "biotype", "effect", "snp", "ref", "alt", "af", "chr", "pos", "cdna", "aa")
+snpeff[1, 1:13]
+```
+
+Read in impute2 file:
+
+```{r}
+impute2 <- read.table(gzfile("/mnt/lustre/data/internal/genotypes/hg19/YRI/chr21.hg19.impute2_haps.gz"), header = FALSE,
+                     sep = " ", stringsAsFactors = FALSE)
+dim(impute2)
+colnames(impute2)[2:5] <- c("snp", "pos", "ref", "alt")
+impute2[1, 1:13]
+```
+
+Intersect by SNP name
+
+```{r}
+length(intersect(snpeff[, 5], impute2[, 2]))
+```
+
+Intersect by SNP position
+
+```{r}
+stopifnot(length(intersect(snpeff$pos, impute2$pos)) ==
+            length(unique(snpeff$pos)),
+          length(intersect(snpeff$snp, impute2$snp)) ==
+            length(unique(snpeff$snp[snpeff$snp != ""])))
+```
+
+Clean:
+
+```{r}
+# Remove the first column, which is just placeholder for chromosome
+impute2_clean <- impute2[, -1]
+# Convert unamed SNPs from "." to "" for consistency with snpeff
+impute2_clean$snp <- ifelse(impute2$snp == ".", "", impute2$snp)
+snpeff_info <- snpeff[, c("snp", "pos")]
+snpeff_genos <- snpeff[, 13:ncol(snpeff)]
+snpeff_allele_1 <- t(apply(snpeff_genos, 1, substr, start = 1, stop = 1))
+snpeff_allele_2 <- t(apply(snpeff_genos, 1, substr, start = 3, stop = 3))
+# Interleave the two alleles into one file where the first and second allele for
+# an individual are adjacent columns.
+snpeff_alleles <- matrix(nrow = nrow(snpeff_allele_1),
+                         ncol = ncol(snpeff_allele_1) * 2)
+for (i in 1:ncol(snpeff_allele_1)) {
+  snpeff_alleles[, i * 2 - 1] <- snpeff_allele_1[, i]
+  snpeff_alleles[, i * 2] <- snpeff_allele_2[, i]
+}
+snpeff_alleles <- apply(snpeff_alleles, 2, as.numeric)
+snpeff_clean <- data.frame(snpeff[, c("snp", "pos", "ref", "alt")], snpeff_alleles,
+                           stringsAsFactors = FALSE)
+```
+
+```{r}
+merged <- merge(snpeff_clean, impute2_clean, by = "pos",
+                suffixes = c(".snpeff", ".impute2"))
+```
+
+```{r}
+for (i in 1:nrow(merged)) {
+  stopifnot(merged[i, 2:244] == merged[i, 245:487])
+}
+```
+
