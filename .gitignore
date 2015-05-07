@@ -8,7 +8,8 @@
 *.pdf
 *.txt
 *.csv
-
+*.vcf
+*.html
 
 #specific folders to ignore#
 #################
@@ -19,6 +20,7 @@ perseus enrichment/*
 test_pca/*
 PSP/*
 FASTA/*
+snpeff/log/*
 
 # Compiled source #
 ###################
