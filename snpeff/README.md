@@ -23,6 +23,21 @@ peptide IDs, and add YRI samples names to header.
 Rscript combine_snpeff.R results/tables /mnt/lustre/data/internal/genotypes/hg19/YRI/YRI_samples.txt > results/snpeff_final.txt
 ```
 
+To verify that the SnpEff results designated the same alleles as the refernce and alternative versions as the original IMPUTE2 input data, run the following:
+
+```bash
+for CHR in {1..22}
+do
+ echo "Rscript verify_alleles.R $CHR" | qsub -l h_vmem=8g -cwd -V -N verify.chr$CHR -o log -j y
+done
+```
+
+Check the log files for discordant SNPs:
+
+```bash
+cat log/verify*
+```
+
 Versions used:
 
 *  Python: 2.7
