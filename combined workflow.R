@@ -131,6 +131,8 @@ ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 
 VarcompProt <- NestedVar(ratios=ProtNormalizedVar, balanced = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
 # Is this signature unique to phospho? What do the small number of protein estimates show?
 
+#add the new categorizations from the varcompdata to the multexpanded DF for enrichment analyses.
+
 ##########################################variance components tests###############################################
 ##bimodal viarance component signature could be caused by artifacts derived from: norm, batch correct, multiplicity, MS acquisition type, and SILAC pair assignments. These tests are meant to examine the presense of such artifacts.
 
@@ -235,7 +237,7 @@ varcompRawB2 <- NestedVar(ratios=TotallyRawRatiosB2, batch=T)
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
 multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
 
-#enrichment analysis of phosphoproteins using GO and reactome annotations.
+#enrichment analysis of phosphoproteins using GO and reactome annotations.NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA...
 enrichment_tables <- Enrichment(multExpanded1_withDE)
 
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc
