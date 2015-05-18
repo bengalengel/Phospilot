@@ -24,8 +24,8 @@ BatchNorm <- function(multExpanded1){
   # boxplot(data[,1:12])#extreme outlier in HL18486_1_2
   # boxplot(data[,1:12], ylim=c(-4,4))
   
-  #remove outlier which is 3X greater than any other datapoint
-  data[,2][which.max(data[,2])] <- NaN
+  #remove outlier which is 3X greater than any other datapoint. Not present in ensembl data.
+#   data[,2][which.max(data[,2])] <- NaN
   boxplot(data[,1:12])#extreme outlier in HL18486_1_2 removed
   
   RawRatios <- data

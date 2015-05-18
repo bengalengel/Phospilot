@@ -20,12 +20,15 @@ source("NestedVar.R")
 source("NormProt.R")
 source("ProtAssignment2.R")
 source("DiffPhosProt.R")
+source("AddAnnotation.R")
+source("Enrichment.R")
+
 
 #load, reformat and characterize MQ outputted mass spectrometry data
 #######
 # load phospho and protein files with particular variables populated using "loadMQ"
-phospho <- load.MQ(directory = "D:/10_9_14/txt/", type = "phospho")
-protein <- load.MQ(directory = "D:/10_9_14/txt/", type = "protein")
+phospho <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "phospho")
+protein <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
 
 # load phospho and protein files with particular variables populated using "loadMQ" at home
 phospho <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
@@ -71,7 +74,7 @@ pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replica
 
 #Differential phosphorylation analysis using DiffPhos function. Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
 ##########################
-#!!BEFORE passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (32 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping to Zia's dataset more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets.
+#!!BEFORE passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (32 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping to Zia's dataset more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets. That is what does it mean to compare enrichment for a reversed 'protein'?
 
 #add idmult annotation to multexpanded table
 idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
@@ -79,7 +82,7 @@ multExpanded1 <- cbind(multExpanded1,idmult)
 #remove reverse hits and acquire an index to subset corrected data
 RevHits <- grep(multExpanded1$Protein, pattern = "REV")
 RevHitsidmult <- multExpanded1$idmult[RevHits]
-multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] #18238
+multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] #18238 now 17774
 
 #remove reverse hits from dataframe passed to Diffphos. Right now 'pilot' is used.
 pilot <- pilot[!rownames(pilot)%in%RevHitsidmult,]
@@ -93,14 +96,14 @@ multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 #loads MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: MQoutput heavy,MQ output just data, median normalized, and quantile normalized. 
 # Choose directory containing proteomics data to pass to 'NormProt'
 # CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")
-CorrectedDataProt <- NormProt(directory = "D:/November Zia MBR MQ analysis/txt/")#
+CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/txt/")#
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
 
 #ProtAssignment matches the two datasets. It returns a DF with the normalized protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
 
-##read in the proteome fasta file
-proteome <- read.fasta( file = "D:/HUMAN.fasta", seqtype = "AA", as.string = TRUE)#updataed to local machine. FASTA file used for search
+##read in the proteome fasta file. Here Ensembl cCDS
+proteome <- read.fasta( file = "./FASTA//Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)#updataed to local machine. FASTA file used for search
 
 NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1_withDE, phosphonorm=adata, proteome)#pass com2 perhaps
 multExpanded1_withDE <- NormalizedResults[[1]]
@@ -125,7 +128,7 @@ varcomp <- NestedVar(ratios=com3, balanced = F)
 ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 & rowSums(is.na(ProtNormalized[ , 5:8])) <= 2 
                                     & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]
  
-varcomp <- NestedVar(ratios=ProtNormalizedVar, balanced = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
+VarcompProt <- NestedVar(ratios=ProtNormalizedVar, balanced = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
 # Is this signature unique to phospho? What do the small number of protein estimates show?
 
 ##########################################variance components tests###############################################
@@ -229,10 +232,15 @@ varcompRawB2 <- NestedVar(ratios=TotallyRawRatiosB2, batch=T)
 
 ############################
 
+#Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
+multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
+
+#enrichment analysis of phosphoproteins using GO and reactome annotations.
+enrichment_tables <- Enrichment(multExpanded1_withDE)
+
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc
 
-#enrichment analysis of phosphoproteins using annotations. Absoulte protein concentration estimates (iBAQ or 'protein ruler'), GO, reactome, corum, phosphositeplus, nonsynSNPs, pQTLs, within motif nonsynsnps
-multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
+# Absoulte protein concentration estimates (iBAQ or 'protein ruler'), GO, reactome, corum, phosphositeplus, nonsynSNPs, pQTLs, within motif nonsynsnps
 
 #motif based analysis: enrichment of kinase/PBD substrates/targets. motif description across all contrasts
 

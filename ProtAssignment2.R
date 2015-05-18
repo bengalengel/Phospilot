@@ -11,7 +11,7 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   names(proteinnorm) <- gsub(names(proteinnorm), pattern = "LH", replacement = "HL")
   
   ##combine the normalized protein information and the annotation data into a common dataframe for matching to the phospho data
-  datacomp <- cbind(proteinnorm,proteinfull[c("Protein.IDs","Majority.protein.IDs","Protein.names","Gene.names","Sequence.coverage....",
+  datacomp <- cbind(proteinnorm,proteinfull[c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....",
                                               "Number.of.proteins", "Sequence.length", "Sequence.lengths", "Peptides", 
                                               "Razor...unique.peptides", "Unique.peptides",
                                               "Razor...unique.peptides.18862", "Razor...unique.peptides.18486", 
@@ -96,7 +96,7 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
     peptide <- as.character(multExpanded1_withDE$Phospho..STY..Probabilities[i])
     peptide <- gsub(pattern = " *\\(.*?\\) *", replacement = "", peptide)
     
-    #search the fasta database and retrieve uniprot ids corresponding to matches. Soetimes regex is a mfer
+    #search the fasta database and retrieve uniprot/ensp ids corresponding to matches. Soetimes regex is a mfer
     matches <- grep(peptide, proteome)
     matches <- names(proteome)[matches]
     matches <- sub(pattern = "\\|", replacement = "(", matches)

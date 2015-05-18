@@ -1,6 +1,6 @@
 load.MQ2 <- function(type, directory) {
   ##This function returns the maxquant file requested with the relevant columns.
-  #Note that it also returns the NORMALIZED column values!!!   
+  #Note that it also returns the NON-NORMALIZED column values!!!   
   
   ## 'type' is a character vector of length 1 indicating
   ## the type of file to be opened. The choices are 'phospho', 'protein', and 'evidence'
@@ -44,7 +44,8 @@ load.MQ2 <- function(type, directory) {
     data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "")
     
     #select the columns of interest 
-    vars <- c("id", "Protein.IDs", "Majority.protein.IDs",  "Protein.names", "Gene.names", "Number.of.proteins", "Peptides", 
+    #select the columns of interest 
+    vars <- c("id", "Protein.IDs", "Majority.protein.IDs", "Number.of.proteins", "Peptides", 
               "Razor...unique.peptides", "Unique.peptides", "Sequence.coverage....", "Mol..weight..kDa.", "Sequence.length", "PEP", 
               "Peptide.IDs", "Mod..peptide.IDs", "Phospho..STY..site.IDs", "Only.identified.by.site", "Potential.contaminant", "Reverse")
     
