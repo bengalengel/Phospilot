@@ -123,15 +123,29 @@ com3 <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <=
 
 #send unbalanced data to NestedVar. Here a nested random effect model is fitted for each phosphopeptide. The peptide model variance components are returned. 
 varcomp <- NestedVar(ratios=com3, balanced = F)
-
+varcomp <- as.data.frame(varcomp)
 #send to VarComp. Note this is the same dataframe as ProtNormalized. Com2 used next!!
 ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 & rowSums(is.na(ProtNormalized[ , 5:8])) <= 2 
                                     & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]
  
 VarcompProt <- NestedVar(ratios=ProtNormalizedVar, balanced = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
+VarcompProt <- as.data.frame(VarcompProt)
 # Is this signature unique to phospho? What do the small number of protein estimates show?
 
-#add the new categorizations from the varcompdata to the multexpanded DF for enrichment analyses.
+
+
+#add the new categorizations from the varcompdata to the multexpanded DF for enrichment analyses. SOME DESCREPANCY BETWEEN IDMULT AND ROWNAMES!! 11 MISSING
+multExpanded1_withDE$SubtoVarcomp <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp), "+", "-")
+multExpanded1_withDE$HighIndVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp[varcomp$high_ind_var=="+",]), "+", "-")
+multExpanded1_withDE$LowIndVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp[varcomp$low_ind_var=="+",]), "+", "-")
+multExpanded1_withDE$HighBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp[varcomp$high_bio_var=="+",]), "+", "-")
+multExpanded1_withDE$LowBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp[varcomp$low_bio_var=="+",]), "+", "-")
+
+multExpanded1_withDE$ppSubtoVarcomp <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt), "+", "-")#no descrepancy with pp numbers
+multExpanded1_withDE$pnHighIndVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$high_ind_var=="+",]), "+", "-")
+multExpanded1_withDE$pnLowIndVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$low_ind_var=="+",]), "+", "-")
+multExpanded1_withDE$pnHighBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$high_bio_var=="+",]), "+", "-")
+multExpanded1_withDE$pnLowBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$low_bio_var=="+",]), "+", "-")
 
 ##########################################variance components tests###############################################
 ##bimodal viarance component signature could be caused by artifacts derived from: norm, batch correct, multiplicity, MS acquisition type, and SILAC pair assignments. These tests are meant to examine the presense of such artifacts.
@@ -237,7 +251,7 @@ varcompRawB2 <- NestedVar(ratios=TotallyRawRatiosB2, batch=T)
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
 multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
 
-#enrichment analysis of phosphoproteins using GO and reactome annotations.NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA...
+#enrichment analysis of phosphoproteins using GO and reactome annotations.NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA...enriched on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
 enrichment_tables <- Enrichment(multExpanded1_withDE)
 
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc
