@@ -2,18 +2,16 @@ Enrichment <- function(multExpanded1_withDE){
   #enrichment accepts ME DF and performs categorical enrichment analysis using one sided FE tests of categorical enrichment for reactome and GO terms. It also performs multiple testing correction. Method 'BH'.
   
   #Here I assign multiple annotations/protetin. That is 1 annotation/observed phosphosite measurement (includes multiple phosphorylation 'sites'). Otherwise those proteins who are multiply phosphorylated would have a greater chance of being enriched. The only disadvantage here is that I may be 'diluting' the enrichment effect of a single phosphorylation mark amongst multiple phosphorylated forms of that site. 
-  require(GO.db)
-  require(reactome.db)
   
   Enrich <- function(x,y,ontology = c("GO","Reactome")){
-    #     This function accepts character vectors of a selected subset and background and returns a DF of adjusted pvalues for categorical enrichment using a one sided fisher's exact test.
-    #     x=background and y=enriched. 
+    # This function accepts character vectors of a selected subset and background and returns a DF of adjusted pvalues for categorical enrichment using a one sided fisher's exact test.
+    # x=background and y=enriched. 
     require(plyr)
-    BGtable <- as.matrix(table(x))#the parenthetical should be a factor vector of ids passed to this function
+    BGtable <- as.matrix(table(x))
     #remove entries with 0
     BGtable <- BGtable[BGtable!=0,,drop=F]
-    DEtable <- as.matrix(table(y))#the parenthetical should be a passed DE factor vector of networKin output
-    DEtable <- as.matrix(DEtable[row.names(DEtable) %in% row.names(BGtable),])#removing zeros and all factors not present in BG data. Should not have an affect actually.
+    DEtable <- as.matrix(table(y))
+    DEtable <- as.matrix(DEtable[row.names(DEtable) %in% row.names(BGtable),])#removing zeros and all factors not present in BG data. 
     #subset the background table in a similar way to ensure we are making the proper comparisons
     BGtable <- as.matrix(BGtable[row.names(BGtable) %in% row.names(DEtable),])
     NotDE <- BGtable-DEtable
@@ -21,8 +19,8 @@ Enrichment <- function(multExpanded1_withDE){
     pvals <- c()
     frequency <- c()
     ids <- c()
+    #make contingency table and perform FE test one sided enrichment for each term
     for(i in levels(facttemp)){
-      #make contingency table and perform FE test one sided for enrichment
       if(DEtable[as.character(i),] & NotDE[as.character(i),] >= 0){#this condition should always be true
         DErow <- c(DEtable[as.character(i),],(sum(DEtable)-DEtable[as.character(i),]))
         NotDErow <- c(NotDE[as.character(i),],(sum(NotDE)-NotDE[as.character(i),]))
@@ -42,10 +40,12 @@ Enrichment <- function(multExpanded1_withDE){
     DF <- DF[DF$adjpvalue<=.05,]
     if(nrow(DF)>=1){
       if(ontology == "GO" ){
+        require(GO.db)
         GOannotation <- select(GO.db, keys = as.character(DF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
         DF <- cbind(DF,GOannotation)
       }
       if(ontology == "Reactome"){
+        require(reactome.db)
         ROannotation <- select(reactome.db, keys = as.character(DF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
         DF <- cbind(DF,ROannotation)
       }
@@ -141,77 +141,29 @@ Enrichment <- function(multExpanded1_withDE){
   pnvarcompHILB <- SplitNClean(enrichedGO)
   
   
-  #run the enrich function
+  #run the enrich function for GO data. 10 enrichments total
   ############################################################
-  GODF <- Enrich(BGGO,DEGO)
+  #omnibus F enrichment
+  GOenrichment <- Enrich(BGGO, DEGO, ontology = "GO")
   
-  #assign the annotation. If no annotation is available, return a character vector "No Enrichment"
-  pos_err <- tryCatch(select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION")), error=function(e) e)
-  if(!inherits(pos_err, "error")){
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  GOenrichment <- cbind(GODF,GOannotation)}else{
-    GOenrichment <- "NO Enrichment"}
+  #varcomp enrichments
+  GOenrichHIHB <- Enrich(BGGOvarcomp, varcompHIHB, ontology = "GO")
+  GOenrichHILB <- Enrich(BGGOvarcomp, varcompHILB, ontology = "GO")# NOTHING ENRICHED
+  GOenrichLIHB <- Enrich(BGGOvarcomp, varcompLIHB, ontology = "GO")
+  GOenrichLILB <- Enrich(BGGOvarcomp, varcompLILB, ontology = "GO")
   
-  GODF <- Enrich(BGGOvarcomp,varcompHIHB)#HIHB
-  #assign the annotation using GO.db
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  GOenrichHIHB <- cbind(GODF,GOannotation)
+  #protein normalized data
   
-#   GODF <- Enrich(BGGOvarcomp,varcompHILB)# NOTHING ENRICHED
-#   #assign the annotation using GO.db
-#   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-#   GOenrichHILB <- cbind(GODF,GOannotation)
-#   
-  GODF <- Enrich(BGGOvarcomp,varcompLIHB)#from above
-  #assign the annotation using GO.db
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  GOenrichLIHB <- cbind(GODF,GOannotation)
+  #omnibus F enrichment
+  GOenrichmentpn <- Enrich(BGGOpn, DEGOpn, ontology = "GO")
   
-  GODF <- Enrich(BGGOvarcomp,varcompLILB)#from above
-  #assign the annotation using GO.db
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  GOenrichLILB <- cbind(GODF,GOannotation)
-  
-  
-  
-  #run the function for protein normalized data
-  GODFpn <- Enrich(BGGOpn,DEGOpn)#from above
-  #assign the annotation
-  GOannotationpn <- select(GO.db, keys = as.character(GODFpn$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  GOenrichmentpn <- cbind(GODFpn,GOannotationpn)
-  
-  GODF <- Enrich(pnBGGOvarcomp,pnvarcompHIHB)#HIHB
-  #assign the annotation using GO.db
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  pnGOenrichHIHB <- cbind(GODF,GOannotation)
-  
-#   GODF <- Enrich(BGGOvarcomp,varcompHILB)# NOTHING ENRICHED
-  #assign the annotation using GO.db
-#   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-#   pnGOenrichHILB <- cbind(GODF,GOannotation)
-  
-  GODF <- Enrich(BGGOvarcomp,varcompLIHB)#from above
-  #assign the annotation using GO.db
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  pnGOenrichLIHB <- cbind(GODF,GOannotation)
-  
-  GODF <- Enrich(BGGOvarcomp,varcompLILB)#from above
-  #assign the annotation using GO.db
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  pnGOenrichLILB <- cbind(GODF,GOannotation)  
-  
-  
-  
-  #very big difference between confounded and non-confounded data that may be due to protein level confounding and use of 'leading protein' in phospho data.
-  x <- GOenrichment$GOID#101
-  y <- GOannotationpn$GOID#76
-  
-  length(intersect(y,x))#11
-  length(setdiff(y,x))#65
-  
-  
-  ################################################
-  
+  #varcomp enrichments
+  pnGOenrichHIHB <- Enrich(pnBGGOvarcomp, pnvarcompHIHB, ontology = "GO")
+  pnGOenrichHILB <- Enrich(pnBGGOvarcomp, pnvarcompHILB, ontology = "GO")# NOTHING ENRICHED
+  pnGOenrichLIHB <- Enrich(pnBGGOvarcomp, pnvarcompLIHB, ontology = "GO")
+  pnGOenrichLILB <- Enrich(pnBGGOvarcomp, pnvarcompLILB, ontology = "GO")
+
+
   #same steps for reactome
   ###################
   backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE=="+",]
@@ -282,68 +234,35 @@ Enrichment <- function(multExpanded1_withDE){
   enrichedReact <- enrichedReact$ppReactIDs
   pnROvarcompHILB <- SplitNClean(enrichedReact)
   
+  #run the function for Reactome. 10 Enrichments total
+  ##################################
   
-  
-  #run the function
-  RODF <- Enrich(BGRO,DERO)
-  #assign the annotation
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  ROenrichment <- cbind(RODF,ROannotation)
-  
-  RODF <- Enrich(BGROvarcomp,ROvarcompHIHB)#HIHB
-  #assign the annotation using GO.db
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  ROenrichHIHB <- cbind(RODF,ROannotation)
-  
-  RODF <- Enrich(BGROvarcomp,ROvarcompHILB)# 
-  #assign the annotation using GO.db
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  ROenrichHILB <- cbind(RODF,ROannotation)
-  
-  RODF <- Enrich(BGROvarcomp,ROvarcompLIHB)#from above
-  #assign the annotation using GO.db
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  ROenrichLIHB <- cbind(RODF,ROannotation)
-  
-#   RODF <- Enrich(BGROvarcomp,ROvarcompLILB)#NOTHING ENRICHED
-  #assign the annotation using GO.db
-#   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-#   ROenrichLILB <- cbind(RODF,ROannotation)
-  
+  #omnibus F
+  ROenrichment <- Enrich(BGRO, DERO, ontology = "Reactome")
+  #varcomps
+  ROenrichHIHB <- Enrich(BGROvarcomp, ROvarcompHIHB, ontology = "Reactome")
+  ROenrichHILB <- Enrich(BGROvarcomp, ROvarcompHILB, ontology = "Reactome")
+  ROenrichLIHB <- Enrich(BGROvarcomp, ROvarcompLIHB, ontology = "Reactome")#from above
+  ROenrichLILB <- Enrich(BGROvarcomp, ROvarcompLILB, ontology = "Reactome")#NOTHING ENRICHED
   
   #protein normalized data
-  RODFpn <- Enrich(pnBGRO,pnDERO)
-  #assign the annotation
-  ROannotationpn <- select(reactome.db, keys = as.character(RODFpn$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  ROenrichmentpn <- cbind(RODFpn,ROannotationpn)  
-  
-  RODF <- Enrich(pnBGROvarcomp,pnROvarcompHIHB)#HIHB
-  #assign the annotation using GO.db
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  pnROenrichHIHB <- cbind(RODF,ROannotation)
-  
-  RODF <- Enrich(pnBGROvarcomp,pnROvarcompHILB)#
-  #assign the annotation using GO.db
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  pnROenrichHILB <- cbind(RODF,ROannotation)
-  
-  RODF <- Enrich(pnBGROvarcomp,pnROvarcompLIHB)#from above
-  #assign the annotation using GO.db
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  pnROenrichLIHB <- cbind(RODF,ROannotation)
-  
-#   RODF <- Enrich(pnBGROvarcomp,pnROvarcompLILB)#nothing enriched
-#   #assign the annotation using GO.db
-#   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-#   pnROenrichLILB <- cbind(pnRODF,pnROannotation)
+  #omnibus F
+  ROenrichmentpn <- Enrich(pnBGRO, pnDERO, ontology = "Reactome")
+  #varcomps
+  pnROenrichHIHB <- Enrich(pnBGROvarcomp, pnROvarcompHIHB, ontology = "Reactome")#HIHB
+  pnROenrichHILB <- Enrich(pnBGROvarcomp, pnROvarcompHILB, ontology = "Reactome")#
+  pnROenrichLIHB <- Enrich(pnBGROvarcomp, pnROvarcompLIHB, ontology = "Reactome")#from above
+  pnROenrichLILB <- Enrich(pnBGROvarcomp, pnROvarcompLILB, ontology = "Reactome")#nothing enriched
   
   
   #return a list of enrichment DFs
-  DFs <- list(GOenrichment = GOenrichment, GOenrichHIHB = GOenrichHIHB, GOenrichLIHB = GOenrichLIHB, GOenrichLILB = GOenrichLILB, 
-              GOenrichmentpn = GOenrichmentpn, pnGOenrichHIHB = pnGOenrichHIHB, pnGOenrichLIHB = pnGOenrichLIHB, pnGOenrichLILB = pnGOenrichLILB,
-              ROenrichment = ROenrichment, ROenrichHIHB = ROenrichHIHB, ROenrichHILB = ROenrichHILB, ROenrichLIHB = ROenrichLIHB,
-              ROenrichmentpn = ROenrichmentpn, pnROenrichHIHB = pnROenrichHIHB, pnROenrichHILB = pnROenrichHILB, pnROenrichLIHB = pnROenrichLIHB)
-  return(DFs)
+  ###############################
+  #final all dataframes in environment with names 'enrich'
+  EnrichmentDFs <- setNames(lapply(ls(pattern="enrich"), function(x) {if(class(get(x)) == "data.frame") get(x)}),ls(pattern="enrich")) #returns some NULL list elements
+  EnrichmentDFs <- EnrichmentDFs[!sapply(EnrichmentDFs,is.null)]#note there is an 'is.null' function! and needed to use sappply for ligical indexing
+  return(EnrichmentDFs)
+  
+  #note if there is no enrichment nothing will be returned!
 }
 
   
