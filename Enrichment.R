@@ -5,8 +5,8 @@ Enrichment <- function(multExpanded1_withDE){
   require(GO.db)
   require(reactome.db)
   
-  Enrich <- function(x,y){
-    #     This function accepts a DE subset and background subset and returns a list of adjusted pvalues for categorical enrichment using a one sided fisher's exact test.
+  Enrich <- function(x,y,ontology = c("GO","Reactome")){
+    #     This function accepts character vectors of a selected subset and background and returns a DF of adjusted pvalues for categorical enrichment using a one sided fisher's exact test.
     #     x=background and y=enriched. 
     require(plyr)
     BGtable <- as.matrix(table(x))#the parenthetical should be a factor vector of ids passed to this function
@@ -21,17 +21,12 @@ Enrichment <- function(multExpanded1_withDE){
     pvals <- c()
     frequency <- c()
     ids <- c()
-    #for each unique kinase in the DE1 kinases table I need to make a contingency table
-    for(i in levels(facttemp)){#this would be the DE dataframe
-      #make the first row of the contingency table
+    for(i in levels(facttemp)){
+      #make contingency table and perform FE test one sided for enrichment
       if(DEtable[as.character(i),] & NotDE[as.character(i),] >= 0){#this condition should always be true
         DErow <- c(DEtable[as.character(i),],(sum(DEtable)-DEtable[as.character(i),]))
         NotDErow <- c(NotDE[as.character(i),],(sum(NotDE)-NotDE[as.character(i),]))
         contmatrix <- rbind(DErow,NotDErow)
-        #       > contmatrix
-        #                     GO:0000002  notGO:0000002
-        #       DErow             6      27817
-        #       NotDErow         15      51891
         tmp <- fisher.test(contmatrix, alternative = "g")
         pvals <- c(pvals,tmp$p.value)
         ids <- c(ids,i)
@@ -45,6 +40,18 @@ Enrichment <- function(multExpanded1_withDE){
     DF <- data.frame('ID' = ids, 'Frequency' = frequency, 'pvalue' = pvals, 'adjpvalue' = adjps)
     DF <- arrange(DF, adjpvalue)#arrange
     DF <- DF[DF$adjpvalue<=.05,]
+    if(nrow(DF)>=1){
+      if(ontology == "GO" ){
+        GOannotation <- select(GO.db, keys = as.character(DF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
+        DF <- cbind(DF,GOannotation)
+      }
+      if(ontology == "Reactome"){
+        ROannotation <- select(reactome.db, keys = as.character(DF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
+        DF <- cbind(DF,ROannotation)
+      }
+    }else{
+      DF <- "No Enrichment"
+    }
     return(DF)
   }
   
@@ -106,69 +113,39 @@ Enrichment <- function(multExpanded1_withDE){
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$globalFsigpn == "+",]
   # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$ppGOIDs
-  DEGOpn <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  DEGOpn <- unlist(DEGOpn)
-  index <- which(DEGOpn=="")
-  DEGOpn[index] <- NA
-  DEGOpn <- na.omit(DEGOpn)
+  DEGOpn <- SplitNClean(enrichedGO)
 
   #for the variance components.
   backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$ppSubtoVarcomp == "+",]
-  #remove duplicate entries of the same peptide (multiplicities). Subset by unique id. id refers to a phosphosite
-  # backgroundGO <- backgroundGO[!duplicated(backgroundGO$id),]#the duplicated returns a logical identifying the first instance of duplication from an ordererd query. Therefore it is safe to subset using 'duplicated'
   backgroundGO <- backgroundGO$ppGOIDs
-  pnBGGOvarcomp <- sapply(backgroundGO, function(x) strsplit(x, ";"))
-  pnBGGOvarcomp <- unlist(pnBGGOvarcomp)
-  index <- which(pnBGGOvarcomp=="")#some peptides were not assigned an GOid
-  pnBGGOvarcomp[index] <- NA
-  pnBGGOvarcomp <- na.omit(pnBGGOvarcomp)#5299 unique
+  pnBGGOvarcomp <- SplitNClean(backgroundGO)
   
   #high ind/highbio 
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$pnHighIndVar == "+" & multExpanded1_withDE$pnHighBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$ppGOIDs
-  pnvarcompHIHB <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  pnvarcompHIHB <- unlist(pnvarcompHIHB)
-  index <- which(pnvarcompHIHB=="")
-  pnvarcompHIHB[index] <- NA
-  pnvarcompHIHB <- na.omit(pnvarcompHIHB)
+  pnvarcompHIHB <- SplitNClean(enrichedGO)
   
   #low ind/low bio 
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$pnLowIndVar == "+" & multExpanded1_withDE$pnLowBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$ppGOIDs
-  pnvarcompLILB <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  pnvarcompLILB <- unlist(pnvarcompLILB)
-  index <- which(pnvarcompLILB == "")
-  pnvarcompLILB[index] <- NA
-  pnvarcompLILB <- na.omit(pnvarcompLILB)
+  pnvarcompLILB <- SplitNClean(enrichedGO)
   
   #low ind/high bio 
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$pnLowIndVar == "+" & multExpanded1_withDE$pnHighBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$ppGOIDs
-  pnvarcompLIHB <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  pnvarcompLIHB <- unlist(pnvarcompLIHB)
-  index <- which(pnvarcompLIHB == "")
-  pnvarcompLIHB[index] <- NA
-  pnvarcompLIHB <- na.omit(pnvarcompLIHB)
+  pnvarcompLIHB <- SplitNClean(enrichedGO)
   
   #high ind/low bio 
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$pnHighIndVar == "+" & multExpanded1_withDE$pnLowBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$ppGOIDs
-  pnvarcompHILB <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  pnvarcompHILB <- unlist(pnvarcompHILB)
-  index <- which(pnvarcompHILB == "")
-  pnvarcompHILB[index] <- NA
-  pnvarcompHILB <- na.omit(pnvarcompHILB)
-  
+  pnvarcompHILB <- SplitNClean(enrichedGO)
   
   
   #run the enrich function
   ############################################################
-  GODF <- Enrich(BGGO,DEGO)#from above
-  #assign the annotation using GO.db
+  GODF <- Enrich(BGGO,DEGO)
+  
+  #assign the annotation. If no annotation is available, return a character vector "No Enrichment"
   pos_err <- tryCatch(select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION")), error=function(e) e)
   if(!inherits(pos_err, "error")){
   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
@@ -237,144 +214,73 @@ Enrichment <- function(multExpanded1_withDE){
   
   #same steps for reactome
   ###################
-  #get background and correct for multiple observations of the same peptides (multiplicities)
   backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE=="+",]
   backgroundReact <- backgroundReact$ReactIDs
-  BGRO <- sapply(backgroundReact, function(x) strsplit(x, ";"))
-  BGRO <- unlist(BGRO)
-  index <- which(BGRO == "")
-  BGRO[index] <- NA
-  BGRO <- na.omit(BGRO)
+  BGRO <- SplitNClean(backgroundReact)
   
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$globalFsig == "+",]
   enrichedReact <- enrichedReact$ReactIDs
-  DERO <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  DERO <- unlist(DERO)
-  index <- which(DERO == "")
-  DERO[index] <- NA
-  DERO <- na.omit(DERO)
+  DERO <- SplitNClean(enrichedReact)
   
   #for the variance components.
   backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$SubtoVarcomp == "+",]
-  #remove duplicate entries of the same peptide (multiplicities). Subset by unique id. id refers to a phosphosite
-  # backgroundReact <- backgroundReact[!duplicated(backgroundReact$id),]#the duplicated returns a logical identifying the first instance of duplication from an ordererd query. Therefore it is safe to subset using 'duplicated'
   backgroundReact <- backgroundReact$ReactIDs
-  BGROvarcomp <- sapply(backgroundReact, function(x) strsplit(x, ";"))
-  BGROvarcomp <- unlist(BGROvarcomp)
-  index <- which(BGROvarcomp=="")#some peptides were not assigned an GOid
-  BGROvarcomp[index] <- NA
-  BGROvarcomp <- na.omit(BGROvarcomp)#5299 unique
+  BGROvarcomp <- SplitNClean(backgroundReact)
   
   #high ind/highbio 
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$HighIndVar == "+" & multExpanded1_withDE$HighBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedReact <- enrichedReact$ReactIDs
-  ROvarcompHIHB <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  ROvarcompHIHB <- unlist(ROvarcompHIHB)
-  index <- which(ROvarcompHIHB=="")
-  ROvarcompHIHB[index] <- NA
-  ROvarcompHIHB <- na.omit(ROvarcompHIHB)
+  ROvarcompHIHB <- SplitNClean(enrichedReact)
   
   #low ind/low bio 
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$LowIndVar == "+" & multExpanded1_withDE$LowBioVar == "+",]
-  # enrichedReact <- enrichedReact[!duplicated(enrichedReact$id),]
   enrichedReact <- enrichedReact$ReactIDs
-  ROvarcompLILB <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  ROvarcompLILB <- unlist(ROvarcompLILB)
-  index <- which(ROvarcompLILB == "")
-  ROvarcompLILB[index] <- NA
-  ROvarcompLILB <- na.omit(ROvarcompLILB)
+  ROvarcompLILB <- SplitNClean(enrichedReact)
   
   #low ind/high bio 
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$LowIndVar == "+" & multExpanded1_withDE$HighBioVar == "+",]
-  # enrichedReact <- enrichedReact[!duplicated(enrichedReact$id),]
   enrichedReact <- enrichedReact$ReactIDs
-  ROvarcompLIHB <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  ROvarcompLIHB <- unlist(ROvarcompLIHB)
-  index <- which(ROvarcompLIHB == "")
-  ROvarcompLIHB[index] <- NA
-  ROvarcompLIHB <- na.omit(ROvarcompLIHB)
+  ROvarcompLIHB <- SplitNClean(enrichedReact)
   
   #high ind/low bio 
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$HighIndVar == "+" & multExpanded1_withDE$LowBioVar == "+",]
-  # enrichedReact <- enrichedReact[!duplicated(enrichedReact$id),]
   enrichedReact <- enrichedReact$ReactIDs
-  ROvarcompHILB <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  ROvarcompHILB <- unlist(ROvarcompHILB)
-  index <- which(ROvarcompHILB == "")
-  ROvarcompHILB[index] <- NA
-  ROvarcompHILB <- na.omit(ROvarcompHILB)
-  
+  ROvarcompHILB <- SplitNClean(enrichedReact)
   
   
   #now for the protein normalized DE
   backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEpn == "+",]
   backgroundReact <- backgroundReact$ppReactIDs
-  pnBGRO <- sapply(backgroundReact, function(x) strsplit(x, ";"))
-  pnBGRO <- unlist(pnBGRO)
-  index <- which(pnBGRO == "")
-  pnBGRO[index] <- NA
-  pnBGRO <- na.omit(pnBGRO)
+  pnBGRO <- SplitNClean(backgroundReact)
   
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$globalFsigpn == "+",]
   enrichedReact <- enrichedReact$ppReactIDs
-  pnDERO <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  pnDERO <- unlist(pnDERO)
-  index <- which(pnDERO == "")
-  pnDERO[index] <- NA
-  pnDERO <- na.omit(pnDERO)
+  pnDERO <- SplitNClean(enrichedReact)
   
   #for the variance components.
   backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$ppSubtoVarcomp == "+",]
-  #remove duplicate entries of the same peptide (multiplicities). Subset by unique id. id refers to a phosphosite
-  # backgroundReact <- backgroundReact[!duplicated(backgroundReact$id),]#the duplicated returns a logical identifying the first instance of duplication from an ordererd query. Therefore it is safe to subset using 'duplicated'
   backgroundReact <- backgroundReact$ppReactIDs
-  pnBGROvarcomp <- sapply(backgroundReact, function(x) strsplit(x, ";"))
-  pnBGROvarcomp <- unlist(pnBGROvarcomp)
-  index <- which(pnBGROvarcomp=="")#some peptides were not assigned an GOid
-  pnBGROvarcomp[index] <- NA
-  pnBGROvarcomp <- na.omit(pnBGROvarcomp)#5299 unique
+  pnBGROvarcomp <- SplitNClean(backgroundReact)
   
   #high ind/highbio 
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$pnHighIndVar == "+" & multExpanded1_withDE$pnHighBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedReact <- enrichedReact$ppReactIDs
-  pnROvarcompHIHB <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  pnROvarcompHIHB <- unlist(pnROvarcompHIHB)
-  index <- which(pnROvarcompHIHB=="")
-  pnROvarcompHIHB[index] <- NA
-  pnROvarcompHIHB <- na.omit(pnROvarcompHIHB)
+  pnROvarcompHIHB <- SplitNClean(enrichedReact)
   
   #low ind/low bio 
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$pnLowIndVar == "+" & multExpanded1_withDE$pnLowBioVar == "+",]
-  # enrichedReact <- enrichedReact[!duplicated(enrichedReact$id),]
   enrichedReact <- enrichedReact$ppReactIDs
-  pnROvarcompLILB <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  pnROvarcompLILB <- unlist(pnROvarcompLILB)
-  index <- which(pnROvarcompLILB == "")
-  pnROvarcompLILB[index] <- NA
-  pnROvarcompLILB <- na.omit(pnROvarcompLILB)
+  pnROvarcompLILB <- SplitNClean(enrichedReact)
   
   #low ind/high bio 
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$pnLowIndVar == "+" & multExpanded1_withDE$pnHighBioVar == "+",]
-  # enrichedReact <- enrichedReact[!duplicated(enrichedReact$id),]
   enrichedReact <- enrichedReact$ppReactIDs
-  pnROvarcompLIHB <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  pnROvarcompLIHB <- unlist(pnROvarcompLIHB)
-  index <- which(pnROvarcompLIHB == "")
-  pnROvarcompLIHB[index] <- NA
-  pnROvarcompLIHB <- na.omit(pnROvarcompLIHB)
+  pnROvarcompLIHB <- SplitNClean(enrichedReact)
   
   #high ind/low bio 
   enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$pnHighIndVar == "+" & multExpanded1_withDE$pnLowBioVar == "+",]
-  # enrichedReact <- enrichedReact[!duplicated(enrichedReact$id),]
   enrichedReact <- enrichedReact$ppReactIDs
-  pnROvarcompHILB <- sapply(enrichedReact, function(y) strsplit(y, ";"))
-  pnROvarcompHILB <- unlist(pnROvarcompHILB)
-  index <- which(pnROvarcompHILB == "")
-  pnROvarcompHILB[index] <- NA
-  pnROvarcompHILB <- na.omit(pnROvarcompHILB)
-  
+  pnROvarcompHILB <- SplitNClean(enrichedReact)
   
   
   
