@@ -246,6 +246,38 @@ TotallyRawRatiosB2 <- TotallyRawRatios[,c(3:4,7:8,11:12)]
 varcompRawB1 <- NestedVar(ratios=TotallyRawRatiosB1, batch=T)
 varcompRawB2 <- NestedVar(ratios=TotallyRawRatiosB2, batch=T)
 
+
+#Hypothesis: Variation in labeling efficiency is responsible for bimodal biological replicate variance component distributions. 
+# Data consistent with this proposition is observed segregation of proteins into modes of the distribution to greater extent in the biovarcomp vs the indvarcomp  
+#x - percent of proteins unique to one mode & y - percent of proteins shared between two modes
+
+#if any phosphosite from a protein is assigned to another mode it is binned shared otherwise it is binned 'uniquehigh' or 'uniquelow'
+
+#subset relevant data to subject to pnvarcomp
+keep <- grep(pattern = "pn.*Var|ppMajorityProteinIDs", names(multExpanded1_withDE), value = T)
+SubtopnVarcomp <- multExpanded1_withDE[multExpanded1_withDE$ppSubtoVarcomp == "+", names(multExpanded1_withDE) %in% keep] #3483
+
+#subset to proteins with more than one phosphosite/multiply phosphorylated (that is they have a chance to be shared)
+multiplyphosphorylated <- unique(SubtopnVarcomp$ppMajorityProteinIDs[duplicated(SubtopnVarcomp$ppMajorityProteinIDs)])
+
+SubtopnVarcomp2 <- SubtopnVarcomp[SubtopnVarcomp$ppMajorityProteinIDs %in% multiplyphosphorylated,]#2831 entries for 632 proteins
+
+#if any of the peptides for a given protein are found in both 'high' and 'low' they are shared, for both 
+require(plyr)
+ProteinSpread <- ddply(SubtopnVarcomp2, "ppMajorityProteinIDs", function(x){
+  ##is protein shared across modes?
+  sharedbio <- ifelse(any(x$pnHighBioVar == "+") & any(x$pnLowBioVar == "+"), "+","-")
+  sharedind <- ifelse(any(x$pnHighIndVar == "+") & any(x$pnLowIndVar == "+"), "+","-")
+  data.frame(shared.bio = sharedbio, shared.ind = sharedind)
+})
+
+barplot(table(ProteinSpread$shared.bio), main = "Shared (+) vs segregated (-) multiply phosphorylated proteins. \n Biological variance comp", 
+        ylab = "number of proteins")
+
+barplot(table(ProteinSpread$shared.ind), main = "Shared (+) vs segregated (-) multiply phosphorylated proteins. \n Individual variance comp", 
+        ylab = "number of proteins")
+
+
 ############################
 
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
@@ -254,7 +286,12 @@ multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
 #enrichment analysis of phosphoproteins using GO and reactome annotations.NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA...enriched on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
 enrichment_tables <- Enrichment(multExpanded1_withDE)
 
+#something interesting in the HILB and LIHB?
+names(enrichment_tables)
+
+
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc
+
 
 # Absoulte protein concentration estimates (iBAQ or 'protein ruler'), GO, reactome, corum, phosphositeplus, nonsynSNPs, pQTLs, within motif nonsynsnps
 

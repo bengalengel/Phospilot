@@ -50,93 +50,59 @@ Enrichment <- function(multExpanded1_withDE){
   
   ##########################
 
+  #function for annotation
+  SplitNClean <- function(x){
+    #SplitNClean takes a character vector of annotations separated by a colon and returns a character vector where each term is an element, and no element of the character vector is empty/NA
+    y <- sapply(x, function(x) strsplit(x, ";"))
+    y <- unlist(y)
+    index <- which(y == "")
+    y[index] <- NA
+    y <- na.omit(y)
+  }
+  
+  
   #First is GO
   #######################
   #get background
   backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE == "+",]
-  #remove duplicate entries of the same peptide (multiplicities). Subset by unique id. id refers to a phosphosite
-  # backgroundGO <- backgroundGO[!duplicated(backgroundGO$id),]#the duplicated returns a logical identifying the first instance of duplication from an ordererd query. Therefore it is safe to subset using 'duplicated'
   backgroundGO <- backgroundGO$GOIDs
-  BGGO <- sapply(backgroundGO, function(x) strsplit(x, ";"))
-  BGGO <- unlist(BGGO)
-  index <- which(BGGO=="")#some peptides were not assigned an GOid
-  BGGO[index] <- NA
-  BGGO <- na.omit(BGGO)#5299 unique
+  BGGO <- SplitNClean(backgroundGO)
   
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$globalFsig == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$GOIDs
-  DEGO <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  DEGO <- unlist(DEGO)
-  index <- which(DEGO=="")
-  DEGO[index] <- NA
-  DEGO <- na.omit(DEGO)#3474 unique
+  DEGO <- SplitNClean(enrichedGO)
   
   #for the variance components.
   backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$SubtoVarcomp == "+",]
-  #remove duplicate entries of the same peptide (multiplicities). Subset by unique id. id refers to a phosphosite
-  # backgroundGO <- backgroundGO[!duplicated(backgroundGO$id),]#the duplicated returns a logical identifying the first instance of duplication from an ordererd query. Therefore it is safe to subset using 'duplicated'
   backgroundGO <- backgroundGO$GOIDs
-  BGGOvarcomp <- sapply(backgroundGO, function(x) strsplit(x, ";"))
-  BGGOvarcomp <- unlist(BGGOvarcomp)
-  index <- which(BGGOvarcomp=="")#some peptides were not assigned an GOid
-  BGGOvarcomp[index] <- NA
-  BGGOvarcomp <- na.omit(BGGOvarcomp)#5299 unique
+  BGGOvarcomp <- SplitNClean(backgroundGO)
   
   #high ind/highbio 
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$HighIndVar == "+" & multExpanded1_withDE$HighBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$GOIDs
-  varcompHIHB <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  varcompHIHB <- unlist(varcompHIHB)
-  index <- which(varcompHIHB=="")
-  varcompHIHB[index] <- NA
-  varcompHIHB <- na.omit(varcompHIHB)
+  varcompHIHB <- SplitNClean(enrichedGO)
   
   #low ind/low bio 
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$LowIndVar == "+" & multExpanded1_withDE$LowBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$GOIDs
-  varcompLILB <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  varcompLILB <- unlist(varcompLILB)
-  index <- which(varcompLILB == "")
-  varcompLILB[index] <- NA
-  varcompLILB <- na.omit(varcompLILB)
+  varcompLILB <- SplitNClean(enrichedGO)
   
   #low ind/high bio 
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$LowIndVar == "+" & multExpanded1_withDE$HighBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$GOIDs
-  varcompLIHB <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  varcompLIHB <- unlist(varcompLIHB)
-  index <- which(varcompLIHB == "")
-  varcompLIHB[index] <- NA
-  varcompLIHB <- na.omit(varcompLIHB)
+  varcompLIHB <- SplitNClean(enrichedGO)
   
   #high ind/low bio 
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$HighIndVar == "+" & multExpanded1_withDE$LowBioVar == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$GOIDs
-  varcompHILB <- sapply(enrichedGO, function(y) strsplit(y, ";"))
-  varcompHILB <- unlist(varcompHILB)
-  index <- which(varcompHILB == "")
-  varcompHILB[index] <- NA
-  varcompHILB <- na.omit(varcompHILB)
-  
-  
-  
+  varcompHILB <- SplitNClean(enrichedGO)
   
   #now for the protein normalized DE
   backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEpn =="+",]
-  #remove duplicate entries of the same peptide (multiplicities). Subset by unique id. id refers to a phosphosite
-  # backgroundGO <- backgroundGO[!duplicated(backgroundGO$id),]#the duplicated returns a logical identifying the first instance of duplication from an ordererd query. Therefore it is safe to subset using 'duplicated'
   backgroundGO <- backgroundGO$ppGOIDs
-  BGGOpn <- sapply(backgroundGO, function(x) strsplit(x, ";"))
-  BGGOpn <- unlist(BGGOpn)
-  index <- which(BGGOpn=="")#some peptides were not assigned an GOid
-  BGGOpn[index] <- NA
-  BGGOpn <- na.omit(BGGOpn)#to be passed
-  
+  BGGOpn <- SplitNClean(backgroundGO)
+    
+    
   enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$globalFsigpn == "+",]
   # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
   enrichedGO <- enrichedGO$ppGOIDs
@@ -203,19 +169,22 @@ Enrichment <- function(multExpanded1_withDE){
   ############################################################
   GODF <- Enrich(BGGO,DEGO)#from above
   #assign the annotation using GO.db
+  pos_err <- tryCatch(select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION")), error=function(e) e)
+  if(!inherits(pos_err, "error")){
   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  GOenrichment <- cbind(GODF,GOannotation)
+  GOenrichment <- cbind(GODF,GOannotation)}else{
+    GOenrichment <- "NO Enrichment"}
   
   GODF <- Enrich(BGGOvarcomp,varcompHIHB)#HIHB
   #assign the annotation using GO.db
   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
   GOenrichHIHB <- cbind(GODF,GOannotation)
   
-  GODF <- Enrich(BGGOvarcomp,varcompHILB)# NOTHING ENRICHED
-  #assign the annotation using GO.db
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  GOenrichHILB <- cbind(GODF,GOannotation)
-  
+#   GODF <- Enrich(BGGOvarcomp,varcompHILB)# NOTHING ENRICHED
+#   #assign the annotation using GO.db
+#   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
+#   GOenrichHILB <- cbind(GODF,GOannotation)
+#   
   GODF <- Enrich(BGGOvarcomp,varcompLIHB)#from above
   #assign the annotation using GO.db
   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
@@ -239,10 +208,10 @@ Enrichment <- function(multExpanded1_withDE){
   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
   pnGOenrichHIHB <- cbind(GODF,GOannotation)
   
-  GODF <- Enrich(BGGOvarcomp,varcompHILB)# NOTHING ENRICHED
+#   GODF <- Enrich(BGGOvarcomp,varcompHILB)# NOTHING ENRICHED
   #assign the annotation using GO.db
-  GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
-  pnGOenrichHILB <- cbind(GODF,GOannotation)
+#   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
+#   pnGOenrichHILB <- cbind(GODF,GOannotation)
   
   GODF <- Enrich(BGGOvarcomp,varcompLIHB)#from above
   #assign the annotation using GO.db
@@ -253,11 +222,6 @@ Enrichment <- function(multExpanded1_withDE){
   #assign the annotation using GO.db
   GOannotation <- select(GO.db, keys = as.character(GODF$ID), keytype = "GOID", columns = c("TERM", "ONTOLOGY", "DEFINITION"))
   pnGOenrichLILB <- cbind(GODF,GOannotation)  
-  
-  
-  
-  
-  
   
   
   
@@ -425,7 +389,7 @@ Enrichment <- function(multExpanded1_withDE){
   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
   ROenrichHIHB <- cbind(RODF,ROannotation)
   
-  RODF <- Enrich(BGROvarcomp,ROvarcompHILB)# NOTHING ENRICHED
+  RODF <- Enrich(BGROvarcomp,ROvarcompHILB)# 
   #assign the annotation using GO.db
   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
   ROenrichHILB <- cbind(RODF,ROannotation)
@@ -435,10 +399,10 @@ Enrichment <- function(multExpanded1_withDE){
   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
   ROenrichLIHB <- cbind(RODF,ROannotation)
   
-  RODF <- Enrich(BGROvarcomp,ROvarcompLILB)#from above
+#   RODF <- Enrich(BGROvarcomp,ROvarcompLILB)#NOTHING ENRICHED
   #assign the annotation using GO.db
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  ROenrichLILB <- cbind(RODF,ROannotation)
+#   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
+#   ROenrichLILB <- cbind(RODF,ROannotation)
   
   
   #protein normalized data
@@ -452,7 +416,7 @@ Enrichment <- function(multExpanded1_withDE){
   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
   pnROenrichHIHB <- cbind(RODF,ROannotation)
   
-  RODF <- Enrich(pnBGROvarcomp,pnROvarcompHILB)# NOTHING ENRICHED
+  RODF <- Enrich(pnBGROvarcomp,pnROvarcompHILB)#
   #assign the annotation using GO.db
   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
   pnROenrichHILB <- cbind(RODF,ROannotation)
@@ -462,16 +426,17 @@ Enrichment <- function(multExpanded1_withDE){
   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
   pnROenrichLIHB <- cbind(RODF,ROannotation)
   
-  RODF <- Enrich(pnBGROvarcomp,pnROvarcompLILB)#from above
-  #assign the annotation using GO.db
-  ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
-  pnROenrichLILB <- cbind(pnRODF,pnROannotation)
-  
-  
+#   RODF <- Enrich(pnBGROvarcomp,pnROvarcompLILB)#nothing enriched
+#   #assign the annotation using GO.db
+#   ROannotation <- select(reactome.db, keys = as.character(RODF$ID), keytype = "REACTOMEID", columns = "PATHNAME")
+#   pnROenrichLILB <- cbind(pnRODF,pnROannotation)
   
   
   #return a list of enrichment DFs
-  DFs <- list(GOenrichment, GOenrichmentpn, ROenrichment, ROenrichmentpn)
+  DFs <- list(GOenrichment = GOenrichment, GOenrichHIHB = GOenrichHIHB, GOenrichLIHB = GOenrichLIHB, GOenrichLILB = GOenrichLILB, 
+              GOenrichmentpn = GOenrichmentpn, pnGOenrichHIHB = pnGOenrichHIHB, pnGOenrichLIHB = pnGOenrichLIHB, pnGOenrichLILB = pnGOenrichLILB,
+              ROenrichment = ROenrichment, ROenrichHIHB = ROenrichHIHB, ROenrichHILB = ROenrichHILB, ROenrichLIHB = ROenrichLIHB,
+              ROenrichmentpn = ROenrichmentpn, pnROenrichHIHB = pnROenrichHIHB, pnROenrichHILB = pnROenrichHILB, pnROenrichLIHB = pnROenrichLIHB)
   return(DFs)
 }
 
