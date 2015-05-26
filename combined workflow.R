@@ -31,8 +31,8 @@ phospho <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combin
 protein <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
 
 # load phospho and protein files with particular variables populated using "loadMQ" at home
-phospho <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
-protein <- load.MQ(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "protein")
+phospho <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "phospho")
+protein <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
 
 # remove contaminants and reverse database hits
 phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]
@@ -94,9 +94,10 @@ multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 ########################
 #Load and normalize protein data.
 #loads MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: MQoutput heavy,MQ output just data, median normalized, and quantile normalized. 
+
 # Choose directory containing proteomics data to pass to 'NormProt'
-# CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/November Zia MBR MQ analysis/txt/")
-CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/txt/")#
+CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteome/txt/")#from home
+CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/txt/")#from laptop
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
 
@@ -283,8 +284,9 @@ barplot(table(ProteinSpread$shared.ind), main = "Shared (+) vs segregated (-) mu
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
 multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
 
-#enrichment analysis of phosphoproteins using GO and reactome annotations.NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA...enriched on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
-enrichment_tables <- Enrichment(multExpanded1_withDE)
+#enrichment analysis of phosphoproteins using GO and reactome annotations.NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA...
+#Here enriched on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
+Enrichment_Tables <- Enrichment(multExpanded1_withDE)
 
 #something interesting in the HILB and LIHB?
 names(enrichment_tables)
