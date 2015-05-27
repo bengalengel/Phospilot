@@ -1,0 +1,108 @@
+---
+title: "Variance components and protein copy numbers"
+author: "Brett Engelmann"
+date: "Tuesday, May 26, 2015"
+output: html_document
+---
+## Protein Copy Number Estimation - Zia's dataset
+
+Copy number estimates from Zia's dataset are calculated within the *Perseus* sofware suite. This is an intensity based estimate (similar to iBAQ). Here the **raw** 'light' intensity channel is used for each of the three samples. For now no normalization is performed on intensity or output values.
+```{r, echo=FALSE}
+#input and explore copynumber data
+Zianonorm <- read.table(file="./Perseus/TPcolumnind.txt", sep = "\t", header=T, fill = T, quote = "")#column independent (no normalization)
+keepers <- grep("copy.", names(Zianonorm), value = T, ignore.case = T)
+copynumbersall <- Zianonorm[,names(Zianonorm) %in% keepers]
+copynumbers <- copynumbersall[,c(1,4,7)]
+names(copynumbers) <- c("cn19160","cn18862","cn18486")
+copynumbers <- log10(copynumbers)
+boxplot(copynumbers, ylab = "log10(copynumber)")#looks better than cns1
+```
+
+The spearman correlation across samples is good. Scatterplots reveal (as expected) most of variation at low intensity end of distribution.
+```{r, echo=FALSE, message=FALSE}
+require(gplots)
+require(Hmisc)
+pairs(copynumbers)
+cn.corr <- rcorr(as.matrix(copynumbers), type = "spearman")
+heatmap.2(
+  cn.corr$r,
+  key = FALSE,
+  dendrogram = "none",
+  trace = "none",
+  cellnote = round(cn.corr$r,2),
+  notecex = 1.5,
+  notecol = "black",
+  col=bluered(25),
+  cexCol=1.5,
+  cexRow=1.5,
+  margins = c(7,7)
+)
+```
+
+Make an "S" curve of median(copynumberrank) vs median(log10(cn)) across the three samples.
+```{r, echo=FALSE}
+#get median copynumber and median rank, calculate relative rank.
+cnMedian <- apply(as.matrix(copynumbers), 1, median)
+Rank <- rank(1/cnMedian)
+RelRank <- sapply(Rank,function(x) x/max(Rank))
+#combine to create DF
+MedCNDF <- data.frame(copynumber = cnMedian, Rank = Rank, RelRank = RelRank)
+row.names(MedCNDF) <- Zianonorm$Majority.protein.IDs
+par(mfrow = c(1,1))
+plot(MedCNDF$RelRank, MedCNDF$copynumber)
+```
+
+## The continuum of protein concentrations is equally distributed across Variance Component clusters
+
+Here I use the protein normalized/batch corrected variance component estimates in combination with the median copynumber estimates calculated from Zia's dataset as outlined above. Protein copynumber seems relatively evenly distributed across the variance component clusters.
+
+```{r,echo=FALSE}
+#protein prep sub to varcomp
+proteinvarcompNames <- multExpanded1_withDE[multExpanded1_withDE$ppSubtoVarcomp == "+", "ppMajorityProteinIDs"]
+
+##subset copynumber DF st only those subjected to NRE model are considered
+MedCNDFvc <- MedCNDF[row.names(MedCNDF) %in% proteinvarcompNames, ]#1152
+
+##VarcompProt formatting fix
+VarcompProt$individual <- as.numeric(as.vector(VarcompProt$individual))
+VarcompProt$biorep <- as.numeric(as.vector(VarcompProt$biorep))
+VarcompProt$residual <- as.numeric(as.vector(VarcompProt$residual))
+
+#add ppMajority IDs and copynumber information to VarcompProt
+VarcompProt$ppMajorityIDs <- multExpanded1_withDE[multExpanded1_withDE$idmult %in% row.names(VarcompProt), "ppMajorityProteinIDs"]
+
+##merge by medCNDFvc rownames
+#rowNames <- row.names(VarcompProt)
+VarcompProtMerged <- merge(VarcompProt,MedCNDFvc, by.x = "ppMajorityIDs", by.y = "row.names")
+# row.names(VarcompProt) <- rowNames#lost rownames somehow. A few missing here.
+
+#using red gray blue color gradient to represent copynumber relative rank
+rgbpal <- colorRampPalette(c("Red","Gray","Blue"))
+
+#plot final choice. RGB using relcnrank using 1 row and two columns
+par(mfcol = c(1,2))
+index <- length(unique(VarcompProtMerged$ppMajorityIDs))
+plot(VarcompProtMerged$RelRank, VarcompProtMerged$copynumber, 
+     col = rgbpal(index)[findInterval(VarcompProtMerged$RelRank,
+                                      seq(range(VarcompProtMerged$RelRank)[1], 
+                                          range(VarcompProtMerged$RelRank)[2], 
+                                          length.out = index), rightmost.closed = T)], 
+     pch = 19, ylab = "log10(copynumber)", xlab = "Relative Rank")
+
+#quadrant plot with copynumber RelRank heatmap overlay
+plot(log10(VarcompProtMerged$individual),log10(VarcompProtMerged$biorep),
+     col = rgbpal(index)[findInterval(VarcompProtMerged$RelRank,
+                                  seq(range(VarcompProtMerged$RelRank)[1], 
+                                      range(VarcompProtMerged$RelRank)[2], 
+                                      length.out = index), rightmost.closed = T)], 
+     pch = 19, ylab = "log10 BioRep VarComp", xlab = "log10 Ind VarComp")
+```
+
+
+```{r}
+sessionInfo()
+```
+
+
+
+
