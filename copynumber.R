@@ -15,33 +15,22 @@ PerseusOut(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/"
 
 # The total protein amount per cell was used as a scaling factor. In this case the total intensity will be considered proportional to the total protein amount per cell.
 
-#input two matrices.
-
-#median total protein intensity scaled
-
-Ziamedian <- read.table(file="./Perseus/TPsamenormAC.txt", sep = "\t", header=T, fill = T, quote = "")#same norm across columns
-Zianonorm <- read.table(file="./Perseus/TPcolumnind.txt", sep = "\t", header=T, fill = T, quote = "")#column independent
-
-keepers <- grep("copy.", names(Ziamedian), value = T, ignore.case = T)
-copynumbersall <- Ziamedian[,names(Ziamedian) %in% keepers]
+#input and explore copynumber data
+Zianonorm <- read.table(file="./Perseus/TPcolumnind.txt", sep = "\t", header=T, fill = T, quote = "")#column independent (no normalization)
+keepers <- grep("copy.", names(Zianonorm), value = T, ignore.case = T)
+copynumbersall <- Zianonorm[,names(Zianonorm) %in% keepers]
 copynumbers <- copynumbersall[,c(1,4,7)]
 names(copynumbers) <- c("cn19160","cn18862","cn18486")
 copynumbers <- log10(copynumbers)
-boxplot(copynumbers)
+boxplot(copynumbers, ylab = "log10(copynumber)")#looks better than cns1
 
 
-copynumbersall2 <- Zianonorm[,names(Zianonorm) %in% keepers]
-copynumbers2 <- copynumbersall2[,c(1,4,7)]
-names(copynumbers2) <- c("cn19160","cn18862","cn18486")
-copynumbers2 <- log10(copynumbers2)
-boxplot(copynumbers2)#looks better than cns1
+# The spearman correlation across samples is good. Scatterplots reveal (as expected) most of variation at low intensity end of distribution.
 
-
-##copynumbers show consistency across samples. spearman correlation coef with heatmap visualization.
 require(gplots)
 require(Hmisc)
-cn.corr <- rcorr(as.matrix(copynumbers2), type = "spearman")
-
+pairs(copynumbers)
+cn.corr <- rcorr(as.matrix(copynumbers), type = "spearman")
 heatmap.2(
   cn.corr$r,
   key = FALSE,
@@ -64,35 +53,74 @@ heatmap.2(
 #make an S curve of rank vs median(logcn). subset this to those values subject to varcomp with protein normalization. Overlay with color the four quadrants. Perform the same analysis with omnibus enrichment values. 
 
 #get median copynumber and median rank, calculate relative rank.
-cnMedian <- apply(as.matrix(copynumbers2), 1, median)
+cnMedian <- apply(as.matrix(copynumbers), 1, median)
 Rank <- rank(1/cnMedian)
 RelRank <- sapply(Rank,function(x) x/max(Rank))
+#combine to create DF
 MedCNDF <- data.frame(copynumber = cnMedian, Rank = Rank, RelRank = RelRank)
 row.names(MedCNDF) <- Zianonorm$Majority.protein.IDs
-
-#now subset this bugger and look for quadrant color distributions
+par(mfrow = c(1,1))
+plot(MedCNDF$RelRank, MedCNDF$copynumber)
 dim(MedCNDF)#4928
+
+#now subset and look for bias in cns for the varcomp quadrants
 
 #protein prep sub to varcomp
 proteinvarcompNames <- multExpanded1_withDE[multExpanded1_withDE$ppSubtoVarcomp == "+", "ppMajorityProteinIDs"]
 
-
-
+##subset copynumber DF st only those subjected to NRE model are considered
 MedCNDFvc <- MedCNDF[row.names(MedCNDF) %in% proteinvarcompNames, ]#1152
 
-#using red to yellow "heatmap style colors" with absolute copynumber estimates
-plot(MedCNDFvc$RelRank, MedCNDFvc$copynumber, 
-     col = rev(heat.colors(1152))[findInterval(MedCNDFvc$copynumber,seq(range(MedCNDFvc$copynumber)[1], range(MedCNDFvc$copynumber)[2], length.out = 1152), rightmost.closed = T)], pch = 19)#could get fancy with the range dealy
+##VarcompProt formatting fix
+VarcompProt$individual <- as.numeric(as.vector(VarcompProt$individual))
+VarcompProt$biorep <- as.numeric(as.vector(VarcompProt$biorep))
+VarcompProt$residual <- as.numeric(as.vector(VarcompProt$residual))
 
-#using red to yellow "heatmap style colors" with RelRank copynumber estimates
-plot(MedCNDFvc$RelRank, MedCNDFvc$copynumber, 
-     col = heat.colors(1152)[findInterval(MedCNDFvc$RelRank,seq(range(MedCNDFvc$RelRank)[1], range(MedCNDFvc$RelRank)[2], length.out = 1152), rightmost.closed = T)], pch = 19)#could get fancy with the range dealy
+#add ppMajority IDs and copynumber information to VarcompProt
+VarcompProt$ppMajorityIDs <- multExpanded1_withDE[multExpanded1_withDE$idmult %in% row.names(VarcompProt), "ppMajorityProteinIDs"]
+
+##merge by medCNDFvc rownames
+#rowNames <- row.names(VarcompProt)
+VarcompProtMerged <- merge(VarcompProt,MedCNDFvc, by.x = "ppMajorityIDs", by.y = "row.names")
+# row.names(VarcompProt) <- rowNames#lost rownames somehow. A few missing here.
+
+#using red gray blue color gradient to represent copynumber relative rank
+rgbpal <- colorRampPalette(c("Red","Gray","Blue"))
+
+#plot final choice. RGB using relcnrank using 1 row and two columns
+par(mfcol = c(1,2))
+index <- length(unique(VarcompProtMerged$ppMajorityIDs))
+plot(VarcompProtMerged$RelRank, VarcompProtMerged$copynumber, 
+     col = rgbpal(index)[findInterval(VarcompProtMerged$RelRank,
+                                      seq(range(VarcompProtMerged$RelRank)[1], 
+                                          range(VarcompProtMerged$RelRank)[2], 
+                                          length.out = index), rightmost.closed = T)], 
+     pch = 19, ylab = "log10(copynumber)", xlab = "Relative Rank")
+
+#quadrant plot with copynumber RelRank heatmap overlay
+plot(log10(VarcompProtMerged$individual),log10(VarcompProtMerged$biorep),
+     col = rgbpal(index)[findInterval(VarcompProtMerged$RelRank,
+                                  seq(range(VarcompProtMerged$RelRank)[1], 
+                                      range(VarcompProtMerged$RelRank)[2], 
+                                      length.out = index), rightmost.closed = T)], 
+     pch = 19, ylab = "log10 BioRep VarComp", xlab = "log10 Ind VarComp")
+
+
+
+# 
+# #using red to yellow "heatmap style colors" with absolute copynumber estimates
+# plot(MedCNDFvc$RelRank, MedCNDFvc$copynumber, 
+#      col = rev(heat.colors(1152))[findInterval(MedCNDFvc$copynumber,seq(range(MedCNDFvc$copynumber)[1], range(MedCNDFvc$copynumber)[2], length.out = 1152), rightmost.closed = T)], pch = 19)#could get fancy with the range dealy
+# 
+# #using red to yellow "heatmap style colors" with RelRank copynumber estimates
+# plot(MedCNDFvc$RelRank, MedCNDFvc$copynumber, 
+#      col = heat.colors(1152)[findInterval(MedCNDFvc$RelRank,seq(range(MedCNDFvc$RelRank)[1], range(MedCNDFvc$RelRank)[2], length.out = 1152), rightmost.closed = T)], pch = 19)#could get fancy with the range dealy
 
 
 
 
-#using red white blue
-rgb <- colorRampPalette(c("Red","Gray","Blue"))
+#using red gray blue
+rgbpal <- colorRampPalette(c("Red","Gray","Blue"))
 
 plot(MedCNDFvc$RelRank, MedCNDFvc$copynumber, 
      col = rev(rgb(1000))[findInterval(MedCNDFvc$copynumber,seq(range(MedCNDFvc$copynumber)[1], range(MedCNDFvc$copynumber)[2], length.out = 1000), rightmost.closed = T)], pch = 19)#could get fancy with the range dealy
@@ -161,7 +189,6 @@ plot(log10(VarcompProt$individual),log10(VarcompProt$biorep),
 
 
 #plot final choice. RGB using relcnrank using 1 row and two columns
-
 par(mfcol = c(1,2))
 
 plot(MedCNDFvc$RelRank, MedCNDFvc$copynumber, 
