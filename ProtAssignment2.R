@@ -1,6 +1,8 @@
 ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phosphonorm, proteome){
   require(qdapRegex)
-  ##This program assigns protein groups (from previous proteomic analysis) to phosphosites from the SCX-TiO2 workflow for normalization. 
+  ##This program assigns protein groups (from previous proteomic analysis) to phosphosites from the SCX-TiO2 workflow for normalization. It also brings along the ibaq estimates from those groups in the pertinant samples. 
+  
+#   It also does the same thing for the protein groups identified/quantified via SCX-TiO2.
   
   ##proteinfull is the 60 estimates from zias work. proteinnorm is the quantile normalized protein data.  phosphonorm is the normalized/batch corrected /confounded phospho data.multExpanded1_withDE is the parent dataframe for the class one sites with DiffPhos annotation from using the confounded data. Proteome is the passed fasta file used for the database search. 
   
@@ -90,7 +92,11 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   ################
   
   protein_norm <- data.frame()
-  for(i in seq_along(multExpanded1_withDE[,1])){
+
+#   ibaq values to append
+ibaq <- grep("ibaq(.*)18862|ibaq(.*)18486|ibaq(.*)19160", names(proteinfull), ignore.case = T, value = T)
+
+for(i in seq_along(multExpanded1_withDE[,1])){
       
     #get the peptide to search
     peptide <- as.character(multExpanded1_withDE$Phospho..STY..Probabilities[i])
@@ -114,18 +120,18 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
       counts <- matchingGroups$Razor...unique.peptides
       assignedProtein <- matchingGroups[which.max(counts),] #need to fix this to return desired numbers
       tmp <- assignedProtein[c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....", "Sequence.length", "Sequence.lengths", 
-                               "HL18862", "HL18486", "HL19160")]
+                               "HL18862", "HL18486", "HL19160", ibaq)]
       #protein_norm <- rbind(protein_norm,tmp)
     }
     if(nrow(matchingGroups) == 1){
       tmp <- matchingGroups[c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....", "Sequence.length", "Sequence.lengths", 
-                              "HL18862", "HL18486", "HL19160")]
+                              "HL18862", "HL18486", "HL19160", ibaq)]
       #protein_norm <- rbind(protein_norm,tmp)
     }
     if(nrow(matchingGroups)==0){#set names of dataframe in the event the first loop doesn't produce a match
       tmp <- as.data.frame(t(rep(NA,8)))
       names(tmp) <- c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....", "Sequence.length", "Sequence.lengths", 
-                      "HL18862", "HL18486", "HL19160")
+                      "HL18862", "HL18486", "HL19160", ibaq)
       #protein_norm <- rbind(protein_norm,tmp)
     }
     
@@ -150,8 +156,11 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   
   #make the protein_norm names specific to protein workup and be explicit about the ratios
   #affix string to the beginning of each element in the character vector
+  
+  ibaqnames <- paste("pp",ibaq, sep = "")
+  
   names(protein_norm) <- c("ppProteinIDs", "ppMajorityProteinIDs", "ppSequenceCoverage", "ppSequence.length", "ppSequence.lengths",
-                           "LH18862", "LH18486", "LH19160")
+                           "LH18862", "LH18486", "LH19160", ibaqnames)
   
   #link the protein quants to the phospho ids to make a dataframe with normalized protein quants appended. Note "REV_" entries are removed again within this function in case they were passed accidentally.
   AllPhos <- cbind(AllPhos, protein_norm)

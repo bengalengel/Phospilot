@@ -28,7 +28,8 @@ source("PerseusOut.R"
 #######
 # load phospho and protein files with particular variables populated using "loadMQ"
 phospho <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "phospho")
-protein <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
+# protein <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
+protein <- load.MQ(directory = "D:/EnsemblDBPhospho/iBAQ quantification/", type = "protein")#with ibaq
 
 # load phospho and protein files with particular variables populated using "loadMQ" at home
 phospho <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "phospho")
@@ -97,7 +98,7 @@ multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 
 # Choose directory containing proteomics data to pass to 'NormProt'
 CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteome/txt/")#from home
-CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/txt/")#from laptop
+CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")#from laptop INCLUDES IBAQ
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
 
@@ -284,10 +285,13 @@ barplot(table(ProteinSpread$shared.ind), main = "Shared (+) vs segregated (-) mu
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
 multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
 
-#enrichment analysis of phosphoproteins using GO and reactome annotations.NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA...
 
-# Enrichment analysis performed on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
+# (Ontology) Enrichment analysis performed on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
 enrichment_tables <- Enrichment(multExpanded1_withDE)
+#NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA. annotation added but no corresponding information for that id.
+
+#copynumber estimates using perseus total protein algorithm (can't use protein ruler approach with ensembl database). 
+#Here copynumbers across samples and experimental approaches are compared (correlations) and bias for protein expression level is explored within the variance component clusters and diffphos for confounded and non-confounded samples. A resampling based approach may be needed here because of multiple phosphorylation sites/protein requires that I threshold proteins into high/med/low expression (or similar) categories. This function will be self contained but MAY add cn estimates to multexpanded table. 
 
 
 

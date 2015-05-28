@@ -48,7 +48,7 @@ load.MQ <- function(type, directory) {
     filepath <- file.path(directory,"ProteinGroups.txt")
     
     ## open the file
-    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "")
+    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "", stringsAsFactors = F)
     
     #select the columns of interest 
     vars <- c("id", "Protein.IDs", "Majority.protein.IDs", "Number.of.proteins", "Peptides", 
@@ -60,9 +60,10 @@ load.MQ <- function(type, directory) {
     ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
     ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
     expression <- data[,grep("Ratio.H.L.normalized(.*)_[12]_", colnames(data))]
+    ibaq <- data[,grep("ibaq.*", colnames(data), ignore.case = T)]
     
     ##combine the two
-    data <- cbind(expression,other_data)
+    data <- cbind(expression,ibaq,other_data)
   }
   ## return the opened MQ file and have a nice day
   

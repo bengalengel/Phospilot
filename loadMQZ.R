@@ -26,9 +26,10 @@ load.MQZ <- function(directory) {
     ##dataframe that collects only the relevent expression columns. NOTE THE NEED TO USE REP!!!!!
     ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
     expression <- data[,grep("Ratio.H.L.normalized.(.*)", colnames(data))]
+    ibaq <- data[,grep("ibaq.*", colnames(data), ignore.case = T)]
     
     ##combine the two
-    data <- cbind(expression,other_data)
+    data <- cbind(expression,ibaq,other_data)
   ## return the opened MQ file and have a nice day
   
   return(data)

@@ -1,5 +1,5 @@
 PerseusOut <- function(directory, dataset = c("Zia","Brett")){
-#   This function produces the data matrix output required for the 'proteomic ruler' based absolute quantification of proteins within Perseus software
+#   This function produces the data matrix output required for the 'proteomic ruler'/'total protein normalization' based absolute quantification of proteins within Perseus software
   #   Input is directory to Brett's or zia's protien groups 
   
   #required data is read and contaminants and reverse hits are removed from the dataset!
