@@ -33,7 +33,9 @@ protein <- load.MQ(directory = "D:/EnsemblDBPhospho/iBAQ quantification/", type 
 
 # load phospho and protein files with particular variables populated using "loadMQ" at home
 phospho <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "phospho")
-protein <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
+# protein <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
+protein <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/iBAQ quantification/", type = "protein")#with ibaq
+
 
 # remove contaminants and reverse database hits
 phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]

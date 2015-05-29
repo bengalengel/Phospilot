@@ -129,6 +129,7 @@ axis(1);axis(2)
 plot(log10(rowSums(Varcomp)),log10(Varcomp[,3]),xlim=xlims,ylim=ylims,
      xlab="log10 total VC",ylab="log10 tech VC",axes=F)
 axis(1);axis(2)
+
 # Here we'd like to identify phosphpeptides with little or no variability at the individual level and at the biological replicate level. To do so, we standardized the values of the variance components for each phosphopeptides with respect to its sum of variance components. The standardized variance components are the proportion of the total variation in each phosphopeptides attributed to individuals, biological replicates, and technical replicates. 
 
 

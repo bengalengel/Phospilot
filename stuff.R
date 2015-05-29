@@ -1,8 +1,8 @@
-##phospho loop to assign protein ids, H/L values and ibaq values to phosphosites for normalization from phospho workup
+##Loop to assign protein ids, H/L values and ibaq values to phosphosites for normalization using phospho workup
 
 #decision is when there are multiple protein groups that could match the phosphosite. Here I must choose the one with the most unique/razor ids
 
-# also want to remove names from the majority protein ids that couldn't possible contain the phosphopeptide in the future
+# also want to remove names from the majority protein ids that couldn't possible contain the phosphopeptide if I am to use these names for enrichment analysis.
 
 #use sapply when possible. I will work from me1 dataframe
 
@@ -12,47 +12,58 @@ ids <- as.character(ids)
 
 #for those ids that contain multiple groups. pick the one with the most unique plus razor 
 index <- grep(";", ids)
-suspect <- ids[index]
+MultiMatch <- ids[index]
+
+#for each of the suspect ids, match the proteingroup id with the most razor + unique peptides
+proteinids <- protein1$id#for the loops
+FinalIDMultMatch <- sapply(MultiMatch,function(x){
+  y <- as.numeric(unlist(strsplit(x,split = ";")))
+  #this works! but ddply doesn't?
+  hits <- sapply(proteinids, function(z) any(y %in% z))
+  matches <- protein1[hits, c("id","Razor...unique.peptides")] 
+  #assign id with greatest amount of razor + unique peptides
+  finalid <- matches$id[which.max(matches$Razor...unique.peptides)]
+})
+
+#assign these final ids to the main id vector
+ids[index] <- FinalIDMultMatch
+ids <- as.numeric(as.character(ids))#but why?...length 1 loss with unlist
+#one na introduced by coercion
+
+#add ids to multexpanded df
+multExpanded1$matchids <- ids
+
+#retrieve the H/L, ibaq and majority protein id information from protein1
+ibaqNames <- grep("iBAQ.H.*",names(protein1), value = T)
+ratios <- grep("Ratio*",names(protein1), value = T)
+info <- protein1[,c("id","Majority.protein.IDs",ratios,ibaqNames)]
+names(info)[1] <- "phosprepProteinID"
+#merge by 'matchids' and 'id'. I don't want new columns for non-matches
+test <- merge(multExpanded1,info, by.x = "matchids", by.y = "phosprepProteinID")#16986 from 17774
+
+test <- merge(multExpanded1,info, by.x = "matchids", by.y = "phosprepProteinID", all.x = T, all.y = F)#16986 from 17774
 
 
-x <- suspect[1]
-y <- as.numeric(unlist(strsplit(x,split = ";")))
-#does either id match a protein group id in the protein1 dataframe?
-require(plyr)
 
-hits <- ddply(protein1, "id", function(x) any(y %in% x))
-#subset
-matches <- protein1[hits$V1, c("id","Razor...unique.peptides")]
-#many false matches!
+159 1103
+
+
+
+16383 is.na in original ids dataframe. perhaps a tie!?
+
 
 
 #this works! but ddply doesn't?
-listofids <- as.list(protein1$id)
-hits2 <- sapply(listofids, function(x) any(y %in% x))
-matches <- protein1[hits2, c("id","Razor...unique.peptides")]
+hits <- sapply(proteinids, function(x) any(y %in% x))
+matches <- protein[hits, c("id","Razor...unique.peptides")] 
 
-#it also works in vector format
-vectorofids <- protein1$id
-hits3 <- sapply(vectorofids, function(x) any(y %in% x))
-matches <- protein1[hits3, c("id","Razor...unique.peptides")] 
-
-#keep the rows of the protein1 data frame that match the id
-keeps <- apply(
-
-y
+#assign id with greatest amount of razor + unique peptides
+finalid <- matches$id[which.max(matches$Razor...unique.peptides)]
 
 
 
 
 
-#find the rows of the protein1 DF that contain either of these protein group ids
-
-y <- paste(y, collapse = "|")
 
 
-matches <- protein1[grep(y, protein1$id), c("id","Razor...unique.peptides")]
-                                        
-                                        
-counts <- matchingGroups$Razor...unique.peptides
-      assignedProtein <- matchingGroups[which.max(counts),] #need to fix this to return desired numbers
-      
+

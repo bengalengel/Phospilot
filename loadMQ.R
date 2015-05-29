@@ -1,4 +1,4 @@
-load.MQ <- function(type, directory) {
+load.MQ <- function(type = c("phospho","protein"), directory) {
   ##This function returns the maxquant file requested with the relevant columns.
   #Note that it also returns the NORMALIZED column values!!!   
   
