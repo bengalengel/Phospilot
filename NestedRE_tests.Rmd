@@ -1,0 +1,209 @@
+---
+title: "Nested Random Effects Tests"
+author: "Brett Engelmann"
+date: "Thursday, May 28, 2015"
+output: html_document
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      warning=FALSE, message=FALSE)
+```
+
+# Overview
+3 "Yoruba' individuals
+2 "biological" replicates per individual. That is, the same frozen stock cultured in parallel.
+2 "technical" replicates per biological replicate. Technical is the multi-step mass spec protocol. 
+
+Each sample was metabolically labeled with heavy arginine and lysine. The standard is unlabeled.
+
+
+## Packages Used
+```{r, message=FALSE}
+require(nlme)
+require(gplots)
+require(RColorBrewer)
+```
+
+
+## Data structure
+The normalized and batch corrected H/L data is structured as shown here:
+
+```{r}
+## For each phosphopeptide, the following is fed into the model.
+example <- levels(melted$Var1)[1]
+test <- melted[melted$Var1 %in% example,]
+str(test)
+knitr::kable(test, format = "markdown", digits = 3, row.names=F)
+```
+
+## Model Fitting
+`r nrow(com3)` phosphopeptides were fitted using the 'lme' function within the 'nlme' package. Because we are interested in the population, this is an all random effects model with a fixed intercept. Unbalanced data is allowed, with >= 2 values/sample required.
+
+```{r, cache=TRUE, message=FALSE, warning=FALSE}
+sites <- c()
+  Varcomp <- c()
+  Expindvar <- c()
+  Expindvarmeans <- c()
+  Expbiovar <- c()
+  Expbiovarmeans <- c()
+  Exptechvar <- c()
+  for(id in levels(melted$Var1)){
+    test <- melted[melted$Var1 %in% id,]
+    test1 <- test[3:6]
+    test1$biorep <- as.factor(test1$biorep)
+    pos_err <- tryCatch(lme(value~1, data=test1, random =~1|individual/biorep, na.action = na.exclude),error=function(e) e)
+    if(!inherits(pos_err, "error")){
+      lmemodel <- lme(value~1, data=test1, random =~1|individual/biorep, na.action = na.exclude)
+      temp <- as.numeric(VarCorr(lmemodel)[,1])
+      temp <- temp[!is.na(temp)]
+      temp <- na.omit(temp)
+      Expindvartmp <- 4*temp[1]+2*temp[2]+temp[3]
+      Expindvar <- c(Expindvar,Expindvartmp)
+      Expindvarmeanstmp <- Expindvartmp/4
+      Expindvarmeans <- c(Expindvarmeans,Expindvarmeanstmp)
+      Expbiovartmp <- 2*temp[2]+temp[3]
+      Expbiovar <- c(Expbiovar,Expbiovartmp)
+      Expbiovarmeanstmp <- Expbiovartmp/2
+      Expbiovarmeans <- c(Expbiovarmeans,Expbiovarmeanstmp)
+      Exptechvartmp <- temp[3]
+      Exptechvar <- c(Exptechvar,Exptechvartmp)
+      Varcomp <- cbind(Varcomp,temp)
+      sites <- c(sites,as.character(unique(test$Var1)))
+    }
+  }
+
+```
+
+#Variance Component Sturcture
+Overall, variation due to individual samples is larger than variation due to technical noise, followed by variation due to biological replicates.
+
+```{r}
+#Define the DF
+colnames(Varcomp) <- sites
+row.names(Varcomp) <- c("individual","biorep","residual")
+dim(Varcomp)
+Varcomp <- t(Varcomp)
+
+##cumulative Varcomp
+Varcomp2 <- Varcomp
+IndCum <- rowSums(Varcomp2)
+Varcomp2[,1] <- 0
+BioCum <- rowSums(Varcomp2)
+Varcomp2[,2] <- 0
+techCum <- rowSums(Varcomp2) #for symmetry!
+CumMat <- cbind(IndCum,BioCum,techCum)
+
+##Ratio of component estimates relative to technical
+Ind_tech <- Varcomp[,1]/Varcomp[,3]
+Bio_tech <- Varcomp[,2]/Varcomp[,3]
+ratios_tech <- cbind(Ind_tech,Bio_tech)
+
+#plot the variance component distributions
+par(mfrow = c(2,2))
+boxplot(log10(Varcomp), ylab = "log10 variance component")
+boxplot(log10(CumMat), ylab = "log10 cumulative variance components")
+boxplot(log10(ratios_tech), ylab = "log10 ratios of variance components")
+```
+
+Both individual and biological VCs follow a bi modal distribution. A significant number of the phosphopeptides have very small individual VC and biological VC. Technical VC are uni modal.
+
+```{r}
+##scatter plots show discrete groupings?
+par(mfrow = c(2,2))
+plot(log10(Varcomp[,1]),log10(Varcomp[,3]), xlab = "individual variance", ylab = "technical variance")
+plot(log10(Varcomp[,1]),log10(Varcomp[,2]), xlab = "individual variance", ylab = "biological variance")
+plot(log10(Varcomp[,2]),log10(Varcomp[,3]), xlab = "biological variance", ylab = "technical variance")
+
+#histograms of log10 variance are bimodal for biological and individual variance.
+# plot.new()
+par(mfrow = c(2,2))
+plot(density(log10(Varcomp)), xlab = "variance", main = "hist of variance components")
+plot(density(log10(Varcomp[,1])), xlab = "variance", main = "hist of individual variance components")
+plot(density(log10(Varcomp[,2])), xlab = "variance", main = "hist of biological variance components")
+plot(density(log10(Varcomp[,3])), xlab = "variance", main = "hist of technical variance components")
+```
+
+The overall variability per peptide is unimodal.
+```{r}
+  hist(log10(rowSums(Varcomp)))
+```
+
+Greater total phosphopeptide variability may result in a disproportionate distribution of extremely small estimates of bio/ind variance model terms. This does not seem to be the case here as the low bio/tech VC estimates are distributed across the entire range of total variance.
+```{r}
+par(mfrow=c(2,2))
+ylims=c(-20,0);xlims=c(-3,1)
+plot(log10(rowSums(Varcomp)),log10(Varcomp[,1]),xlim=xlims,ylim=ylims,
+     xlab="log10 total VC",ylab="log10 individual VC",axes=F)
+axis(1);axis(2)
+plot(log10(rowSums(Varcomp)),log10(Varcomp[,2]),xlim=xlims,ylim=ylims,
+     xlab="log10 total VC",ylab="log10 biorep VC",axes=F)
+axis(1);axis(2)
+plot(log10(rowSums(Varcomp)),log10(Varcomp[,3]),xlim=xlims,ylim=ylims,
+     xlab="log10 total VC",ylab="log10 tech VC",axes=F)
+axis(1);axis(2)
+```
+
+Box plots of the standardized VCs confirm the observations from the raw VC values. Proportion of variability attributed to biological replicates is the smallest, followed by technical replicates, with individual samples contributing the largest portion of variability in expression levels. 
+
+```{r}
+par(mfrow = c(1,1))
+varprop = Varcomp/rowSums(Varcomp)
+
+labs = c("individual","biorep","tech")
+boxplot((varprop),axes=F)
+axis(1,at=c(1,2,3),labels=labs,col="white");axis(2)
+```
+
+Here is a pretty awesome heatmap of this.
+```{r, warning=FALSE,cache=TRUE}
+colnames(varprop) = c("individual","bio","tech")
+heatmap.2(as.matrix(varprop),
+          col=brewer.pal(9,"YlGnBu"),
+          Colv=F,
+          labRow="",
+          trace="none",
+          srtCol=45,  ,adjCol = c(1,1),
+          margins = c(6,5),
+          cexCol=1.5,
+          key.xlab = "Standardized VC", key.ylab=NULL, key.title = "",
+          )
+```
+
+
+#Tests for sources of bias
+
+The variance component signature is curious. A few questions:
+
+* Why would the distributions be bi-modal?
+* Why would there be such a lengthy valley between the two modes? 
+* Why would there be symmetry (in terms of the magnitude of the valley) between the modes of both of the variance components? 
+
+Processing choices that I have tested that **still** reproduce the "four corners" and/or bi-modal individual variance plot.
+
+1.  Complete cases (no NAs)
+2.  No normalization/Batch correction (of any sort)
+    - Raw data
+    - Single batches of raw data (Here only a random individual parameter is fitted)
+3.  MS relevant and acquisition choices
+    - Phosphopeptide multiplicity
+        - singly phosphorylated peptides still produce signature
+    - SILAC pairs identified without 're-quantify' option
+    - Ratios estimated solely from MS acquisition and not match-between-runs (MBR) feature
+  
+
+Potential Experimental or biological sources of bias **not** presenting a signature in the data
+
+1.  Variation in labeling efficiency across samples
+    - Proteins relatively equally distributed across modes
+2. Protein expression level
+    - Protein copynumber relatively equally distributed across clusters
+
+
+
+
+
+
+
+
+
