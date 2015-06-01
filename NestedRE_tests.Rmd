@@ -2,7 +2,11 @@
 title: "Nested Random Effects Tests"
 author: "Brett Engelmann"
 date: "Thursday, May 28, 2015"
-output: html_document
+output: 
+  html_document:
+    fontsize: 12pt
+    css: "./CSSscripts/FloatTOC.css"
+    toc: yes
 ---
 
 ```{r global_options, include=FALSE}
@@ -114,6 +118,20 @@ par(mfrow = c(2,2))
 plot(log10(Varcomp[,1]),log10(Varcomp[,3]), xlab = "individual variance", ylab = "technical variance")
 plot(log10(Varcomp[,1]),log10(Varcomp[,2]), xlab = "individual variance", ylab = "biological variance")
 plot(log10(Varcomp[,2]),log10(Varcomp[,3]), xlab = "biological variance", ylab = "technical variance")
+par(mfrow = c(1,1))
+
+#scatterplot of individual and biological variance with numbers overlaid
+high_ind_var <- ifelse(log10(Varcomp[,1]) >= -5, "+", "-")
+low_ind_var <- ifelse(log10(Varcomp[,1]) < -5, "+", "-")
+high_bio_var <- ifelse(log10(Varcomp[,2]) >= -6, "+", "-")
+low_bio_var <- ifelse(log10(Varcomp[,2]) < -6, "+", "-")
+plot(log10(Varcomp[,1]),log10(Varcomp[,2]), xlab = "individual variance", ylab = "biological variance")
+abline(v = -5)
+abline(h = -6)
+text(1, 1, sum(high_ind_var == "+" & high_bio_var == "+"), col = "darkred", cex = 2, xpd = T)
+text(0,-15, sum(low_bio_var == "+" & high_ind_var == "+"), col = "darkred",cex = 2)
+text(-15,0, sum(high_bio_var == "+" & low_ind_var == "+"), col = "darkred",cex = 2)
+text(-15,-15, sum(low_bio_var == "+" & low_ind_var == "+"), col = "darkred",cex = 2)
 
 #histograms of log10 variance are bimodal for biological and individual variance.
 # plot.new()
