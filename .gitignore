@@ -21,6 +21,7 @@ test_pca/*
 PSP/*
 FASTA/*
 snpeff/log/*
+Perseus/*
 
 # Compiled source #
 ###################
