@@ -87,9 +87,11 @@ RevHits <- grep(multExpanded1$Protein, pattern = "REV")
 RevHitsidmult <- multExpanded1$idmult[RevHits]
 multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] #18238 now 17774
 
+#add protein ids, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup. Normalization? NORMALIZATION?
+multExpanded1 <- ProtAssignment(protein, multExpanded1)
+
 #remove reverse hits from dataframe passed to Diffphos. Right now 'pilot' is used.
 pilot <- pilot[!rownames(pilot)%in%RevHitsidmult,]
-
 multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 #################
 
