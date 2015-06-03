@@ -18,6 +18,7 @@ source("DiffPhosProt.R")
 source("loadMQ2.R") #non normalized data
 source("NestedVar.R")
 source("NormProt.R")
+source("ProtAssignment.R")
 source("ProtAssignment2.R")
 source("DiffPhosProt.R")
 source("AddAnnotation.R")
@@ -300,11 +301,11 @@ enrichment_tables <- Enrichment(multExpanded1_withDE)
 
 
 
-
-
-
-
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc
+
+# working with "SNPenrich.R" here. Will report a small table with enrichment results as outlined above as well as any resampling results/charts if needed
+
+results <- SNPenrich(multExpanded1_withDE)
 
 
 # Absoulte protein concentration estimates (iBAQ or 'protein ruler'), GO, reactome, corum, phosphositeplus, nonsynSNPs, pQTLs, within motif nonsynsnps
