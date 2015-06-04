@@ -3,7 +3,9 @@
 SNPenrich <- function(multExpanded1_withDE){
   
   #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
-  SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
+#   SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
+  SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
+  
   
   #subset to 4 samples of interest: 18486, 18862, 19160, and the 19238 standard
   sampleNames <- grep("18486|18862|19160|19238", names(SNPeffFinal), value = T)
@@ -21,21 +23,44 @@ SNPenrich <- function(multExpanded1_withDE){
   
   #subset to those variants present in at least one of the four lines
   hapTypes <- c("0|1", "1|0", "1|1")
-  any(hapTypes %in% SNPeffFinal[2,sampleNames])#get my apply on or ddply using each row???
+  any(hapTypes %in% SNPeffFinal[2,sampleNames])
+  #get logical index for subsetting
+  index <- apply(SNPeffFinal[,sampleNames], 1, function(x){
+    any(hapTypes %in% x)})
+  SNPeffFinal <- SNPeffFinal[index,]
+  
+  #roughly 50K coding variants in at least 1 line
+  table(index)
+  
+  ##adding annotation to multExpanded1_withDE. The goal is to use a categorical enrichment test to see if phosphoproteins with nonsyn-snps unique to at least one of the lines are more likely to be over-represented in DE than those that do not have non-syn snps.
+  
+  #import pqtl table from Battle to use as well 
+  pqtl <- read.table("C:/Users/Brett/Dropbox/Postdoc-Gilad/Yannick SNP Phos/1260793_DatafileS1_pQTLs.csv", sep = ",", header = T, 
+                     stringsAsFactors = F)
+  
+  #add a +/- based on presense of ENSP ID within any of the "leading proteins" for confounded data and within "ppMajorityProteinIDs" for Zia workup normalized protein ids. Also pass 1) which of the proteins within the groups match for each phosphopeptide 2) homo or heterozygote and 3) snp number
+  
+  # I am going to need a new dataframe for this...
+  
+  #I can use mapply for the first part. but I want to merge all of the data from the SNPenrich DF together with the me df
+  1 For each line x, (x = 1:4) does any protein group member assigned to peptide z (z = 1:nrow(multexpanded1))
+  match the protein associated with snp y (y =1:nrow(SNPeffFinal))? (+/-)
+  2 which proteins within the group matched a snp?
+  3 For those proteins within the group that matched a snp list the snps that matched it... fuckedy duck
   
   
-  SNPeffFinal[,sampleNames][2] %in% hapTypes
+  #things to note for the future are the positions of the phosphosite within the protein relative to the SNP, domain position within the protein, proximity of a snp to a phosphorylated residue, proximity of the snp toward a residue that has been annotated as being phosphorylated. These things may be difficult to handle due to annotation issues. 
   
-  FinalIDMultMatch <- sapply(MultiMatch,function(x){
-    y <- as.numeric(unlist(strsplit(x,split = ";")))
-    #below sapply works! but ddply doesn't?
-    hits <- sapply(proteinids, function(z) any(y %in% z))
-    matches <- protein[hits, c("id","Razor...unique.peptides")] 
-    #assign id with greatest amount of razor + unique peptides
-    finalid <- matches$id[which.max(matches$Razor...unique.peptides)]
-  })
+  multExpanded1_withDE$Ind18486_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick18486$UNIPROT.ID, "+","-")
+  multExpanded1_withDE$Ind18862_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick18862$UNIPROT.ID, "+","-")
+  multExpanded1_withDE$Ind19160_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick19160$UNIPROT.ID, "+","-")
+  multExpanded1_withDE$Ind19238_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick19160$UNIPROT.ID, "+","-")
   
-  #subset to those variants 
+  
+  
+  
+  
+   #subset to those variants 
   
 ##adding annotation to multExpanded1_withDE. The goal is to use a categorical enrichment test to see if phosphoproteins with nonsyn-snps unique to at least one of the lines are more likely to be over-represented in DE than those that do not have non-syn snps. 
 
