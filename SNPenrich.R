@@ -3,7 +3,7 @@
 SNPenrich <- function(multExpanded1_withDE){
   
   #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
-#   SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
+  SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
   SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
   
   
@@ -23,7 +23,6 @@ SNPenrich <- function(multExpanded1_withDE){
   
   #subset to those variants present in at least one of the four lines
   hapTypes <- c("0|1", "1|0", "1|1")
-  any(hapTypes %in% SNPeffFinal[2,sampleNames])
   #get logical index for subsetting
   index <- apply(SNPeffFinal[,sampleNames], 1, function(x){
     any(hapTypes %in% x)})
@@ -37,21 +36,59 @@ SNPenrich <- function(multExpanded1_withDE){
   #import pqtl table from Battle to use as well 
   pqtl <- read.table("C:/Users/Brett/Dropbox/Postdoc-Gilad/Yannick SNP Phos/1260793_DatafileS1_pQTLs.csv", sep = ",", header = T, 
                      stringsAsFactors = F)
+  pqtl <- read.table("E:/My Documents/Dropbox/Postdoc-Gilad/Yannick SNP Phos/1260793_DatafileS1_pQTLs.csv", sep = ",", header = T, 
+                     stringsAsFactors = F)
+  
   
   #add a +/- based on presense of ENSP ID within any of the "leading proteins" for confounded data and within "ppMajorityProteinIDs" for Zia workup normalized protein ids. Also pass 1) which of the proteins within the groups match for each phosphopeptide 2) homo or heterozygote and 3) snp number
   
   # I am going to need a new dataframe for this...
   
   #I can use mapply for the first part. but I want to merge all of the data from the SNPenrich DF together with the me df
-  1 For each line x, (x = 1:4) does any protein group member assigned to peptide z (z = 1:nrow(multexpanded1))
+  1 For each cell line x, (x = 1:4) does any protein group member assigned to peptide z (z = 1:nrow(multexpanded1))
   match the protein associated with snp y (y =1:nrow(SNPeffFinal))? (+/-)
   2 which proteins within the group matched a snp?
   3 For those proteins within the group that matched a snp list the snps that matched it... fuckedy duck
   
+  ...OK 1st thing is see if there is an enrichment.
   
   #things to note for the future are the positions of the phosphosite within the protein relative to the SNP, domain position within the protein, proximity of a snp to a phosphorylated residue, proximity of the snp toward a residue that has been annotated as being phosphorylated. These things may be difficult to handle due to annotation issues. 
   
-  multExpanded1_withDE$Ind18486_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick18486$UNIPROT.ID, "+","-")
+  #feels too complicated for ifelse, I will use mapply with a named function 'MatchProtSNPeff' I don't want to iterate over 'SampleSNP'
+  MatchProtSNPeff <- function(queryproteins, SampleSNP){
+    #queryproteins are proteins assigned to the peptide and sampleSNP is the 'genotype' for all the snps for that sample
+    if(any(unlist(strsplit(as.character(queryproteins), ";")) %in% SNPeffFinal$peptide) &&  any(hapTypes %in% SampleSNP)){
+      "+"
+    }else{
+      "-"
+    }
+    test <- mapply(MatchProtSNPeff, multExpanded1_withDE$Leading.proteins, SNPeffFinal$NA18486)
+   "" Warning message:
+      In mapply(MatchProtSNPeff, multExpanded1_withDE$Leading.proteins,  :
+                  longer argument not a multiple of length of shorter"
+                
+    #new approach is to add the information
+
+
+      
+    
+    
+       for loop style? I want this to fucking rock!!!!!!!!!!!!sampleNames?? ugh
+test <- apply(mul)
+
+
+  multExpanded1_withDE$Leading.proteins
+       
+  
+  
+  
+  multExpanded1_withDE$Ind18486_SNP = ifelse(any(multExpanded1_withDE$Leading.proteins %in% SNPeffFinal$peptide), "+","-")
+  unlist(strsplit(as.character(multExpanded1_withDE$Leading.proteins[476]), ";")) %in% SNPeffFinal$peptide[1:10]
+ test <- ifelse(any(unlist(strsplit(as.character(multExpanded1_withDE$Leading.proteins), ";"))
+  
+                    
+                    %in% SNPeffFinal$peptide), "+", "-")
+  
   multExpanded1_withDE$Ind18862_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick18862$UNIPROT.ID, "+","-")
   multExpanded1_withDE$Ind19160_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick19160$UNIPROT.ID, "+","-")
   multExpanded1_withDE$Ind19238_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick19160$UNIPROT.ID, "+","-")
