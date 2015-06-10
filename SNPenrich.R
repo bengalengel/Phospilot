@@ -2,6 +2,8 @@
 
 SNPenrich <- function(multExpanded1_withDE){
   
+  #create variant data frame and subset to those present in any of the three samples including the standard
+  #######################3
   #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
   SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
   SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
@@ -28,73 +30,558 @@ SNPenrich <- function(multExpanded1_withDE){
     any(hapTypes %in% x)})
   SNPeffFinal <- SNPeffFinal[index,]
   
-  #roughly 50K coding variants in at least 1 line
+  #roughly 50K coding variants in at least 1 line (including standard)
   table(index)
   
-  ##adding annotation to multExpanded1_withDE. The goal is to use a categorical enrichment test to see if phosphoproteins with nonsyn-snps unique to at least one of the lines are more likely to be over-represented in DE than those that do not have non-syn snps.
+  #   How many snps are only represented in the standard? 19238
+  sampleNames <- sampleNames[!grepl("NA19238",sampleNames)]
+  index <- apply(SNPeffFinal[,sampleNames], 1, function(x){
+    any(hapTypes %in% x)})
+  table(index)
+  #43283 nonsyn snps total across these three samples.
   
-  #import pqtl table from Battle to use as well 
-  pqtl <- read.table("C:/Users/Brett/Dropbox/Postdoc-Gilad/Yannick SNP Phos/1260793_DatafileS1_pQTLs.csv", sep = ",", header = T, 
-                     stringsAsFactors = F)
-  pqtl <- read.table("E:/My Documents/Dropbox/Postdoc-Gilad/Yannick SNP Phos/1260793_DatafileS1_pQTLs.csv", sep = ",", header = T, 
-                     stringsAsFactors = F)
+  #Because the standard line cannot contribute to the observed variation, variants unique to it are removed. (note if standard is homozygous positive for variant the peptide itself cannot be observed. See section on effect size estimates)
+  SNPeffFinal <- SNPeffFinal[index,]
   
   
-  #add a +/- based on presense of ENSP ID within any of the "leading proteins" for confounded data and within "ppMajorityProteinIDs" for Zia workup normalized protein ids. Also pass 1) which of the proteins within the groups match for each phosphopeptide 2) homo or heterozygote and 3) snp number
+  ######################
   
-  # I am going to need a new dataframe for this...
   
-  #I can use mapply for the first part. but I want to merge all of the data from the SNPenrich DF together with the me df
-  1 For each cell line x, (x = 1:4) does any protein group member assigned to peptide z (z = 1:nrow(multexpanded1))
-  match the protein associated with snp y (y =1:nrow(SNPeffFinal))? (+/-)
-  2 which proteins within the group matched a snp?
-  3 For those proteins within the group that matched a snp list the snps that matched it... fuckedy duck
-  
-  ...OK 1st thing is see if there is an enrichment.
-  
-  #things to note for the future are the positions of the phosphosite within the protein relative to the SNP, domain position within the protein, proximity of a snp to a phosphorylated residue, proximity of the snp toward a residue that has been annotated as being phosphorylated. These things may be difficult to handle due to annotation issues. 
-  
-  #feels too complicated for ifelse, I will use mapply with a named function 'MatchProtSNPeff' I don't want to iterate over 'SampleSNP'
-  MatchProtSNPeff <- function(queryproteins, SampleSNP){
-    #queryproteins are proteins assigned to the peptide and sampleSNP is the 'genotype' for all the snps for that sample
-    if(any(unlist(strsplit(as.character(queryproteins), ";")) %in% SNPeffFinal$peptide) &&  any(hapTypes %in% SampleSNP)){
+  ##adding SNP presence/absence annotation to multExpanded1_withDE. 
+
+  ###############################
+  #is there a match to any nonsyn snp for any protiens assigned to phosphopeptide 
+  AnyMatchProtSNPeff <- function(queryproteins){
+    #This function looks for a match between queryproteins and the proteins containing a non-synonymous snp
+    #queryproteins are proteins assigned to the given phosphopeptide
+    if(any(unlist(strsplit(as.character(queryproteins), ";")) %in% SNPeffFinal$peptide)){
       "+"
     }else{
       "-"
     }
-    test <- mapply(MatchProtSNPeff, multExpanded1_withDE$Leading.proteins, SNPeffFinal$NA18486)
-   "" Warning message:
-      In mapply(MatchProtSNPeff, multExpanded1_withDE$Leading.proteins,  :
-                  longer argument not a multiple of length of shorter"
-                
-    #new approach is to add the information
+  }
+  #apply anymatch function to all 'leading proteins' and 'majority protein ids'
+  multExpanded1_withDE$NsSnpPositive <- mapply(AnyMatchProtSNPeff, multExpanded1_withDE$Leading.proteins)
+  multExpanded1_withDE$ppNsSnpPositive <- mapply(AnyMatchProtSNPeff, multExpanded1_withDE$ppMajorityProteinIDs)
+  
+  #how many nonsyn snps per protein group assigned to a phosphopeptide?
+  NumMatchesProtSNPeff <- function(queryproteins){
+    #This function counts the matches between queryproteins and the proteins containing a non-synonymous snp
+  #queryproteins are proteins assigned to the peptide
+  sum(unlist(strsplit(as.character(queryproteins), ";")) %in% SNPeffFinal$peptide)
+  }
+
+#apply count function to all 'leading proteins' and 'majority protein ids'
+multExpanded1_withDE$NsSnpCount <- mapply(NumMatchesProtSNPeff, multExpanded1_withDE$Leading.proteins)
+multExpanded1_withDE$ppNsSnpCount <- mapply(NumMatchesProtSNPeff, multExpanded1_withDE$ppMajorityProteinIDs)
+
+# Less than 1% of the phosphopeptides are mapped to a protein group that (collectively) contains > 1 snp
+table(multExpanded1_withDE$NsSnpCount)
+
+#For proteins mapped to peptides using protein prep data the picture is more complicated because more information is being used (more protein ids/peptide). That is the same snp is present in multiple isoforms, which cannot be disambiguated geven the shotgun level information. Proteotypic peptides are need for this.
+table(multExpanded1_withDE$ppNsSnpCount)
 
 
-      
-    
-    
-       for loop style? I want this to fucking rock!!!!!!!!!!!!sampleNames?? ugh
-test <- apply(mul)
+########################################
+# first list; #s 3-4 and some more
+# 3) For a given snp found in the phosphoproteomics data, which lines have it?
+# 4) For each line that has the snp, what is its genotype?
+
+# Questions about variability should be addressed in the differential phosphorylation analysis via enrichment analysis. Perhaps snps within a domain are enriched, within unstructured regions are enriched, or sites near to a phosphorylatable residue are *especially* enriched for variability. The effect of snps would have to be controlled for somehow by comparing if phosphorylation sites within these regions are intrinsically  
+
+# This information will be used to ask questions about observation and effect size of genetically induced differences in phosphorylation at steady state. 
+# 
+# hypothesis 1) Missing phosphosites where an individual does not have phosphorylatable residue in one condition but does in another. heterozygote/homozygote cases...OK getting closer
+# 
+# If it is not observed. must plot the normalized by genotype results for instances where there is differential exprssion within the the DE subset?
+
+# Effect Size estimates - teaser only 350 possible snps and I only found 1 that was identified, let alone quantified
+#################
+I want to estimate effect size for instances where the snp removes a phosphorylation site that was identified in another condition. sites normalized relative to homozygote null. I need the following:
+  1) snp that causes mutation of phosphorylatable residue to non-phosphorylatable residue
+  2) standard line is heterozygous positive or homozygous negative for the mutation
+  3) affected lines only heterozygous. 
+  4) site quantified in homozygous null and heterozygous state. (If still present in heterozygous positive it must be due to one of the other majority protein ids)
+
+#subset snpeff st conditions 1 and 2 are met
+
+#snp modifies a phosphorylatable residue. Regexp based subset
+index <- grep("p.Ser|p.Thr|p.Tyr", SNPeffFinal$aa)
+SNPeffFinalPhos <- SNPeffFinal[index,]#8200 obs
+
+#standard line is at least heterozygous or homo negative (SILAC standard must be present to quantify reference peptide)
+SNPeffFinalPhos <- SNPeffFinalPhos[SNPeffFinalPhos$NA19238 == "0|0" | SNPeffFinalPhos$NA19238 == "1|0"
+                                   | SNPeffFinalPhos$NA19238 == "0|1",]#n = 6750
+
+#homozygous null and heterozygous represented in experimental lines.
+sampleNames <- sampleNames[!grepl("NA19238",sampleNames)]
+hetero <- c("0|1", "1|0")
+
+index <- apply(SNPeffFinalPhos[,sampleNames], 1, function(x){
+  any(hetero %in% x) && any("1|1" %in% x)
+  }
+)
+SNPeffFinalPhos <- SNPeffFinalPhos[index,]#782....
+
+#how many unique snps? This is a really small number...
+length(unique(SNPeffFinalPhos$snp))#349
+
+#which phosphopeptides match these SNPs? add these ids to snpeff dataframe. After this add the normalized numbers
+#match ESNPID and *any* 'position.within.proteins'. This seems like a job for plyr or dplyr. two logical tests using mapply for now. 1st choose snp to assign to protein groups assigned to phosphopeptide.
+
+#if ENSPID assigned to snp common with any member of protein group AND any of *Positions within proteins* match snp position, return that snp. If multiple snps match ensure uniqueness. If multiple unique snps match the same peptide then you are in Valhalla and rejoice. But really if that happens assign the peptide to both snps.
+SNPprotein <- SNPeffFinalPhos$peptide
+SNPproteinposition <- gsub("[a-zA-Z\\.]*" , replacement = "", SNPeffFinalPhos$aa)#deletions give underscore followed by second position
+SNPproteinposition <- gsub("_[0-9]*" , replacement = "", SNPproteinposition)#putative position of phosphopeptide
+
+#this will be applied mapply style to get an index to subset snpeff data frame
+PepSnpMatch <- function(ProteinGroup, ProteinGroupPosition){
+  #things this function does
+  if(any(unlist(strsplit(as.character(ProteinGroup), ";")) %in% SNPprotein)
+     && any(unlist(strsplit(as.character(ProteinGroupPosition), ";")) %in% SNPproteinposition)){
+    #what are the matching indices and are they equal? return the matches
+    protmatch <- which(SNPprotein %in% unlist(strsplit(as.character(ProteinGroup), ";")))
+    positionmatch <- which(SNPproteinposition %in% unlist(strsplit(as.character(ProteinGroupPosition), ";")))
+    index <- intersect(protmatch,positionmatch)
+    if(length(index) > 0){
+      return(index)
+    }else{
+      NA
+    }
+  }else{#can add 'NAP' to see how many no matching proteins
+    NA
+  }
+}
+
+#only one match with leading proteins!
+newindex <- mapply(PepSnpMatch,multExpanded1_withDE$Leading.proteins,multExpanded1_withDE$Positions.within.proteins)
+which(!is.na(newindex))
+newindex[8803]
+
+#only one match with proteins!
+newindex <- mapply(PepSnpMatch,multExpanded1_withDE$Proteins,multExpanded1_withDE$Positions.within.proteins)
+which(!is.na(newindex))
+newindex[8803]
+
+# code check confirms only 1 match.
+###################
+
+##OK so how many peptides/positions matched but didn't have a matching index? (this could happen when a phosphopeptide positions for one of the proteins in the group matches a protein and a position in the snpeff file but the position is in another protein)
+PepSnpMatch2 <- function(ProteinGroup, ProteinGroupPosition){
+  if(any(unlist(strsplit(as.character(ProteinGroup), ";")) %in% SNPprotein)
+     && any(unlist(strsplit(as.character(ProteinGroupPosition), ";")) %in% SNPproteinposition)){
+    "+"
+    }else{
+      "-"
+    }
+}
+
+#more hits.
+newindex <- mapply(PepSnpMatch2,multExpanded1_withDE$Leading.proteins,multExpanded1_withDE$Positions.within.proteins)
+table(newindex)##75 hits
+
+newindex <- mapply(PepSnpMatch2,multExpanded1_withDE$Proteins,multExpanded1_withDE$Positions.within.proteins)
+table(newindex)##78 hits
+
+#subset a few and check to see if they actually match (my function wasn't working test)
+index <- which(newindex=="+")
+checkDF <- multExpanded1_withDE[index,c("Proteins","Positions.within.proteins")]
+head(checkDF)
+protmatch <- which(SNPprotein %in% unlist(strsplit(as.character(checkDF[1,1]), ";")))
+positionmatch <- which(SNPproteinposition %in% unlist(strsplit(as.character(checkDF[1,2]), ";")))
+protmatch
+positionmatch
+intersect(protmatch,positionmatch)
+#my script was functional
+###########################
 
 
-  multExpanded1_withDE$Leading.proteins
-       
-  
-  
-  
-  multExpanded1_withDE$Ind18486_SNP = ifelse(any(multExpanded1_withDE$Leading.proteins %in% SNPeffFinal$peptide), "+","-")
-  unlist(strsplit(as.character(multExpanded1_withDE$Leading.proteins[476]), ";")) %in% SNPeffFinal$peptide[1:10]
- test <- ifelse(any(unlist(strsplit(as.character(multExpanded1_withDE$Leading.proteins), ";"))
-  
-                    
-                    %in% SNPeffFinal$peptide), "+", "-")
-  
-  multExpanded1_withDE$Ind18862_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick18862$UNIPROT.ID, "+","-")
-  multExpanded1_withDE$Ind19160_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick19160$UNIPROT.ID, "+","-")
-  multExpanded1_withDE$Ind19238_SNP = ifelse(multExpanded1_withDE$Protein %in% yannick19160$UNIPROT.ID, "+","-")
-  
-  
-  
+
+
+
+################
+
+#Enrichment tests 
+#############
+# 1)  Test for enrichment in diffphos. background is all sites subject to DiffPhos. Foreground is omnibus F significance. Category is 'with snp' or without snp at the phosphopeptide level. Contingency matrix is of the form:
+
+#                            in category  not in category  
+#                    DErow
+#                    NotDErow
+# 'in' category is any majority/leading protein(s) assigned to this phosphosite has a snp.  
+
+  subtoDE <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE == "+",] #4738
+  subtoDEpn <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEpn == "+",] #3488
+
+#confounded analysis
+row1 <- c(nrow(subtoDE[subtoDE$globalFsig == "+" & subtoDE$NsSnpPositive == "+",]), 
+          nrow(subtoDE[subtoDE$globalFsig == "+" & subtoDE$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoDE[subtoDE$globalFsig == "-" & subtoDE$NsSnpPositive == "+",]), 
+          nrow(subtoDE[subtoDE$globalFsig == "-" & subtoDE$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+4.492123e-05 
+
+
+#protnormalized analysis using Zia's data
+row1 <- c(nrow(subtoDEpn[subtoDEpn$globalFsig == "+" & subtoDEpn$NsSnpPositive == "+",]), 
+          nrow(subtoDEpn[subtoDEpn$globalFsig == "+" & subtoDEpn$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoDEpn[subtoDEpn$globalFsig == "-" & subtoDEpn$NsSnpPositive == "+",]), 
+          nrow(subtoDEpn[subtoDEpn$globalFsig == "-" & subtoDEpn$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+1.765767e-06 
+
+# 2) TEST FOR ENRICHMENT IN QUADRANTS
+################################
+#                                  in category  not in category  
+#                    INQUADRANT
+#                    NotINQUADRANT
+# 'in' category is any majority/leading protein(s) assigned to this phosphosite has a snp.  
+
+subtoVC <- multExpanded1_withDE[multExpanded1_withDE$SubtoVarcomp == "+",] #6360
+subtoVCpn <- multExpanded1_withDE[multExpanded1_withDE$ppSubtoVarcomp == "+",] #3485
+
+#CONFOUNDED ANALYSIS
+# a) High individual hish biological RESULT: NOT SIG
+row1 <- c(nrow(subtoVC[subtoVC$HighIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$HighIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$HighIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$NsSnpPositive == "+",]), 
+         nrow(subtoVC[!(subtoVC$HighIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.168596 
+
+# b) high individual and low biological variance. RESULT: NOT SIG ENRICHED
+
+row1 <- c(nrow(subtoVC[subtoVC$HighIndVar == "+" & subtoVC$LowBioVar == "+" & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$HighIndVar == "+" & subtoVC$LowBioVar == "+" & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$HighIndVar == "+" & subtoVC$LowBioVar == "+") & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[!(subtoVC$HighIndVar == "+" & subtoVC$LowBioVar == "+") & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.3198735 
+
+# c) low individual and low biological variance. RESULT: NOT SIG ENRICHED
+
+row1 <- c(nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$LowBioVar == "+" & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$LowBioVar == "+" & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$LowBioVar == "+") & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$LowBioVar == "+") & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.5806627
+
+# d) low individual and high biological variance. RESULT: NOT SIG ENRICHED, BUT SIGNIFICANTLY DEPLETED
+
+row1 <- c(nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.9655049 
+result <- fisher.test(contmatrix, alternative = "l")
+result$p.value
+0.0400571
+
+# e) just high individual variance RESULT:significantly enriched (barely. fails two sided)
+
+row1 <- c(nrow(subtoVC[subtoVC$HighIndVar == "+"  & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$HighIndVar == "+"  & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[subtoVC$HighIndVar == "-"  & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$HighIndVar == "-"  & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.0494056
+result <- fisher.test(contmatrix, alternative = "l")
+result$p.value
+0.9565258
+
+# f) just low individual variance RESULT: significantly depleted (since this is the mirror image of just high)
+
+row1 <- c(nrow(subtoVC[subtoVC$LowIndVar == "+"  & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "+"  & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[subtoVC$LowIndVar == "-"  & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "-"  & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.9565258
+result <- fisher.test(contmatrix, alternative = "l")
+result$p.value
+0.0494056
+
+
+# g) just high bio variance RESULT: not sig enriched or depleted
+
+row1 <- c(nrow(subtoVC[subtoVC$HighBioVar == "+"  & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$HighBioVar == "+"  & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[subtoVC$HighBioVar == "-"  & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$HighBioVar == "-"  & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.6622874
+result <- fisher.test(contmatrix, alternative = "l")
+result$p.value
+0.3579017
+
+
+# h) just low bio variance RESULT: not sig enriched or depleted (again note that this is the mirror image)
+
+row1 <- c(nrow(subtoVC[subtoVC$LowBioVar == "+"  & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$LowBioVar == "+"  & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[subtoVC$LowBioVar == "-"  & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$LowBioVar == "-"  & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.3579017
+result <- fisher.test(contmatrix, alternative = "l")
+result$p.value
+0.6622874
+
+
+
+
+#sidebar comparing enrichment of DE in varcomp sanity check
+###################
+# a) high individual and low biological variance enriched in DE. RESULT: SUPER SIG (phew)
+
+# first must subset to those subjected to DE so that "-" rows make sense.
+subtoVC <- subtoVC[subtoVC$SubtoDE=="+",]#4732
+
+row1 <- c(nrow(subtoVC[subtoVC$HighIndVar == "+" & subtoVC$LowBioVar == "+" & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[subtoVC$HighIndVar == "+" & subtoVC$LowBioVar == "+" & subtoVC$globalFsig == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$HighIndVar == "+" & subtoVC$LowBioVar == "+") & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[!(subtoVC$HighIndVar == "+" & subtoVC$LowBioVar == "+") & subtoVC$globalFsig == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+4.720298e-53 
+
+# b) high individual and high biological variance enriched in DE. RESULT: SIG but less so due to  (phew)
+
+# first must subset to those subjected to DE so that "-" rows make sense.
+
+row1 <- c(nrow(subtoVC[subtoVC$HighIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[subtoVC$HighIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$globalFsig == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$HighIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[!(subtoVC$HighIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$globalFsig == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+1.344748e-07 
+
+# c) high individual variance enriched in DE? RESULT: SUPER SIG as it should be (phew)
+
+# first must subset to those subjected to DE so that "-" rows make sense.
+
+row1 <- c(nrow(subtoVC[subtoVC$HighIndVar == "+"  & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[subtoVC$HighIndVar == "+"  & subtoVC$globalFsig == "-",]))
+
+row2 <- c(nrow(subtoVC[subtoVC$HighIndVar == "-"  & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[subtoVC$HighIndVar == "-"  & subtoVC$globalFsig == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+row1 
+1.023127e-174 
+> contmatrix
+[,1] [,2]
+row1 1329 2342
+row2    1 1060
+#This confirms that what I am doing is consistent. Only 1 Fsig site is designated low ind variance. 
+
+# d) for completeness low individual variance enriched in DE? RESULT: 
+# first must subset to those subjected to DE so that "-" rows make sense.
+
+row1 <- c(nrow(subtoVC[subtoVC$LowIndVar == "+"  & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "+"  & subtoVC$globalFsig == "-",]))
+
+row2 <- c(nrow(subtoVC[subtoVC$LowIndVar == "-"  & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "-"  & subtoVC$globalFsig == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g") #less is significant as well as two sided of course
+result$p.value
+
+
+# e) for completeness low individual variance low biological variance enriched in DE? RESULT: 
+
+row1 <- c(nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$LowBioVar == "+" & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$LowBioVar == "+" & subtoVC$globalFsig == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$LowBioVar == "+") & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$LowBioVar == "+") & subtoVC$globalFsig == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g") 
+result$p.value
+1
+#again it makes sense that the one miss from limma is low bio and technical. I bet more of these guys would have been picked up if limma had not been used. This would make a good part of a course.
+contmatrix
+[,1] [,2]
+row1    1  244
+row2 1329 3158
+
+# f) confirmt that there is no enrichment within the lowind and high bio
+row1 <- c(nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$globalFsig == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$globalFsig == "+",]), 
+          nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$globalFsig == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g") 
+result$p.value
+
+contmatrix
+row1    0  816
+row2 1330 2586
+
+
+###################
+
+
+
+
+
+#protnormalized analysis using Zia's data
+row1 <- c(nrow(subtoDEpn[subtoDEpn$globalFsig == "+" & subtoDEpn$NsSnpPositive == "+",]), 
+          nrow(subtoDEpn[subtoDEpn$globalFsig == "+" & subtoDEpn$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoDEpn[subtoDEpn$globalFsig == "-" & subtoDEpn$NsSnpPositive == "+",]), 
+          nrow(subtoDEpn[subtoDEpn$globalFsig == "-" & subtoDEpn$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+
+
+
+
+
+###########
+
+
+# pqtl import and enrichment tests.
+#######
+#import pqtl table from Battle to use as well. Here I will need to match to protein names
+pqtl <- read.table("C:/Users/Brett/Dropbox/Postdoc-Gilad/Yannick SNP Phos/1260793_DatafileS1_pQTLs.csv", sep = ",", header = T, 
+                   stringsAsFactors = F)
+pqtl <- read.table("E:/My Documents/Dropbox/Postdoc-Gilad/Yannick SNP Phos/1260793_DatafileS1_pQTLs.csv", sep = ",", header = T, 
+                   stringsAsFactors = F)
+
+#must expand this table to include all ENSPids associated with an ENSGid using the proper database. What ensembl version did Zia use to map ids?
+#########
+
+# What is the 
+
+
+
+
+
+
+
+
+#######
+
+anysnp <- multExpanded1_withDE[multExpanded1_withDE$Ind18486_SNPiso == "+" | multExpanded1_withDE$Ind18862_SNPiso == "+" | multExpanded1_withDE$Ind19160_SNPiso == "+",]
+#make background as data frame and add snp annotation
+background <- as.data.frame(background2)#background2 is the subtoDE df but with 'rev' entries removed.
+colnames(background) <- "Protein"
+background$anysnp <- ifelse(background$Protein %in% anysnp$Protein, "+","-")
+#add the site ids as a column in the data frame
+background$idmult <- subtoDE$idmult
+#add the DE in any contrast information at the site level!
+GlobalFs <- subtoDE[subtoDE$globalFsig=="+",]#1355 obs
+background$DEany <- ifelse(background$idmult %in% GlobalFs$idmult, "+", "-")
+
+#create the first row of the contingency matrix
+row1 <- c(nrow(background[background$DEany=="+" & background$anysnp == "+",]), nrow(background[background$DEany == "+" & background$anysnp == "-",])) 
+# 530 and 824 without specific isoform annotation (appropriate given this is bottom up MS) #note that there is a blank protein which may be causing the slight counting issue
+
+
+#second row
+row2 <- c(nrow(background[background$DEany=="-" & background$anysnp == "+",]), nrow(background[background$DEany == "-" & background$anysnp == "-",])) 
+# [1] 1072 2565
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+
+#p-value = 7.376e-11  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   
   
    #subset to those variants 
