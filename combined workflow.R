@@ -23,7 +23,8 @@ source("ProtAssignment2.R")
 source("DiffPhosProt.R")
 source("AddAnnotation.R")
 source("Enrichment.R")
-source("PerseusOut.R"
+source("PerseusOut.R")
+source("AddAnnotation.R")
 
 #load, reformat and characterize MQ outputted mass spectrometry data
 #######
@@ -133,7 +134,7 @@ varcomp <- NestedVar(ratios=com3, balanced = F)
 varcomp <- as.data.frame(varcomp)
 #send to VarComp. Note this is the same dataframe as ProtNormalized. Com2 used next!!
 ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 & rowSums(is.na(ProtNormalized[ , 5:8])) <= 2 
-                                    & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]
+                                    & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]#3488
  
 VarcompProt <- NestedVar(ratios=ProtNormalizedVar, balanced = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
 VarcompProt <- as.data.frame(VarcompProt)
@@ -297,8 +298,6 @@ enrichment_tables <- Enrichment(multExpanded1_withDE)
 
 #copynumber estimates using perseus total protein algorithm (can't use protein ruler approach with ensembl database). 
 #Here copynumbers across samples and experimental approaches are compared (correlations) and bias for protein expression level is explored within the variance component clusters and diffphos for confounded and non-confounded samples. A resampling based approach may be needed here because of multiple phosphorylation sites/protein requires that I threshold proteins into high/med/low expression (or similar) categories. This function will be self contained but MAY add cn estimates to multexpanded table. 
-
-
 
 
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc

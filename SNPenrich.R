@@ -30,18 +30,18 @@ SNPenrich <- function(multExpanded1_withDE){
     any(hapTypes %in% x)})
   SNPeffFinal <- SNPeffFinal[index,]
   
-  #roughly 50K coding variants in at least 1 line (including standard)
-  table(index)
   
   #   How many snps are only represented in the standard? 19238
   sampleNames <- sampleNames[!grepl("NA19238",sampleNames)]
   index <- apply(SNPeffFinal[,sampleNames], 1, function(x){
     any(hapTypes %in% x)})
-  table(index)
-  #43283 nonsyn snps total across these three samples.
   
   #Because the standard line cannot contribute to the observed variation, variants unique to it are removed. (note if standard is homozygous positive for variant the peptide itself cannot be observed. See section on effect size estimates)
   SNPeffFinal <- SNPeffFinal[index,]
+  
+  #roughly 18K coding variants in at least 1 line (including standard)
+  length(unique(SNPeffFinal$snp))#17963
+  
   
   
   ######################
@@ -75,7 +75,7 @@ SNPenrich <- function(multExpanded1_withDE){
 multExpanded1_withDE$NsSnpCount <- mapply(NumMatchesProtSNPeff, multExpanded1_withDE$Leading.proteins)
 multExpanded1_withDE$ppNsSnpCount <- mapply(NumMatchesProtSNPeff, multExpanded1_withDE$ppMajorityProteinIDs)
 
-# Less than 1% of the phosphopeptides are mapped to a protein group that (collectively) contains > 1 snp
+# Less than 1% of the phosphopeptides are mapped to a protein group that (collectively) contains > 1 snp #THIS NEEDS TO BE CORRECTED FOR UNIQUENESS
 table(multExpanded1_withDE$NsSnpCount)
 
 #For proteins mapped to peptides using protein prep data the picture is more complicated because more information is being used (more protein ids/peptide). That is the same snp is present in multiple isoforms, which cannot be disambiguated geven the shotgun level information. Proteotypic peptides are need for this.
@@ -227,18 +227,24 @@ result$p.value
 4.492123e-05 
 
 
-#protnormalized analysis using Zia's data
-row1 <- c(nrow(subtoDEpn[subtoDEpn$globalFsig == "+" & subtoDEpn$NsSnpPositive == "+",]), 
-          nrow(subtoDEpn[subtoDEpn$globalFsig == "+" & subtoDEpn$NsSnpPositive == "-",]))
+#protnormalized analysis using Zia's data (much less significant and speaks to penetrance at the post translational level)
+row1 <- c(nrow(subtoDEpn[subtoDEpn$globalFsigpn == "+" & subtoDEpn$ppNsSnpPositive == "+",]), 
+          nrow(subtoDEpn[subtoDEpn$globalFsigpn == "+" & subtoDEpn$ppNsSnpPositive == "-",]))
 
-row2 <- c(nrow(subtoDEpn[subtoDEpn$globalFsig == "-" & subtoDEpn$NsSnpPositive == "+",]), 
-          nrow(subtoDEpn[subtoDEpn$globalFsig == "-" & subtoDEpn$NsSnpPositive == "-",]))
+row2 <- c(nrow(subtoDEpn[subtoDEpn$globalFsigpn == "-" & subtoDEpn$ppNsSnpPositive == "+",]), 
+          nrow(subtoDEpn[subtoDEpn$globalFsigpn == "-" & subtoDEpn$ppNsSnpPositive == "-",]))
 
 #FEtest
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
-1.765767e-06 
+0.001188539
+
+#here is the relative proportion difference
+apply(contmatrix,1,function(x) x[1]/sum(x))
+
+row1      row2 
+0.4036872 0.3530026 
 
 # 2) TEST FOR ENRICHMENT IN QUADRANTS
 ################################
@@ -308,6 +314,25 @@ result$p.value
 result <- fisher.test(contmatrix, alternative = "l")
 result$p.value
 0.0400571
+
+# d) low individual and high biological variance. RESULT: NOT SIG ENRICHED, BUT SIGNIFICANTLY DEPLETED
+
+row1 <- c(nrow(subtoVCpn[subtoVCpn$LowIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+" & subtoVC$NsSnpPositive == "-",]))
+
+row2 <- c(nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$NsSnpPositive == "+",]), 
+          nrow(subtoVC[!(subtoVC$LowIndVar == "+" & subtoVC$HighBioVar == "+") & subtoVC$NsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.9655049 
+result <- fisher.test(contmatrix, alternative = "l")
+result$p.value
+0.0400571
+
+
 
 # e) just high individual variance RESULT:significantly enriched (barely. fails two sided)
 

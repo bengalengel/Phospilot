@@ -2,7 +2,7 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   require(qdapRegex)
   ##This program assigns protein groups (from previous proteomic analysis) to phosphosites from the SCX-TiO2 workflow for normalization. It also brings along the ibaq estimates from those groups in the pertinant samples. 
   
-#   It also does the same thing for the protein groups identified/quantified via SCX-TiO2.
+  #   It also does the same thing for the protein groups identified/quantified via SCX-TiO2.
   
   ##proteinfull is the 60 estimates from zias work. proteinnorm is the quantile normalized protein data.  phosphonorm is the normalized/batch corrected /confounded phospho data.multExpanded1_withDE is the parent dataframe for the class one sites with DiffPhos annotation from using the confounded data. Proteome is the passed fasta file used for the database search. 
   
@@ -13,11 +13,15 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   names(proteinnorm) <- gsub(names(proteinnorm), pattern = "LH", replacement = "HL")
   
   ##combine the normalized protein information and the annotation data into a common dataframe for matching to the phospho data
+  #   ibaq values to append
+  ibaq <- grep("ibaq(.*)18862|ibaq(.*)18486|ibaq(.*)19160", names(proteinfull), ignore.case = T, value = T)
+  
+  
   datacomp <- cbind(proteinnorm,proteinfull[c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....",
                                               "Number.of.proteins", "Sequence.length", "Sequence.lengths", "Peptides", 
                                               "Razor...unique.peptides", "Unique.peptides",
                                               "Razor...unique.peptides.18862", "Razor...unique.peptides.18486", 
-                                              "Razor...unique.peptides.19160")])
+                                              "Razor...unique.peptides.19160", ibaq)])
   
   #Descriptive
   #how many unique proteins in the phospho data are identified and subjected to DE analysis? Below are counts with and without isoform designation.
@@ -92,12 +96,12 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   ################
   
   protein_norm <- data.frame()
-
-#   ibaq values to append
-ibaq <- grep("ibaq(.*)18862|ibaq(.*)18486|ibaq(.*)19160", names(proteinfull), ignore.case = T, value = T)
-
-for(i in seq_along(multExpanded1_withDE[,1])){
-      
+  
+  #   ibaq values to append
+  ibaq <- grep("ibaq(.*)18862|ibaq(.*)18486|ibaq(.*)19160", names(proteinfull), ignore.case = T, value = T)
+  
+  for(i in seq_along(multExpanded1_withDE[,1])){
+    
     #get the peptide to search
     peptide <- as.character(multExpanded1_withDE$Phospho..STY..Probabilities[i])
     peptide <- gsub(pattern = " *\\(.*?\\) *", replacement = "", peptide)
@@ -129,7 +133,7 @@ for(i in seq_along(multExpanded1_withDE[,1])){
       #protein_norm <- rbind(protein_norm,tmp)
     }
     if(nrow(matchingGroups)==0){#set names of dataframe in the event the first loop doesn't produce a match
-      tmp <- as.data.frame(t(rep(NA,8)))
+      tmp <- as.data.frame(t(rep(NA,17)))
       names(tmp) <- c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....", "Sequence.length", "Sequence.lengths", 
                       "HL18862", "HL18486", "HL19160", ibaq)
       #protein_norm <- rbind(protein_norm,tmp)

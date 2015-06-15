@@ -5,10 +5,11 @@ DiffPhosProt <- function(multExpanded1_withDE, phosphonorm){
   require(VennDiagram)
   require(gridExtra)
   
-  #subset the protein data
+  #subset the protein data to contain only the ratios from the proteins of interest as well as present in the phospho data
   protein <- multExpanded1_withDE[multExpanded1_withDE$idmult %in% row.names(phosphonorm),]
   row.names(protein) <- protein$idmult
-  protein <- protein[,(length(protein)-2):length(protein)]
+  names <- grep("LH", names(protein), value = T)
+  protein <- protein[,names]
   protein <- na.omit(protein)
   
   #subset the phospho data
