@@ -103,7 +103,7 @@ multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 #loads MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: MQoutput heavy,MQ output just data, median normalized, and quantile normalized. 
 
 # Choose directory containing proteomics data to pass to 'NormProt'
-CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteome/txt/")#from home
+CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteome/iBAQ proteome/")#from home INCLUDES IBAQ
 CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")#from laptop INCLUDES IBAQ
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
