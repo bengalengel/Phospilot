@@ -501,7 +501,7 @@ plot(dend.ward, leaflab = "perpendicular", ylab = "height", main = "Euclidian/Wa
 
 ####################
 
-ibaq based quantifications. Do they cluster by individual as well?
+# ibaq based quantifications. Do they cluster by individual as well? the copynumber estimates for zia's work correlate much more closely than the h/l ratios'
 ####################
 
 
