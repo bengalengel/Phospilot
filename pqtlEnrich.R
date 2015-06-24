@@ -165,8 +165,26 @@ pqtl$hg19.pos <- pqtl19$start
 
 
 #######Identify pqtls that have differing alleles across any of the three individuals studied here
+head(SNPeffFinal)
+dim(SNPeffFinal)
+length(unique(SNPeffFinal$snp))#17963 unique snps in the dataset where at least one of the three individuals has a minor alelle copy
 
+#how many pqtls are found in at least one of the three individuals with the minor allele? 
+sum(pqtl$hg19.pos %in% SNPeffFinal$pos)
+# Fuck only 2!! 
 
+# Do they make sense? That is do the chromosomes match? YES
+pqtl[which(pqtl$hg19.pos %in% SNPeffFinal$pos),]
+#first match chromosome verified (16)
+SNPeffFinal[SNPeffFinal$pos == 89167094, c("chr", "pos")]
+#second match chromosome verified (11)
+SNPeffFinal[SNPeffFinal$pos == 499120, c("chr", "pos")]
+
+#The low number of variants present here may be due in part to the 'snpefffinal' df being nonsynonymous variants only.
+
+# Is there value in relying the top-n most significant snps for a gene as opposed to the very top snp?
+
+#how many pqtls (of any type) are present in the three yoruba with varying genotypes?
 
 
 
