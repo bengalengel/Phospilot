@@ -95,13 +95,15 @@ table(multExpanded1_withDE$ppNsSnpCount)
 # 
 # If it is not observed. must plot the normalized by genotype results for instances where there is differential exprssion within the the DE subset?
 
-# Effect Size estimates - teaser only 350 possible snps and I only found 1 that was identified, let alone quantified
-#################
+######### Effect Size estimates  ------------------
+# teaser only 350 possible snps and I only found 1 that was identified, let alone quantified
 I want to estimate effect size for instances where the snp removes a phosphorylation site that was identified in another condition. sites normalized relative to homozygote null. I need the following:
   1) snp that causes mutation of phosphorylatable residue to non-phosphorylatable residue
   2) standard line is heterozygous positive or homozygous negative for the mutation
   3) affected lines only heterozygous. 
   4) site quantified in homozygous null and heterozygous state. (If still present in heterozygous positive it must be due to one of the other majority protein ids)
+
+
 
 #subset snpeff st conditions 1 and 2 are met
 
@@ -199,7 +201,7 @@ intersect(protmatch,positionmatch)
 
 
 
-################
+
 
 #Enrichment tests 
 #############
