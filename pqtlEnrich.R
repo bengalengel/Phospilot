@@ -84,4 +84,90 @@ table(multExpanded1_withDE$pQTLCount)
 table(multExpanded1_withDE$GelPreppQTLCount)
 
 
+# Diff Phos enrichment test -----------------------------------------------
+
+# 1)  Test for enrichment in diffphos. background is all sites subject to DiffPhos. Foreground is omnibus F significance. Category is 'with pQTL' or without pQTL at the phosphopeptide level. That is the same protein is counted as many times as it has an identified phosphopeptide in the subtodiffphos datafram. Contingency matrix is of the form:
+
+#                            in category  not in category  
+#                    DErow
+#                    NotDErow
+# 'in' category is any majority/leading protein(s) assigned to this phosphosite has a pQTL.  
+
+subtoDE <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE == "+",] #4738
+subtoDEpn <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEpn == "+",] #3488
+
+#confounded analysis
+row1 <- c(nrow(subtoDE[subtoDE$globalFsig == "+" & subtoDE$pQTLPositive == "+",]), 
+          nrow(subtoDE[subtoDE$globalFsig == "+" & subtoDE$pQTLPositive == "-",]))
+
+row2 <- c(nrow(subtoDE[subtoDE$globalFsig == "-" & subtoDE$pQTLPositive == "+",]), 
+          nrow(subtoDE[subtoDE$globalFsig == "-" & subtoDE$pQTLPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+row1 
+0.1776086  
+
+
+#protnormalized analysis using Zia's data (much less significant and speaks to penetrance at the post translational level)
+row1 <- c(nrow(subtoDEpn[subtoDEpn$globalFsigpn == "+" & subtoDEpn$GelPreppQTLPositive == "+",]), 
+          nrow(subtoDEpn[subtoDEpn$globalFsigpn == "+" & subtoDEpn$GelPreppQTLPositive == "-",]))
+
+row2 <- c(nrow(subtoDEpn[subtoDEpn$globalFsigpn == "-" & subtoDEpn$GelPreppQTLPositive == "+",]), 
+          nrow(subtoDEpn[subtoDEpn$globalFsigpn == "-" & subtoDEpn$GelPreppQTLPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+0.0006978427
+
+#here is the relative proportion difference
+apply(contmatrix,1,function(x) x[1]/sum(x))
+
+row1       row2 
+0.06484425 0.04020888  
+
+
+# pQTL enrichment where alleles differ ------------------------------------
+#subset the pQTL analysis such that there is a difference in alleles across the samples. One wouldn't expect a difference to emerge if the variants are the same for the three individuals analyzed here.
+
+###########First I need to convert the hg18 coordinates used for pqtls to hg19 coordinates
+#I will use the 'liftover' tool from ucsc browser track infrastructure via the 'liftOver' function within the package Rtracklayer
+library(rtracklayer)
+library(GenomicRanges)
+
+#A 'chain file' is required to convert genomic coordinates from one reference assembly to another
+#create 'ChainFiles' directory if it doesn't already exist
+dir.create(file.path(getwd(), "ChainFiles"))
+
+#download file and save the date (first pass on 5/1/15)
+url <- "http://hgdownload-test.cse.ucsc.edu/goldenPath/hg18/liftOver/hg18ToHg19.over.chain.gz"
+destfile <- "ChainFiles/hg18ToHg19.over.chain.gz"
+download.file(url, destfile)
+date_downld <- date()
+
+#file unzipped locally with bash (gzfile doesn't work)
+ch <- import.chain("./ChainFiles/hg18ToHg19.over.chain")
+
+#create Granges object for use with liftover function
+pqtl18 <- data.frame(chr = pqtl$chr, start = pqtl$hg18.pos, end = pqtl$hg18.pos)
+pqtl18 <- makeGRangesFromDataFrame(pqtl18)
+pqtl19 <- liftOver(pqtl18, ch)#GRangeslist object of 278 Granges objects. Spot check confirms concordance with online webapp
+
+#convert to data frame
+pqtl19 <- as.data.frame(pqtl19, row.names = NULL, optional = FALSE)
+
+#append hg19 coordinates to pqtl file
+pqtl$hg19.pos <- pqtl19$start
+
+
+#######Identify pqtls that have differing alleles across any of the three individuals studied here
+
+
+
+
+
 
