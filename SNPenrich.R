@@ -1,13 +1,15 @@
 #here I am going to add SNP based annotation to multExpaned table for categorical enrichment test
 
-SNPenrich <- function(multExpanded1_withDE){
+# SNPenrich <- function(multExpanded1_withDE){
   
-  #create variant data frame and subset to those present in any of the three samples including the standard
-  #######################3
+  
+  ####create variant data frame and subset to those present in any of the three samples including the standard --------
   #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
   SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
   SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
   
+  SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "", strip.white = T)
+  SNPeffFinal <- fread("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F)
   
   #subset to 4 samples of interest: 18486, 18862, 19160, and the 19238 standard
   sampleNames <- grep("18486|18862|19160|19238", names(SNPeffFinal), value = T)
@@ -30,8 +32,7 @@ SNPenrich <- function(multExpanded1_withDE){
     any(hapTypes %in% x)})
   SNPeffFinal <- SNPeffFinal[index,]
   
-  
-  #   How many snps are only represented in the standard? 19238
+  # How many snps are only represented in the standard? 19238
   sampleNames <- sampleNames[!grepl("NA19238",sampleNames)]
   index <- apply(SNPeffFinal[,sampleNames], 1, function(x){
     any(hapTypes %in% x)})
@@ -42,14 +43,43 @@ SNPenrich <- function(multExpanded1_withDE){
   #roughly 18K coding variants in at least 1 line (including standard)
   length(unique(SNPeffFinal$snp))#17963
   
-  
-  
-  ######################
-  
-  
-  ##adding SNP presence/absence annotation to multExpanded1_withDE. 
 
-  ###############################
+  
+  
+
+# Add sequence annotation information -------------------------------------
+
+##add sequence information to each entry from the fasta file. Then add a flag column indicating proximity to nearest S/T/Y. Then a flag column indicating yes/no for +- 7 from S/T/Y. The same should be done with phosphorylated site and phosphosite annotation information.
+  
+# Just for the phosphosites observed; Are there snps in the vacinity of the phosphosite? The background for enrichmentwill be subtodiffphos + all snps.
+
+  
+#for each ENSPID add the squence contained within the FASTA file. Executed with an sapply call.
+  #list of ENSPIDs and 
+  
+  
+  
+  hits <- sapply(SNPeffFinal$peptide, function(x) {
+    hit <- grep(x,names(proteome))
+    if(length(hit)==0){
+      "no match"}else{
+        return(hit)
+      }
+  }
+  )
+  
+  hitlengths <- sapply(hits, length)
+  any(hitlengths > 2)
+  
+  lengths <- sapply(SNPeffFinal$peptide, length)
+  any(lengths>2)
+  
+  
+  
+  
+  x <- unlist(test)
+
+  #####adding SNP presence/absence annotation to multExpanded1_withDE --------------------
   #is there a match to any nonsyn snp for any protiens assigned to phosphopeptide 
   AnyMatchProtSNPeff <- function(queryproteins){
     #This function looks for a match between queryproteins and the proteins containing a non-synonymous snp
@@ -82,7 +112,7 @@ table(multExpanded1_withDE$NsSnpCount)
 table(multExpanded1_withDE$ppNsSnpCount)
 
 
-########################################
+###Mumblings ---------
 # first list; #s 3-4 and some more
 # 3) For a given snp found in the phosphoproteomics data, which lines have it?
 # 4) For each line that has the snp, what is its genotype?
@@ -95,13 +125,13 @@ table(multExpanded1_withDE$ppNsSnpCount)
 # 
 # If it is not observed. must plot the normalized by genotype results for instances where there is differential exprssion within the the DE subset?
 
-######### Effect Size estimates  ------------------
+######### Effect Size estimate attempt  ------------------
 # teaser only 350 possible snps and I only found 1 that was identified, let alone quantified
-I want to estimate effect size for instances where the snp removes a phosphorylation site that was identified in another condition. sites normalized relative to homozygote null. I need the following:
-  1) snp that causes mutation of phosphorylatable residue to non-phosphorylatable residue
-  2) standard line is heterozygous positive or homozygous negative for the mutation
-  3) affected lines only heterozygous. 
-  4) site quantified in homozygous null and heterozygous state. (If still present in heterozygous positive it must be due to one of the other majority protein ids)
+# I want to estimate effect size for instances where the snp removes a phosphorylation site that was identified in another condition. sites normalized relative to homozygote null. I need the following:
+#   1) snp that causes mutation of phosphorylatable residue to non-phosphorylatable residue
+#   2) standard line is heterozygous positive or homozygous negative for the mutation
+#   3) affected lines only heterozygous. 
+#   4) site quantified in homozygous null and heterozygous state. (If still present in heterozygous positive it must be due to one of the other majority protein ids)
 
 
 
@@ -165,9 +195,7 @@ newindex <- mapply(PepSnpMatch,multExpanded1_withDE$Proteins,multExpanded1_withD
 which(!is.na(newindex))
 newindex[8803]
 
-# code check confirms only 1 match.
-###################
-
+##### code check confirms only 1 match ------
 ##OK so how many peptides/positions matched but didn't have a matching index? (this could happen when a phosphopeptide positions for one of the proteins in the group matches a protein and a position in the snpeff file but the position is in another protein)
 PepSnpMatch2 <- function(ProteinGroup, ProteinGroupPosition){
   if(any(unlist(strsplit(as.character(ProteinGroup), ";")) %in% SNPprotein)
@@ -195,7 +223,6 @@ protmatch
 positionmatch
 intersect(protmatch,positionmatch)
 #my script was functional
-###########################
 
 
 
@@ -203,8 +230,9 @@ intersect(protmatch,positionmatch)
 
 
 
-#Enrichment tests 
-#############
+
+
+##############Enrichment tests ------
 # 1)  Test for enrichment in diffphos. background is all sites subject to DiffPhos. Foreground is omnibus F significance. Category is 'with snp' or without snp at the phosphopeptide level. Contingency matrix is of the form:
 
 #                            in category  not in category  
