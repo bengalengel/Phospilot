@@ -5,11 +5,8 @@
   
   ####create variant data frame and subset to those present in any of the three samples including the standard --------
   #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
-  SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
-  SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
-  
-  SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "", strip.white = T)
-  SNPeffFinal <- fread("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F)
+  SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")#home
+  SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "", strip.white = T)#laptop
   
   #subset to 4 samples of interest: 18486, 18862, 19160, and the 19238 standard
   sampleNames <- grep("18486|18862|19160|19238", names(SNPeffFinal), value = T)
@@ -41,7 +38,7 @@
   SNPeffFinal <- SNPeffFinal[index,]
   
   #roughly 18K coding variants in at least 1 line (including standard)
-  length(unique(SNPeffFinal$snp))#17963
+  length(unique(SNPeffFinal$snp))#17947
   
 
   
@@ -188,12 +185,12 @@ PepSnpMatch <- function(ProteinGroup, ProteinGroupPosition){
 #only one match with leading proteins!
 newindex <- mapply(PepSnpMatch,multExpanded1_withDE$Leading.proteins,multExpanded1_withDE$Positions.within.proteins)
 which(!is.na(newindex))
-newindex[8803]
+newindex[7649]
 
 #only one match with proteins!
 newindex <- mapply(PepSnpMatch,multExpanded1_withDE$Proteins,multExpanded1_withDE$Positions.within.proteins)
 which(!is.na(newindex))
-newindex[8803]
+newindex[7649]
 
 ##### code check confirms only 1 match ------
 ##OK so how many peptides/positions matched but didn't have a matching index? (this could happen when a phosphopeptide positions for one of the proteins in the group matches a protein and a position in the snpeff file but the position is in another protein)
