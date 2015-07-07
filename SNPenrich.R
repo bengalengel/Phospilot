@@ -181,52 +181,24 @@ multExpanded1_withDE$ClosestSNPtoSiteMin <- sapply(multExpanded1_withDE$ClosestS
 #is there a positive correlation between bio Varcomp and closest SNP?
 holder <- multExpanded1_withDE[,c("idmult", "ClosestSNPtoSiteMin")]
 
-VarcompDist <- merge(Varcomp, holder, by.x = "row.names", by.y = "idmult")
+VarcompDist <- merge(varcomp, holder, by.x = "row.names", by.y = "idmult")
 
 index <- !is.na(VarcompDist$ClosestSNPtoSiteMin)
-VarcompDist <- VarcompDist[index,]#length of 565
+VarcompDist <- VarcompDist[index,]#length of 2427
 
+#There may be a relationship between the distance between phosphosite and the closest SNP and individual variance component magnitude. (per [0-5] AA window interval there may be more sites with disproportionate representation in the 'high' individual variance component section. Note that all of these sites belong to a protein group with at least one member having a nonsyn snp. Therefore these proteins are overrepresented in the diffexp subset. This graphic effectively tests for overrepresentation IN ADDITION TO OVERREPRESENTATION IN HIGH VARCOMP DUE TO HAVING A SNP? If there is an enrichment it seems very small.
 
-plot(log10(VarcompDist$ClosestSNPtoSiteMin), log10(VarcompDist$biorep))
-#There doesn't seem to be a relationship between distance of snp to phosphorylated residue and magnitude of biological variance 
-#note there are some really large distances...
-max(VarcompDist$ClosestSNPtoSiteMin)
-[1] 584920
+plot(log10(VarcompDist$ClosestSNPtoSiteMin), log10(VarcompDist$individual), xlim = c(-.1, 4.0), ylab = "log10(Individual Variance Component)", xlab = "log10(AA Distance between phosphosite and closest SNP)")
+plot(log10(VarcompDist$ClosestSNPtoSiteMin), log10(VarcompDist$biorep), ylab = "log10(Biological Variance Component)", xlab = "log10(AA Distance between phosphosite and closest SNP)")
+plot(log10(VarcompDist$ClosestSNPtoSiteMin), log10(VarcompDist$residual), ylab = "log10(Individual Variance Component)", xlab = "log10(AA Distance between phosphosite and closest SNP)")
 
-#the mindist function is working properly
-hist(log10(multExpanded1_withDE$ClosestSNPtoSiteMin))
-summary(log10(multExpanded1_withDE$ClosestSNPtoSiteMin))
-test <- multExpanded1_withDE[order(-multExpanded1_withDE$ClosestSNPtoSiteMin),]
+#showing the 0 data point
+plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$individual), xlim = c(0,10), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
 
-#There shouldn't be an error in the distance formula but lets take a look at the offenders. Ahh these are due to deletions/insertions or annotations with multiple contiguous stretches of numbers that are combined to make very long proteins. The above is reformated to only include missense variants. Frameshifts, for instance are unlikely to have an effect on motif driven interactions. 
-ProteinGroup <- as.character(test$Proteins[1])
-ProteinGroupPosition <- as.character(test$Positions.within.proteins[1])
-DistToPhos <- function(ProteinGroup, ProteinGroupPosition){
-  if(any(unlist(strsplit(as.character(ProteinGroup), ";")) %in% SNPeffFinal$peptide)){
-    proteins <- unlist(strsplit(as.character(ProteinGroup), ";"))
-    positions <- unlist(strsplit(as.character(ProteinGroupPosition), ";"))
-    MinDist <- c()
-    for(i in seq_along(proteins)){
-      #if the protein in the protein group has a snp
-      if(proteins[i] %in% SNPeffFinal$peptide){
-        #find the positions of snps within this protein
-        VariantPositions <- SNPeffFinal[SNPeffFinal$peptide == proteins[i], "aa"]
-        VariantPositions <- as.integer(gsub("[^0-9]+", "", VariantPositions))
-        #calculate the minimum distance to the phosphosite amongst all variants
-        dist <- min(abs(VariantPositions - as.numeric(positions[i])))#position and proteins should have same index
-        MinDist <- c(MinDist,dist)
-      }else{
-        MinDist <- c(MinDist,NA)
-      }
-    }
-    MinDist <- paste(MinDist, collapse = ";")
-    MinDist
-  }else{
-    NA
-  }
-}
+#out to 100
+plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$individual), xlim = c(0,100), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
 
-
+#For the protein normalized data
 
 
 

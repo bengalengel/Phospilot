@@ -175,14 +175,6 @@ heatmap.2(as.matrix(varprop),
 # # 
 # boxplot(foo$value~foo$biorep)
 
-
-#assign flag to varcomp file according to four categories. high ind/high biological. high ind/low bio. low ind/high bio and low ind/low bio
-#cutoff for high/low individual is log10 = -5. cutoff for high/low biological variance is log10 = -6.
-high_ind_var <- ifelse(log10(Varcomp[,1]) >= -5, "+", "-")
-low_ind_var <- ifelse(log10(Varcomp[,1]) < -5, "+", "-")
-high_bio_var <- ifelse(log10(Varcomp[,2]) >= -6, "+", "-")
-low_bio_var <- ifelse(log10(Varcomp[,2]) < -6, "+", "-")
-Varcomp <- cbind(Varcomp, high_ind_var, low_ind_var, high_bio_var, low_bio_var)
   
   }
   
