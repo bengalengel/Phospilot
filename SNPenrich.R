@@ -1,15 +1,12 @@
 #here I am going to add SNP based annotation to multExpaned table for categorical enrichment test
 
 # SNPenrich <- function(multExpanded1_withDE){
-  
+  require(seqinr)
   
   ####create variant data frame and subset to those present in any of the three samples including the standard --------
   #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
   SNPeffFinal <- read.table("E:/My Documents/Pilot/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
   SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")
-  
-  SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "", strip.white = T)
-  SNPeffFinal <- fread("D:/snpeff_final.txt", sep = "\t", header = T, stringsAsFactors = F)
   
   #subset to 4 samples of interest: 18486, 18862, 19160, and the 19238 standard
   sampleNames <- grep("18486|18862|19160|19238", names(SNPeffFinal), value = T)
@@ -38,10 +35,10 @@
     any(hapTypes %in% x)})
   
   #Because the standard line cannot contribute to the observed variation, variants unique to it are removed. (note if standard is homozygous positive for variant the peptide itself cannot be observed. See section on effect size estimates)
-  SNPeffFinal <- SNPeffFinal[index,]
+  SNPeffFinal <- SNPeffFinal[index,]#43234
   
   #roughly 18K coding variants in at least 1 line (including standard)
-  length(unique(SNPeffFinal$snp))#17963
+  length(unique(SNPeffFinal$snp))#17947
   
 
   
@@ -53,12 +50,7 @@
   
 # Just for the phosphosites observed; Are there snps in the vacinity of the phosphosite? The background for enrichmentwill be subtodiffphos + all snps.
 
-  
-#for each ENSPID add the squence contained within the FASTA file. Executed with an sapply call.
-  #list of ENSPIDs and 
-  
-  
-  
+#for each ENSPID find the squence contained within the FASTA file. Executed with an sapply call. 
   hits <- sapply(SNPeffFinal$peptide, function(x) {
     hit <- grep(x,names(proteome))
     if(length(hit)==0){
@@ -67,18 +59,129 @@
       }
   }
   )
-  
-  hitlengths <- sapply(hits, length)
-  any(hitlengths > 2)
-  
-  lengths <- sapply(SNPeffFinal$peptide, length)
-  any(lengths>2)
-  
-  
-  
-  
-  x <- unlist(test)
+  SNPeffFinal$ProteomeIndex <- hits
 
+  
+  #   To be used for motif proximity enrichment analysis, that is for each protein/hit, is the variant within 7 residues of a S/T/Y? 
+  
+  #getsequence from 'hits' index and position from snpeff table. Return distance to nearest S/T/Y residue. 'NA' results from either no Tyr in sequence or protein mapped to snp is not searched in database. 
+
+# Annotation: Distance to nearest phosphorylatable residue ----------------
+
+  #Dist to closest Tyrosine  
+  TyrDist <- function(ProtSeq, VariantPosition){
+    #if ProtSeq index is valid 
+    if(ProtSeq != "no match"){
+      #retrieve sequence and Tyr index
+      seq <- getSequence(proteome[[as.numeric(ProtSeq)]])
+      Tyr <- grep("Y", seq)
+      #if sequence contains tyrosines
+      if(length(Tyr) > 0){
+      #retrive variant position
+      Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+      #return minimum distance
+      min(abs(Variant - Tyr))}else{
+        NA
+      }
+    }else
+    {NA}
+  }
+  
+  #Dist to closest Serine  
+  SerDist <- function(ProtSeq, VariantPosition){
+    #if ProtSeq index is valid 
+    if(ProtSeq != "no match"){
+      #retrieve sequence and Syr index
+      seq <- getSequence(proteome[[as.numeric(ProtSeq)]])
+      Ser <- grep("S", seq)
+      #if sequence contains Serines
+      if(length(Ser) > 0){
+        #retrive variant position
+        Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+        #return minimum distance
+        min(abs(Variant - Ser))}else{
+          NA
+        }
+    }else
+    {NA}
+  }
+  
+  #Dist to closest Threonine  
+  ThrDist <- function(ProtSeq, VariantPosition){
+    #if ProtSeq index is valid 
+    if(ProtSeq != "no match"){
+      #retrieve sequence and Thr index
+      seq <- getSequence(proteome[[as.numeric(ProtSeq)]])
+      Thr <- grep("T", seq)
+      #if sequence contains Serines
+      if(length(Thr) > 0){
+        #retrive variant position
+        Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+        #return minimum distance
+        min(abs(Variant - Thr))}else{
+          NA
+        }
+    }else
+    {NA}
+  }
+  
+  #apply minimum distance functions
+  SNPeffFinal$NearestTyrDist <- mapply(TyrDist, SNPeffFinal$ProteomeIndex, SNPeffFinal$aa)
+  SNPeffFinal$NearestSerDist <- mapply(SerDist, SNPeffFinal$ProteomeIndex, SNPeffFinal$aa)
+  SNPeffFinal$NearestThrDist <- mapply(ThrDist, SNPeffFinal$ProteomeIndex, SNPeffFinal$aa)
+
+  #####################min distance to nearest observed phosphorylation site ------
+  
+  #for each protein group/site combination return comma delimited character string with the minimum distance between all snps and the phosphorylated site position
+  
+  
+  DistToPhos <- function(ProteinGroup, ProteinGroupPosition){
+    if(any(unlist(strsplit(as.character(ProteinGroup), ";")) %in% SNPeffFinal$peptide)){
+      proteins <- unlist(strsplit(as.character(ProteinGroup), ";"))
+      positions <- unlist(strsplit(as.character(ProteinGroupPosition), ";"))
+      MinDist <- c()
+      for(i in seq_along(proteins)){
+        #if the protein in the protein group has a snp
+        if(proteins[i] %in% SNPeffFinal$peptide){
+        #find the positions of snps within this protein
+          VariantPositions <- SNPeffFinal[SNPeffFinal$peptide == proteins[i], "aa"]
+          VariantPositions <- as.integer(gsub("[^0-9]+", "", VariantPositions))
+        #calculate the minimum distance to the phosphosite amongst all variants
+        dist <- min(abs(VariantPositions - as.numeric(positions[i])))#position and proteins should have same index
+        MinDist <- c(MinDist,dist)
+        }else{
+          MinDist <- c(MinDist,NA)
+        }
+      }
+      MinDist <- paste(MinDist, collapse = ";")
+      MinDist
+    }else{
+      NA
+    }
+  }
+  
+  #apply closest snp to phosphorylation site function
+  multExpanded1_withDE$ClosestSNPtoSite <- mapply(DistToPhos, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
+  
+  # calculate minimum of all the distances for each protein group
+  multExpanded1_withDE$ClosestSNPtoSiteMin <- sapply(multExpanded1_withDE$ClosestSNPtoSite, function(x){
+    distances <- as.numeric(unlist(strsplit(x, ";")))
+    if(!all(is.na(distances))){
+    min(distances, na.rm = T)
+    }else
+    {NA}
+  })  
+  
+  #Hypothesis is that biological phosphosite variance correlates positively with the distance to observed phosphorylation site   
+  
+  #min distance to nearest annotated phosphorylation or other site modification site
+  
+  
+  
+  
+  
+  
+  
   #####adding SNP presence/absence annotation to multExpanded1_withDE --------------------
   #is there a match to any nonsyn snp for any protiens assigned to phosphopeptide 
   AnyMatchProtSNPeff <- function(queryproteins){
