@@ -291,12 +291,12 @@ PepSnpMatch <- function(ProteinGroup, ProteinGroupPosition){
 #only one match with leading proteins!
 newindex <- mapply(PepSnpMatch,multExpanded1_withDE$Leading.proteins,multExpanded1_withDE$Positions.within.proteins)
 which(!is.na(newindex))
-newindex[8803]
+newindex[7649]
 
 #only one match with proteins!
 newindex <- mapply(PepSnpMatch,multExpanded1_withDE$Proteins,multExpanded1_withDE$Positions.within.proteins)
 which(!is.na(newindex))
-newindex[8803]
+newindex[7649]
 
 ##### code check confirms only 1 match ------
 ##OK so how many peptides/positions matched but didn't have a matching index? (this could happen when a phosphopeptide positions for one of the proteins in the group matches a protein and a position in the snpeff file but the position is in another protein)
