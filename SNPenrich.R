@@ -167,6 +167,11 @@ DistToPhos <- function(ProteinGroup, ProteinGroupPosition){
 #apply closest snp to phosphorylation site function. UPDATED TO USE ONLY NS VARIANTS
 multExpanded1_withDE$ClosestSNPtoSite <- mapply(DistToPhos, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
 
+#apply closest snp to phosphorylation site function. UPDATED TO USE ONLY NS VARIANTS
+multExpanded1_withDE$ClosestSNPtoSite <- mapply(DistToPhos, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
+
+
+
 # calculate minimum of all the distances for each protein group
 multExpanded1_withDE$ClosestSNPtoSiteMin <- sapply(multExpanded1_withDE$ClosestSNPtoSite, function(x){
   distances <- as.numeric(unlist(strsplit(x, ";")))
@@ -194,6 +199,8 @@ plot(log10(VarcompDist$ClosestSNPtoSiteMin), log10(VarcompDist$residual), ylab =
 
 #showing the 0 data point
 plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$individual), xlim = c(0,10), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
+plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$biorep), xlim = c(0,10), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
+plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$residual), xlim = c(0,10), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
 
 #out to 100
 plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$individual), xlim = c(0,100), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
