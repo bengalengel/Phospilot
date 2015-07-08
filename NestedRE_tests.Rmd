@@ -1,7 +1,7 @@
 ---
 title: "Nested Random Effects Tests"
 author: "Brett Engelmann"
-date: "Thursday, May 28, 2015"
+date: "Wednesday, July 8th, 2015"
 output: 
   html_document:
     fontsize: 12pt
@@ -27,7 +27,42 @@ Each sample was metabolically labeled with heavy arginine and lysine. The standa
 require(nlme)
 require(gplots)
 require(RColorBrewer)
+require(plyr)
+require(reshape2)
+require(qdapRegex)
 ```
+
+```{r, echo = FALSE, cache = TRUE}
+ratios <- com3
+ratios <- as.matrix(ratios)
+ratios <- na.omit(ratios)#balanced data
+
+#melting the dataframe and adding 'individual' 'biorep' and 'techrep' factors works properly.
+melted <- melt(ratios, measure.vars = names(ratios))
+
+#identify individual name and add it to the table
+matches <- gregexpr("[0-9]{5}", melted$Var2, perl=T)
+individual <- regmatches(melted$Var2,matches)
+individual <- as.character(individual)
+individual <- as.factor(individual)
+melted$individual <- individual
+
+#identify the biological replicate
+biorep <- rm_between(melted$Var2, "_", "_", extract=TRUE)
+biorep <- as.character(biorep)
+biorep <- as.factor(biorep)
+melted$biorep <- biorep
+
+#identify the technical replicate
+matches <- gregexpr("[0-9]$", melted$Var2, perl=T)
+techrep <- regmatches(melted$Var2,matches)
+techrep <- as.character(techrep)
+techrep <- as.factor(techrep)
+melted$techrep <- techrep
+
+
+```
+
 
 
 ## Data structure
@@ -188,6 +223,91 @@ heatmap.2(as.matrix(varprop),
           )
 ```
 
+#ANOVA based Variance component estimates
+In an attempt to get a sense of what is driving this huge partition between VarComp modes I have used an alternative variance component estimation approach. An alternative approach for balanced data is a nested ANOVA with error strata and 'method of moments' to estimate variance components. See ST1 in this link for an example:
+http://www.nature.com/nmeth/journal/v11/n10/full/nmeth.3137.html 
+
+Here negative Variance components are possible when The mean square of the nested level is greater than the mean square of the parent level. This explains why the 'residual' variance component distribution is unimodal (there is nothing nested below it). After fitting using this process and removing all negative variance components. The overall signature of the data is consistent with the REML estimates but **all of the low values from REML estimates are gone**. That is, all of the low REML estimates are all negative estimates in the ANOVA based approach. 
+
+On a first glance Joyce assures me this all is fine and perhaps it is. However if all of the smaller variance component estimates are due to the relative noise levels in the design, **I still stongly suspect a fitting artifact**. For instance, why are **all** of the negative variance components found in the lower modes of the individual and biological VC distributions? (see below) Isn't it likely that a few of the biolgical variance components are only slightly greater than the individual variance components? Keep in mind we are talking about many OOM differences between the central tendencies of the modes, so these are huge differences. 
+
+
+```{r, cache=TRUE, warning=FALSE}
+#all 'balanced' data run with this variance component estimation approach. Note there are some negative estimates
+sites <- c()
+IndVarComp <- c()
+BioVarComp <- c()
+TechVarComp <- c()
+
+for(id in levels(melted$Var1)){
+  test <- melted[melted$Var1 %in% id,]
+  test1 <- test[3:6]
+  pos_err <- tryCatch(aov(value ~ individual/biorep/techrep, data=test1),error=function(e) e)
+  if(!inherits(pos_err, "error")){
+    linear <- aov(value ~ individual/biorep/techrep, data=test1)
+    linear <- summary(linear)
+    IndVarComptmp <- (linear[[1]][1,3] - linear[[1]][2,3])/4
+    BioVarComptmp <- (linear[[1]][2,3] - linear[[1]][3,3])/2
+    TechVarComptmp <- linear[[1]][3,3]
+    IndVarComp <- c(IndVarComp, IndVarComptmp)
+    BioVarComp <- c(BioVarComp, BioVarComptmp)
+    TechVarComp <- c(TechVarComp, TechVarComptmp)
+    sites <- c(sites,as.character(unique(test$Var1)))
+  }
+}
+
+```
+
+Scatter plots no longer show discrete groupings. quadrant plot is no longer present
+```{r}
+mmVarcomp <- cbind(IndVarComp,BioVarComp,TechVarComp)
+row.names(mmVarcomp) <- sites
+par(mfrow = c(2,2))
+plot(log10(mmVarcomp[,1]),log10(mmVarcomp[,3]), xlab = "individual variance", ylab = "technical variance")
+plot(log10(mmVarcomp[,1]),log10(mmVarcomp[,2]), xlab = "individual variance", ylab = "biological variance")
+plot(log10(mmVarcomp[,2]),log10(mmVarcomp[,3]), xlab = "biological variance", ylab = "technical variance")
+```
+
+The distributions fitted via this ANOVA approach match the nested random effet model fits sans the ind/bio components with very low values 
+```{r}
+par(mfrow = c(2,3))
+plot(density(log10(mmVarcomp[,1]), na.rm = T), xlab = "variance", main = "hist of ANOVA derived individual variance components")
+plot(density(log10(mmVarcomp[,2]), na.rm = T), xlab = "variance", main = "hist of ANOVA derived biological variance components")
+plot(density(log10(mmVarcomp[,3]), na.rm = T), xlab = "variance", main = "hist of ANOVA derived technical variance components")
+plot(density(log10(Varcomp[,1])), xlab = "variance", main = "hist of lme derived individual variance components")
+plot(density(log10(Varcomp[,2])), xlab = "variance", main = "hist of lme derived biological variance components")
+plot(density(log10(Varcomp[,3])), xlab = "variance", main = "hist of lme derived technical variance components")
+
+```
+
+Overlap of linear model and nested model
+```{r}
+#ind/bio var categorization by REML estimation (lme)
+Varcomp2 <- as.data.frame(Varcomp)
+Varcomp2$high_ind_var <- ifelse(log10(Varcomp[,1]) >= -5, "TRUE", "FALSE")
+Varcomp2$low_ind_var <- ifelse(log10(Varcomp[,1]) < -5, "TRUE", "FALSE")
+Varcomp2$high_bio_var <- ifelse(log10(Varcomp[,2]) >= -6, "TRUE", "FALSE")
+Varcomp2$low_bio_var <- ifelse(log10(Varcomp[,2]) < -6, "TRUE", "FALSE")
+
+#fnd the low variance sites
+RMLELowIndVar <- row.names(Varcomp2[Varcomp2$low_ind_var == "TRUE",])
+RMLELowBioVar <- row.names(Varcomp2[Varcomp2$low_bio_var == "TRUE",])
+#either
+RMLELowVar <- c(RMLELowIndVar,RMLELowBioVar)
+RMLELowVar <- unique(RMLELowVar)#681
+
+#what are the zero variance sits by ANOVA method of moments?
+tmp <- log10(mmVarcomp)
+zeros <- tmp[rowSums(is.na(tmp[ , 1:3])) >= 1,]
+zeros <- row.names(zeros)
+
+#how many of these zeros are in the RMLE low variance category?
+length(intersect(zeros,RMLELowVar))
+length(zeros)
+#ALL of them!! the only one missing was because the estimate did not converge for this site in lme
+
+```
+
 
 #Tests for sources of bias
 
@@ -216,8 +336,11 @@ Potential Experimental or biological sources of bias **not** presenting a signat
     - Proteins relatively equally distributed across modes
 2. Protein expression level
     - Protein copynumber relatively equally distributed across clusters
+3. Phosphopeptide Intensity
+4. Magnitude of Ratio
+5. Protein ratios also produce this signature
 
-
+Again I strongly suspect a problem with the REML estimates for the ANOVA negative variance components
 
 
 
