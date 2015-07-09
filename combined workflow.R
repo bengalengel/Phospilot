@@ -146,7 +146,15 @@ ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 
  
 VarcompProt <- NestedVar(ratios=ProtNormalizedVar, balanced = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
 VarcompProt <- as.data.frame(VarcompProt)
-# Is this signature unique to phospho? What do the small number of protein estimates show?
+
+#assign flag to VarcompProt file according to four categories. high ind/high biological. high ind/low bio. low ind/high bio and low ind/low bio
+#cutoff for high/low individual is log10 = -5. cutoff for high/low biological variance is log10 = -6.
+VarcompProt$high_ind_var <- ifelse(log10(VarcompProt$individual) >= -5, "+", "-")
+VarcompProt$low_ind_var <- ifelse(log10(VarcompProt$individual) < -5, "+", "-")
+VarcompProt$high_bio_var <- ifelse(log10(VarcompProt$biorep) >= -6, "+", "-")
+VarcompProt$low_bio_var <- ifelse(log10(VarcompProt$biorep) < -6, "+", "-")
+
+# Is this signature unique to phospho? What do the small number of protein estimates show? They also show this signature
 
 
 
@@ -210,6 +218,7 @@ varcompSingleMult <- NestedVar(ratios=com2single)
 
 #feed 'non-normalized' (MQ still has normalized these ratios by intensity) data into model
 RawRatios <- CorrectedData[[1]]
+RawRatios <- RawRatios[,1:12]
 varcompMQnormonly <- NestedVar(ratios=RawRatios)
 
 #feed the same unnormalized data by batch into the model
@@ -222,6 +231,7 @@ varcompMQnormonlyB2 <- NestedVar(ratios=RawRatiosB2, batch=T)
 #test #4. Is signature there using MQ non-normalized ratio values and separate batches.
 #loading unnormalized values
 phosphoRaw <- load.MQ2(directory = "D:/10_9_14/txt/", type = "phospho")
+phosphoRaw <- load.MQ2(directory = "E:/My Documents/Pilot/10_9_14/txt/", type = "phospho")
 phosphoRaw <- phosphoRaw[(phosphoRaw$Potential.contaminant != "+" & phosphoRaw$Reverse != "+"),]
 
 # subset phospho to class 1
@@ -233,24 +243,24 @@ multExpandedRaw1 <- ExpandPhos2(phospho=phosphoRaw1)
 #a curious inversion of the outlier. Here is the code from BatchNorm to extract dataframe for nestedvar
 
 expCol <- grep("HL(.*)", colnames(multExpandedRaw1))
-data <- multExpandedRaw1[,expCol]
+rawdata <- multExpandedRaw1[,expCol]
 
 # add row names with site id and multiplicity designation 
 # row.names(data) <- multExpanded$id#note this won't work because of the multiplicity issue
 idmult <- paste(multExpandedRaw1$id, multExpandedRaw1$multiplicity, sep="_")
-row.names(data) <- idmult
-data <- log2(data)
+row.names(rawdata) <- idmult
+rawdata <- log2(rawdata)
 
 #summaries
-summary(data)
-boxplot(data[,1:12])#extreme outlier in HL18486_1_2
-boxplot(data[,1:12], ylim=c(-4,4))
+summary(rawdata)
+boxplot(rawdata[,1:12])#extreme outlier in HL18486_1_2
+boxplot(rawdata[,1:12], ylim=c(-4,4))
 
 #remove outlier which is 3X smaller than any other datapoint but was 3X greater for the normalized values
-data[,2][which.min(data[,2])] <- NaN
-boxplot(data[,1:12])#extreme outlier in HL18486_1_2 removed
+rawdata[,2][which.min(rawdata[,2])] <- NaN
+boxplot(rawdata[,1:12])#extreme outlier in HL18486_1_2 removed
 
-TotallyRawRatios <- data
+TotallyRawRatios <- rawdata
 #Do unnormalized values have the same signature? Yes
 varcompRaw <- NestedVar(ratios=TotallyRawRatios)
 
