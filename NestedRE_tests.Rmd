@@ -208,26 +208,12 @@ boxplot((varprop),axes=F)
 axis(1,at=c(1,2,3),labels=labs,col="white");axis(2)
 ```
 
-Here is a pretty awesome heatmap of this.
-```{r, warning=FALSE,cache=TRUE}
-colnames(varprop) = c("individual","bio","tech")
-heatmap.2(as.matrix(varprop),
-          col=brewer.pal(9,"YlGnBu"),
-          Colv=F,
-          labRow="",
-          trace="none",
-          srtCol=45,  ,adjCol = c(1,1),
-          margins = c(6,5),
-          cexCol=1.5,
-          key.xlab = "Standardized VC", key.ylab=NULL, key.title = "",
-          )
-```
 
 #ANOVA based Variance component estimates
 In an attempt to get a sense of what is driving this huge partition between VarComp modes I have used an alternative variance component estimation approach. An alternative approach for balanced data is a nested ANOVA with error strata and 'method of moments' to estimate variance components. See ST1 in this link for an example:
 http://www.nature.com/nmeth/journal/v11/n10/full/nmeth.3137.html 
 
-Here negative Variance components are possible when The mean square of the nested level is greater than the mean square of the parent level. This explains why the 'residual' variance component distribution is unimodal (there is nothing nested below it). After fitting using this process and removing all negative variance components. The overall signature of the data is consistent with the REML estimates but **all of the low values from REML estimates are gone**. That is, all of the low REML estimates are all negative estimates in the ANOVA based approach. 
+Here negative Variance components are possible when The mean square of the nested level is greater than the mean square of the parent level. This explains why the 'residual' variance component distribution is unimodal (there is nothing nested below it). After fitting using this process and removing all negative variance components the overall signature of the data is consistent with the REML estimates but **all of the low values from REML estimates are gone**. That is, all of the low REML estimates are all negative estimates in the ANOVA based approach. 
 
 On a first glance Joyce assures me this all is fine and perhaps it is. However if all of the smaller variance component estimates are due to the relative noise levels in the design, **I still stongly suspect a fitting artifact**. For instance, why are **all** of the negative variance components found in the lower modes of the individual and biological VC distributions? (see below) Isn't it likely that a few of the biolgical variance components are only slightly greater than the individual variance components? Keep in mind we are talking about many OOM differences between the central tendencies of the modes, so these are huge differences. 
 
@@ -317,32 +303,76 @@ The variance component signature is curious. A few questions:
 * Why would there be such a lengthy valley between the two modes? 
 * Why would there be symmetry (in terms of the magnitude of the valley) between the modes of both of the variance components? 
 
-Processing choices that I have tested that **still** reproduce the "four corners" and/or bi-modal individual variance plot.
+##Processing choices
+I have tested what is shown below. All **still** reproduce the "four corners" and/or bi-modal individual variance plot.
 
-1.  Complete cases (no NAs)
+1.  Complete cases (no NAs, this was run above)
 2.  No normalization/Batch correction (of any sort)
-    - Raw data
-    - Single batches of raw data (Here only a random individual parameter is fitted)
+    - Raw data (only MQ intensity normalization)
+![MQrawdata quad](./NestedQCImages/MQrawratios.png)
+    - Single batches of raw data (Here only a random individual parameter is fitted. Batch1 and 2 show bi-modal individual varcomps)
+    
+![MQrawdata B1](./NestedQCImages/Batch1mqraw.png)
+![MQrawdata B2](./NestedQCImages/Batch2mqraw.png)
+
+    - Radically Raw data (Not even MQ intensity normalization)
+![MQRadrawdata quad](./NestedQCImages/MQRRquad.png)
+
+    - Single batches of Radically Raw data
+    
+![MQRadrawdata B1](./NestedQCImages/MQRRB1.png)
+![MQRadrawdata B2](./NestedQCImages/MQRRB2.png)
+
 3.  MS relevant and acquisition choices
     - Phosphopeptide multiplicity
         - singly phosphorylated peptides still produce signature
+![Single quad plot](./NestedQCImages/singlyphosphorylatedQuadplot.png)
     - SILAC pairs identified without 're-quantify' option
+![WOrequant quad plot](./NestedQCImages/NoRequantifyQuad.png)
     - Ratios estimated solely from MS acquisition and not match-between-runs (MBR) feature
+![MSonly quad plot](./NestedQCImages/MSOquadplot.png)
   
 
-Potential Experimental or biological sources of bias **not** presenting a signature in the data
+##Experimental or biological 
+These do **not** present a clear signature in the data
 
-1.  Variation in labeling efficiency across samples
-    - Proteins relatively equally distributed across modes
+1.  Hyp: Variation in labeling efficiency across samples responsible for bimodal 'biological' VC dist?
+    - If relative labeling efficiency were contributing to this signature proteins would tend to segregate into one of the two modes. The opposite is true
+![Protein Dist BioVC](./NestedQCImages/proteinDistBioVC.png)
 2. Protein expression level
-    - Protein copynumber relatively equally distributed across clusters
-3. Phosphopeptide Intensity
-4. Magnitude of Ratio
-5. Protein ratios also produce this signature
+    - Protein copynumber relatively equally distributed across clusters (result holds with protein levele estimates from phosprep)
+```{r, echo=FALSE,cache=TRUE}
+par(mfcol = c(1,2))
+index <- length(unique(row.names(MedIbaqGelPrepVarcomp)))
+plot(MedIbaqGelPrepVarcomp$RelRank, MedIbaqGelPrepVarcomp$Ibaq, 
+     col = rgbpal(index)[findInterval(MedIbaqGelPrepVarcomp$RelRank,
+                                      seq(range(MedIbaqGelPrepVarcomp$RelRank)[1], 
+                                          range(MedIbaqGelPrepVarcomp$RelRank)[2], 
+                                          length.out = index), rightmost.closed = T)], 
+     pch = 19, ylab = "log10(Median iBAQ Intensity)", xlab = "Relative Rank")
+
+#quadrant plot with copynumber RelRank heatmap overlay
+plot(log10(MedIbaqGelPrepVarcomp$individual),log10(MedIbaqGelPrepVarcomp$biorep),
+     col = rgbpal(index)[findInterval(MedIbaqGelPrepVarcomp$RelRank,
+                                      seq(range(MedIbaqGelPrepVarcomp$RelRank)[1], 
+                                          range(MedIbaqGelPrepVarcomp$RelRank)[2], 
+                                          length.out = index), rightmost.closed = T)], 
+     pch = 19, ylab = "log10 BioRep VarComp", xlab = "log10 Ind VarComp")
+```
+
+3. Phosphopeptide Intensity. Here there is an enrichment for lower intensity peptides in the low bio/low ind category. This makes sense because for these low intensity (noisy) peptides there is a greater likelihood of tech variation>bio variation>ind variation.
+![Intensity Quadrants](./NestedQCImages/Intensityquadrants.png)
+![Intensity Ind quartile](./NestedQCImages/IntIndquartile.png)
+![Intensity Bio quartile](./NestedQCImages/IntBioquartile.png)
+
+4. H/L Ratio and Magnitude of Ratio show no enrichment. (this is related to technical remove 'requantify' above)
+![HL Ratio](./NestedQCImages/HLRatioQuadrant.png)
+![ABSHL Ratio](./NestedQCImages/AbsHLRatioQuadrant.png)
+
+
+5. Protein ratios also produce the quadrant signature (just trust me).
 
 Again I strongly suspect a problem with the REML estimates for the ANOVA negative variance components
-
-
 
 
 
