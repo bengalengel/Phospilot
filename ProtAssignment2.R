@@ -101,13 +101,33 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   ibaq <- grep("ibaq(.*)18862|ibaq(.*)18486|ibaq(.*)19160", names(proteinfull), ignore.case = T, value = T)
   
   for(i in seq_along(multExpanded1_withDE[,1])){
+#     for(i in 1:50){
+      
     
     #get the peptide to search
     peptide <- as.character(multExpanded1_withDE$Phospho..STY..Probabilities[i])
     peptide <- gsub(pattern = " *\\(.*?\\) *", replacement = "", peptide)
     
-    #search the fasta database and retrieve uniprot/ensp ids corresponding to matches. Soetimes regex is a mfer
+    #search the fasta database and retrieve uniprot/ensp ids corresponding to matches.
     matches <- grep(peptide, proteome)
+    
+    #Retrieve position(s) of phosphosite within protein match(s).
+    PositionInProteins <- c()
+    for(i in seq_along(matches)){
+    seq <- unlist(getSequence(object = proteome[[matches[1]]], as.string = T))
+    #position of peptide within protein
+    protpos <- regexpr(peptide,seq)
+    #now I need the position of the modified site within the peptide
+    windows <- as.character(multExpanded1_withDE$Sequence.window[i])
+    windows <- unlist(strsplit(as.character(windows), ";"))
+    window <- windows[1]
+    sitepos <- regexpr(peptide,window)
+    modsiteinpeptide <- 16 - sitepos[1]#modified site is always the 16th position within the 'sequence window'.
+    ##add this number to protein position!!!! Hurray
+    tmp <- protpos[1] + modsiteinpeptide    
+    PositionInProteins <- c(PositionInProteins, tmp)
+    }
+    #produce 'matches' character vector of utility
     matches <- names(proteome)[matches]
     matches <- sub(pattern = "\\|", replacement = "(", matches)
     matches <- sub(pattern = "\\|", replacement = ")", matches)
@@ -144,9 +164,13 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
     
     Protein.IDs <- strsplit(as.character(tmp$Protein.IDs), ";")
     Protein.IDs <- unlist(Protein.IDs)
-    Protein.IDs <- Protein.IDs[Protein.IDs %in% matches]
-    Protein.IDs <- paste(Protein.IDs, collapse = ";")
+    Protein.IDsF <- Protein.IDs[Protein.IDs %in% matches]
+    Protein.IDs <- paste(Protein.IDsF, collapse = ";")
     tmp$Protein.IDs <- Protein.IDs
+    
+    #add the position of the modified site information based on matching protein ids
+    PositionInProteins <- PositionInProteins[matches %in% Protein.IDsF]
+    tmp$PositionInProteins <- paste(PositionInProteins, collapse = ";")
     
     Majority.protein.IDs <- strsplit(as.character(tmp$Majority.protein.IDs), ";")
     Majority.protein.IDs <- unlist(Majority.protein.IDs)
@@ -164,7 +188,7 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   ibaqnames <- paste("pp",ibaq, sep = "")
   
   names(protein_norm) <- c("ppProteinIDs", "ppMajorityProteinIDs", "ppSequenceCoverage", "ppSequence.length", "ppSequence.lengths",
-                           "LH18862", "LH18486", "LH19160", ibaqnames)
+                           "LH18862", "LH18486", "LH19160", "ppPositionInProteins", ibaqnames)
   
   #link the protein quants to the phospho ids to make a dataframe with normalized protein quants appended. Note "REV_" entries are removed again within this function in case they were passed accidentally.
   AllPhos <- cbind(AllPhos, protein_norm)
