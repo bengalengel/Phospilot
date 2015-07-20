@@ -79,7 +79,7 @@ pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replica
 
 #Differential phosphorylation analysis using DiffPhos function. Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
 ##########################
-#!!BEFORE passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (32 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping to Zia's dataset more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets. That is what does it mean to compare enrichment for a reversed 'protein'?
+#!!BEFORE passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (31 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping to Zia's dataset more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets. That is what does it mean to compare enrichment for a reversed 'protein'?
 
 #add idmult annotation to multexpanded table
 idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
@@ -89,18 +89,22 @@ RevHits <- grep(multExpanded1$Protein, pattern = "REV")
 RevHitsidmult <- multExpanded1$idmult[RevHits]
 multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] #18238 now 17774
 
-#add protein ids, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup. Normalization? NORMALIZATION?
-multExpanded1 <- ProtAssignment(protein, multExpanded1)
-
-#remove reverse hits from dataframe passed to Diffphos. Right now 'pilot' is used.
+#remove reverse hits from 'pilot' dataframe to be passed to Diffphos for confounded analysis.
 pilot <- pilot[!rownames(pilot)%in%RevHitsidmult,]
-multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 #################
 
-#protein normalization and diffphos on non-confounded phosphopeptides.
+#protein normalization and diffphos on confounded and non-confounded phosphopeptides.
 ########################
-#Load and normalize protein data.
-#loads MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: MQoutput heavy,MQ output just data, median normalized, and quantile normalized. 
+
+##read in the proteome fasta file that was used for search. Here Ensembl cCDS. This will be used for protein assignment.
+proteome <- read.fasta( file = "./FASTA//Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)#updataed to local machine. FASTA file used for search
+
+#### Add protein level information from PhosPrep workup
+#Protein assignment adds protein ids, positions within protein, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup. Normalization? NORMALIZATION?
+multExpanded1 <- ProtAssignment(protein, proteome, multExpanded1)
+
+#### Add protein level information from GelPrep workup
+#First load MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: full MQoutput, MQ output raw data, median normalized, and quantile normalized. 
 
 # Choose directory containing proteomics data to pass to 'NormProt'
 CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteome/iBAQ proteome/")#from home INCLUDES IBAQ
@@ -108,14 +112,15 @@ CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
 
-#ProtAssignment matches the two datasets. It returns a DF with the normalized protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
+#ProtAssignment2 matches the two datasets. It returns a DF with the normalized protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
 
-##read in the proteome fasta file. Here Ensembl cCDS
-proteome <- read.fasta( file = "./FASTA//Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)#updataed to local machine. FASTA file used for search
-
-NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1_withDE, phosphonorm=adata, proteome)#pass com2 perhaps
+NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)#pass com2 perhaps
 multExpanded1_withDE <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
+
+
+#DiffPhos on confounded data. #Perhaps this can be inserted later in the workflow?
+multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 
 #This function performs diffphos analysis on phosphodata (using normalized protein data as a covariate in progress. will add a flag to function call).
 #Accepts ME dataframe with confounded data annotation and normalized protein values.
