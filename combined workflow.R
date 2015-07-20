@@ -1,8 +1,7 @@
 rm(list=ls(all=TRUE)) #start with empty workspace
 
 
-# First perform all processing steps using plyr and related tools.
-# load required libraries
+# load required libraries and scripts -----------------------------------
 library(reshape2)
 library(stringr)
 library(plyr)
@@ -26,8 +25,8 @@ source("Enrichment.R")
 source("PerseusOut.R")
 source("AddAnnotation.R")
 
-#load, reformat and characterize MQ outputted mass spectrometry data
-#######
+
+#load, reformat and characterize MQ outputted mass spectrometry  --------
 # load phospho and protein files with particular variables populated using "loadMQ"
 phospho <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "phospho")
 # protein <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
@@ -38,24 +37,28 @@ phospho <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/PilotPhos
 # protein <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
 protein <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/iBAQ quantification/", type = "protein")#with ibaq
 
-
 # remove contaminants and reverse database hits
 phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]
 protein <- protein[(protein$Potential.contaminant != "+" & protein$Reverse != "+"),]
 
-#expand for observation (multiplicity based analysis). All observations quantified in >=1 experiment.
-multExpanded <- ExpandPhos(phospho)
-
 # subset phospho to class 1
 phospho1 <- phospho[(phospho$Localization.prob >= .75),]
 
+# subset protein to remove those identifications observed solely by modification site
 # "only identified by site" hits CAN BE removed because they tend to have lower PEPs (wouldn't pass the FDR TH anyway) and can't be quantified since they are not idd by non-modified peptides. 
 # Note there are some high probability proteins here given some proteins are idd by 20+ phosphopeptides.
 # eg is A6NKT7 (PEP = 2.23E-70)
 protein1 <- protein[(protein$Only.identified.by.site != "+"),]
 
+#expand phosphorylation data for observation (multiplicity based analysis). 
+# All observations quantified in >=1 experiment.
+multExpanded <- ExpandPhos(phospho)
+
 # Class 1 sites with each source of quantification for that site (singly/doubly/3+) explicitly accounted for 
 multExpanded1 <- ExpandPhos(phospho1)
+
+
+# summary statistics of Mass Spec data ------------------------------------
 
 #make tables of basic counts of proteins and phosphopeptides (may have to update when performing the normalization)
 phoscount(phospho,phospho1,multExpanded,multExpanded1)
@@ -65,21 +68,22 @@ proteincount(protein)
 # cumulative over experiments. It also has extensive phospo info, including number of phospho per protein, multiplicity breakdown, and venns
 breakdown(protein, phospho, multExpanded, cls=F)
 breakdown(protein, phospho1, multExpanded1)
-#####################
 
-#normalization and batch correction
+
+# Normalization and batch correction of confounded data -------------------
+
 #remove an outlier, normalize (median and quantile), and batch correct (combat). Returned are EDA plots and a list of DFs.See BatchNorm for details
-######################
 CorrectedData <- BatchNorm(multExpanded1=multExpanded1)#class 1 sites
 com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
 adata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
 pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
-#####################
 
 
-#Differential phosphorylation analysis using DiffPhos function. Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
-##########################
-#!!BEFORE passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (31 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping to Zia's dataset more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets. That is what does it mean to compare enrichment for a reversed 'protein'?
+# Remove peptides mapping to protein groups with any reverse hits ---------
+
+#Perhaps I should just remove the reverse hits and produce a flag?
+
+#!!BEFORE passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (31 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping to Zia's dataset more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets. That is, what does it mean to compare enrichment for a reversed 'protein'?
 
 #add idmult annotation to multexpanded table
 idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
@@ -91,10 +95,9 @@ multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] 
 
 #remove reverse hits from 'pilot' dataframe to be passed to Diffphos for confounded analysis.
 pilot <- pilot[!rownames(pilot)%in%RevHitsidmult,]
-#################
 
-#protein normalization and diffphos on confounded and non-confounded phosphopeptides.
-########################
+
+# protein level assignment and normalization and  using phosprep and gelprep data --------
 
 ##read in the proteome fasta file that was used for search. Here Ensembl cCDS. This will be used for protein assignment.
 proteome <- read.fasta( file = "./FASTA//Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)#updataed to local machine. FASTA file used for search
@@ -115,22 +118,26 @@ ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contami
 #ProtAssignment2 matches the two datasets. It returns a DF with the normalized protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
 
 NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)#pass com2 perhaps
-multExpanded1_withDE <- NormalizedResults[[1]]
+multExpanded1 <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
 
 
-#DiffPhos on confounded data. #Perhaps this can be inserted later in the workflow?
+# Differential phosphorylation on confounded and protein normalized data (2 ways) --------
+
+# Differential phosphorylation analysis using DiffPhos function on confounded data. 
+# Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
 multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 
 #This function performs diffphos analysis on phosphodata (using normalized protein data as a covariate in progress. will add a flag to function call).
 #Accepts ME dataframe with confounded data annotation and normalized protein values.
 #Returns proteinnormalizedDE annotated ME dataframe and produces diffphos plots derived from protein corrected data.
 multExpanded1_withDE <- DiffPhosProt(multExpanded1_withDE, phosphonorm = pilot)#note REV_entries (5) already removed from pilot! See confounded diffphos section
-################
 
 
-#Nested random effects model. 'NestedVar' performs analysis and I would like this to also return an annotated ME DF with each phosphosites annotated for downstream enrichment analysis. One example of a category might be high biological var/low tech and individual. I think a combinatorial categorization would work well here.
-###########################
+# Nested Random Effects modeling ------------------------------------------
+
+# 'NestedVar' performs analysis and I would like this to also return an annotated ME DF with each phosphosites annotated for downstream enrichment analysis. One example of a category might be high biological var/low tech and individual. I think a combinatorial categorization would work well here.
+
 # remove exp obs if not observed at least two times in each sample
 com3 <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]
 
@@ -160,8 +167,6 @@ VarcompProt$high_bio_var <- ifelse(log10(VarcompProt$biorep) >= -6, "+", "-")
 VarcompProt$low_bio_var <- ifelse(log10(VarcompProt$biorep) < -6, "+", "-")
 
 # Is this signature unique to phospho? What do the small number of protein estimates show? They also show this signature
-
-
 
 #add the new categorizations from the varcompdata to the multexpanded DF for enrichment analyses. SOME DESCREPANCY BETWEEN IDMULT AND ROWNAMES!! 11 MISSING
 multExpanded1_withDE$SubtoVarcomp <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp), "+", "-")
