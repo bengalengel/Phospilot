@@ -99,8 +99,25 @@ ProtAssignment <- function(protein, proteome, multExpanded1){
   # merge into ME DF
   multExpanded1 <- merge(multExpanded1, info, by.x = "PhosPrepMatchProteinGroupID", by.y = "PhosPrepProteinGroupID")
   
+  #remove the 'NAs' from the 'PositionsInProteins' and the 'ProteinID' columns. The ProteinID columns may contain reverse or contaminant entries. Note that there are no mapping issues in 'Majority protein" columns because these identifications are from the same raw data. Note that this mapply call was the neatest solution. sapply follwed by unlist returned one huge logical vector. It would be nice to know how to unlist each vector element of a list! I could paste/collapse each element first to make it a character vector of length one I suppose, but the mapply call did this in a neater fashion.
+  TruncateCommaDelim <- function(Positions,TruncationTarget){
+    index <- unlist(strsplit(Positions,";")) != "NA"
+    Target <- unlist(strsplit(TruncationTarget,";"))
+    Truncated <- Target[index]
+    paste(Truncated, collapse = ";")
+  }
+  
+  multExpanded1$PhosPrepProteinIDTruncated <- mapply(TruncateCommaDelim, multExpanded1$PhosPrepPositionInProteins, multExpanded1$PhosPrepProteinID)
+  multExpanded1$PhosPrepPositionInProteinsTruncated <- mapply(TruncateCommaDelim, multExpanded1$PhosPrepPositionInProteins, multExpanded1$PhosPrepPositionInProteins)
+  
+  
   return(multExpanded1)
 }
 
   
+
+
+
+
+
   
