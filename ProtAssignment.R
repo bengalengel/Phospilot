@@ -110,9 +110,61 @@ ProtAssignment <- function(protein, proteome, multExpanded1){
   multExpanded1$PhosPrepProteinIDTruncated <- mapply(TruncateCommaDelim, multExpanded1$PhosPrepPositionInProteins, multExpanded1$PhosPrepProteinID)
   multExpanded1$PhosPrepPositionInProteinsTruncated <- mapply(TruncateCommaDelim, multExpanded1$PhosPrepPositionInProteins, multExpanded1$PhosPrepPositionInProteins)
   
+  # Extraction and normalization of PhosPrep protein ratios -----------------
+  require(limma)
+  #Retrieve and transform data
+  expCol <- grep("PhosPrepProteinHL(.*)", colnames(multExpanded1))
+  RawRatios <- multExpanded1[,expCol]
   
-  return(multExpanded1)
+  # add row names with site id and multiplicity designation 
+  row.names(RawRatios) <- multExpanded1$idmult
+  RawRatios <- log2(RawRatios)
+  
+  #median normalize
+  names <- colnames(RawRatios)
+  median.subtract <- function(x){ x - median(x, na.rm = TRUE)}##create a wrapper for median subtraction
+  MedianNorm <- colwise(median.subtract, names)(RawRatios)
+  row.names(MedianNorm) <- multExpanded1$idmult##add back the row names
+  
+  # quantile normalization. from normalize.quantiles {preprocessCore}  
+  # "This functions will handle missing data (ie NA values), based on the assumption that the data is missing at random."
+  
+  quantiled <- normalizeQuantiles(MedianNorm,ties = T)#ties are all assigned the same value for the common quantile
+  # summary(quantiled)
+  # boxplot(data)
+  boxplot(quantiled)
+  # density plots all look the same of course
+  par(mfrow = c(1, 1))
+  for (i in 1:(ncol(quantiled))){
+    if(i==1) plot(density(quantiled[, i], na.rm=T), col = i, ylim = c(0,.85))
+    else lines(density(quantiled[, i], na.rm=T), col = i)
+  }
+  #subsets of quantiled
+  #clean up names from quantiled
+  names(quantiled) <- gsub("PhosPrepProtein", replacement = "", names(quantiled))
+  # remove exp obs if not observed in each sample quantiled
+  quantiled2 <- quantiled[rowSums(is.na(quantiled[ , 1:4])) < 4 & rowSums(is.na(quantiled[ , 5:8])) < 4 & rowSums(is.na(quantiled[ , 9:12])) < 4,]    
+  
+  # remove exp obs if not observed in each batch
+  quantiled3 <- quantiled[rowSums(is.na(quantiled[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 6 
+                          & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 6,]    
+  
+  # remove exp obs if not observed two or more times in each batch to ensure a variance measurement
+  quantiled4 <- quantiled[rowSums(is.na(quantiled[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 5 
+                          & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 5,] 
+  quantiled5 <- na.omit(quantiled)##common across all
+  
+  #once in each biological replicate
+  quantiledBio <- quantiled[rowSums(is.na(quantiled[ , 1:2])) < 2 & rowSums(is.na(quantiled[ , 3:4])) < 2 & rowSums(is.na(quantiled[ , 5:6])) < 2 
+                & rowSums(is.na(quantiled[ , 7:8])) < 2 & rowSums(is.na(quantiled[ , 9:10])) < 2 & rowSums(is.na(quantiled[ , 11:12])) < 2,] #there needs to be at
+  
+  #At least two calls in each batch (for Combat)
+  DFs <- list(multExpanded1, RawRatios, MedianNorm, quantiled, quantiled2, quantiled3, quantiled4, quantiled5, quantiledBio)
+  
+  return(DFs)
 }
+
+
 
   
 
