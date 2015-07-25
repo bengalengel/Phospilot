@@ -104,7 +104,15 @@ proteome <- read.fasta( file = "./FASTA//Homo_sapiens.GRCh37.75.pep.all.parsedCC
 
 #### Add protein level information from PhosPrep workup
 #Protein assignment adds protein ids, positions within protein, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup. Normalization? NORMALIZATION?
-multExpanded1 <- ProtAssignment(protein, proteome, multExpanded1)
+PhosPrepMatrices <- ProtAssignment(protein, proteome, multExpanded1)
+multExpanded1 <- PhosPrepMatrices[[1]]
+PhosPrepquantiledBio <- PhosPrepMatrices[[9]]#med/norm with one measurement in each bio rep
+PhosPrepCombat <- PhosPrepMatrices[[10]]#normalized/batch corrected (using ComBat) data frame
+PhosPrepCombatBio <- PhosPrepMatrices[[11]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
+PhosPrepCombatPilot <- PhosPrepMatrices[[12]]#same as above with mean ratios for each bio replicate
+
+
+
 
 #### Add protein level information from GelPrep workup
 #First load MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: full MQoutput, MQ output raw data, median normalized, and quantile normalized. 
