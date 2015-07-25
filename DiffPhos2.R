@@ -215,8 +215,44 @@ plot(dend.ward, leaflab = "perpendicular", ylab = "height", main = "Euclidian/Wa
 plot(dend.ward2, leaflab = "perpendicular", ylab = "height", main = "Euclidian/Ward2")
 
 
+# I can also check for proper coding by not including protein and seeing if the results change... (dupcor values will be different I think)
+#actually I think the above fitting isn't correct because duplicate corr is on two separate "molecular phenotypes". The best approach it seems is to average biological replicates and fit.
+
+#PhosProt with biorep averaging
+HL18486_1 <- rowMeans(PhosProt[,1:2], na.rm = T)
+HL18486_2 <- rowMeans(PhosProt[,3:4], na.rm = T)
+HL18862_1 <- rowMeans(PhosProt[,5:6], na.rm = T)
+HL18862_2 <- rowMeans(PhosProt[,7:8], na.rm = T)
+HL19160_1 <- rowMeans(PhosProt[,9:10], na.rm = T)
+HL19160_2 <- rowMeans(PhosProt[,11:12], na.rm = T)
+ProtHL18486_1 <- rowMeans(PhosProt[,13:14], na.rm = T)
+ProtHL18486_2 <- rowMeans(PhosProt[,15:16], na.rm = T)
+ProtHL18862_1 <- rowMeans(PhosProt[,17:18], na.rm = T)
+ProtHL18862_2 <- rowMeans(PhosProt[,19:20], na.rm = T)
+ProtHL19160_1 <- rowMeans(PhosProt[,21:22], na.rm = T)
+ProtHL19160_2 <- rowMeans(PhosProt[,23:24], na.rm = T)
 
 
+PhosProtBio <- cbind(HL18486_1, HL18486_2, HL18862_1, HL18862_2, HL19160_1, HL19160_2,
+                     ProtHL18486_1, ProtHL18486_2, ProtHL18862_1, ProtHL18862_2, ProtHL19160_1, ProtHL19160_2)#1308 class 1 measurements with at least one quant in each biologic
+
+#a new singlecase/design matrix
+matches <- gregexpr("[0-9]{5}", colnames(PhosProtBio), perl=T)
+individual <- regmatches(colnames(PhosProtBio),matches)
+individual <- as.character(individual)
+individual <- as.factor(individual)
+SingleCase2 <- data.frame(individual = individual, biorep = rep(c(1,2), 6))
+SingleCase2$Protein <- rep(c(0,1), each = 6)
+row.names(SingleCase2) <- colnames(PhosProtBio)
+
+design <- model.matrix(~0 + individual + biorep + Protein, data = SingleCase2)#design matrix with batch explicitly modeled and protein as a covariate
+
+fit <- lmFit(PhosProtBio, design)
+contrast.matrix <- makeContrasts(individual18862-individual18486, individual19160-individual18862, 
+                                 individual19160-individual18486, levels = design)
+
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
 
 
 
