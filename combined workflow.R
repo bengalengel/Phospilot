@@ -69,16 +69,6 @@ proteincount(protein)
 breakdown(protein, phospho, multExpanded, cls=F)
 breakdown(protein, phospho1, multExpanded1)
 
-
-# Normalization and batch correction of confounded data -------------------
-
-#remove an outlier, normalize (median and quantile), and batch correct (combat). Returned are EDA plots and a list of DFs.See BatchNorm for details
-CorrectedData <- BatchNorm(multExpanded1=multExpanded1)#class 1 sites
-com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
-adata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
-pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
-
-
 # Remove peptides mapping to protein groups with any reverse hits ---------
 
 #Perhaps I should just remove the reverse hits and produce a flag?
@@ -93,8 +83,13 @@ RevHits <- grep(multExpanded1$Protein, pattern = "REV")
 RevHitsidmult <- multExpanded1$idmult[RevHits]
 multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] #18238 now 17774
 
-#remove reverse hits from 'pilot' dataframe to be passed to Diffphos for confounded analysis.
-pilot <- pilot[!rownames(pilot)%in%RevHitsidmult,]
+# Normalization and batch correction of confounded data -------------------
+
+#remove an outlier, normalize (median and quantile), and batch correct (combat). Returned are EDA plots and a list of DFs.See BatchNorm for details
+CorrectedData <- BatchNorm(multExpanded1=multExpanded1)#class 1 sites
+com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
+adata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
+pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
 
 
 # protein level assignment and normalization and  using phosprep and gelprep data --------
