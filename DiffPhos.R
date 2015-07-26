@@ -189,7 +189,7 @@ DiffPhos <- function(pilot, multExpanded1){
   summary(FDE2$F)
   summary(FDE3$F)
   
-  plot(density(log10(FDE1$F)),xlim = c(0,3))
+  plot(density(log10(FDE1$F)),xlim = c(0,3), main = "Sig F Stats Cut by Number of DiffPhos Contrasts")
   lines(density(log10(FDE2$F)), col = 2)
   lines(density(log10(FDE3$F)), col = 3)
 
