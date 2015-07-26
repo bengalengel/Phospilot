@@ -193,7 +193,7 @@ BatchNorm <- function(multExpanded1){
   names(pc)
   
   cols <- as.factor(substr(colnames(cdata), 3, 7))##check me out. use 5 digit exp name.
-  plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "PCA", xlab = "PC1", ylab = "PC2")
+  plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "Combat Batch Corrected PCA", xlab = "PC1", ylab = "PC2")
   legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1)
   
   

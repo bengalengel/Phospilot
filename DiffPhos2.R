@@ -61,11 +61,13 @@ design_base <- model.matrix(~0 + individual, data = SingleCase)#with more explic
 #calculate the correlation between technical replicates from a series of arrays.
 
 # From dupcor help: 
-# If block is not null, this function estimates the correlation between repeated observations on the blocking variable. Typically the blocks are biological replicates and the repeated observations are technical replicates. In either case, the correlation is estimated by fitting a mixed linear model by REML individually for each gene. The function also returns a consensus correlation, which is a robust average of the individual correlations, which can be used as input for functions lmFit or gls.series.
+# ...If block is not null, this function estimates the correlation between repeated observations on the blocking variable. Typically the blocks are biological replicates and the repeated observations are technical replicates. In either case, the correlation is estimated by fitting a mixed linear model by REML individually for each gene. The function also returns a consensus correlation, which is a robust average of the individual correlations, which can be used as input for functions lmFit or gls.series.
 
 #My case is exactly that described above. 
 block = c(1,1,2,2,3,3,4,4,5,5,6,6)
 dupcor <- duplicateCorrelation(adata,design_base,block=block)
+all.correlations <- tanh(dupcor$atanh.correlations)
+boxplot(all.correlations)
 dupcor$consensus.correlation
 fit <- lmFit(adata,design_base,block=block,correlation=dupcor$consensus)
 
@@ -106,9 +108,9 @@ batchcorrected <- removeBatchEffect(x = quantiledBio, batch = SingleCase$biorep,
 #PCA analysis.  
 cdata <- na.omit(batchcorrected)
 x <- t(cdata)#samples are the rows of the column matrix
-pc <- prcomp(x, retx = T, scale = T, center = T) #With scaling the segregation is less robust
+pc <- prcomp(x) #retx = T, scale = T, center = T) #With scaling the segregation is less robust. Scaling is unnecessary
 cols <- as.factor(substr(colnames(cdata), 3, 7))##5 digit sample  name.
-plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "PCA", xlab = "PC1", ylab = "PC2")
+plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "Limma Batch Regressed PCA", xlab = "PC1", ylab = "PC2")
 legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1)
 #dendrograms
 dataZ <- scale(cdata)##Z-scored column wise

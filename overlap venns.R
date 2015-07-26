@@ -30,5 +30,29 @@ grid.arrange(gTree(children=venn.plot), main="Design Matrix Impact on Limma Diff
 
 
 # double venn combat vs medianquantilenormalized with batch as a covariate --------------------------
-#each one uses blocked
+
+#first set size
+batchcovar <- nrow(sigFvalBREBatchCov)
+#second set size
+combat <- nrow(sigFvalsadata)
+#intersection
+intsect <- length(intersect(row.names(sigFvalsadata), row.names(sigFvalBREBatchCov)))
+
+#make a double venn
+plot.new()
+venn.plot <- draw.pairwise.venn(
+  area1 = batchcovar,
+  area2 = combat,
+  cross.area = intsect,
+  category = c("BatchCovariate", "Combat"),
+  fill = c("green", "blue"),
+  lty = "blank",
+  cex = 2,
+  cat.cex = 2,
+  cat.col = c("green", "blue"), 
+  margin = .1,
+  main="test"
+)
+grid.newpage();
+grid.arrange(gTree(children=venn.plot), main="Batch Correction Apporach Impact on Limma Differential Phosphorylation")
 
