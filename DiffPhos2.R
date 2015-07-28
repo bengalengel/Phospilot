@@ -136,20 +136,20 @@ plot(dend.ward2, leaflab = "perpendicular", ylab = "height", main = "Euclidian/W
 # model fits with PhosPrep protein as a covariate
 
 #retrive data with phosphopeptide and phosprep protein quantification in at least one biological replicate representation
-str(quantiledBioProt)
+str(PhosPrepquantiledBio)
 #add 'protein' to colnames
-names(quantiledBioProt) <- paste("Protein",names(quantiledBioProt), sep = "")
+names(PhosPrepquantiledBio) <- paste("Protein",names(PhosPrepquantiledBio), sep = "")
 
 #merge phospho and protein estimates. Each has at least one measurement in all bio replicates
-PhosProt <- merge(quantiledBio, quantiledBioProt, by = "row.names")
+PhosProt <- merge(quantiledBio, PhosPrepquantiledBio, by = "row.names")
 row.names(PhosProt) <- PhosProt$Row.names
 PhosProt <- as.matrix(PhosProt)
-PhosProt <- PhosProt[,2:length(PhosProt)]
+PhosProt <- PhosProt[,2:length(colnames(PhosProt))]
 PhosProt <- as.matrix(PhosProt)
 
 #create the model matrix... Here I think SingleCase needs to be doubled in size with the last 12 rows corresponding to protein estimates.
 SingleCase2 <- SingleCase
-row.names(SingleCase2) <- names(quantiledBioProt)
+row.names(SingleCase2) <- names(PhosPrepquantiledBio)
 PhosProtSingleCase <- rbind(SingleCase,SingleCase2)
 #now add protein binary flag
 PhosProtSingleCase$Protein <- rep(c(0,1), each = 12)

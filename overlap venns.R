@@ -56,3 +56,63 @@ venn.plot <- draw.pairwise.venn(
 grid.newpage();
 grid.arrange(gTree(children=venn.plot), main="Batch Correction Apporach Impact on Limma Differential Phosphorylation")
 
+
+# phosprep protein as cov vs confounded -----------------------------------
+
+#first set size
+PhosProtcovar <- nrow(sigFvalsPhosPrepProt)
+#second set size
+Confounded <- nrow(sigFvalsCombatCommon)
+#intersection
+intsect <- length(intersect(row.names(sigFvalsPhosPrepProt), row.names(sigFvalsCombatCommon)))
+
+#make a double venn
+plot.new()
+venn.plot <- draw.pairwise.venn(
+  area1 = PhosProtcovar,
+  area2 = Confounded,
+  cross.area = intsect,
+  category = c("PhosPrep Protein Covariate", "Confounded"),
+  fill = c("green", "blue"),
+  lty = "blank",
+  cex = 1.5,
+  cat.cex = 1.5,
+  cat.col = c("green", "blue"), 
+  margin = .2,
+  main="test"
+)
+grid.newpage();
+grid.arrange(gTree(children=venn.plot), main="Differential Phosphorylation Overlap \n Confounded vs PhosPrep Protein as a covariate")
+
+
+
+# GelPrep protein as cov vs confounded -----------------------------------
+
+#first set size
+GelProtcovar <- nrow(sigFvalsGelPrepProt)
+#second set size
+Confounded <- nrow(sigFvalsCombatCommonGel)
+#intersection
+intsect <- length(intersect(row.names(sigFvalsGelPrepProt), row.names(sigFvalsCombatCommonGel)))
+
+#make a double venn
+plot.new()
+venn.plot <- draw.pairwise.venn(
+  area1 = GelProtcovar,
+  area2 = Confounded,
+  cross.area = intsect,
+  category = c("GelPrep Protein Covariate", "Confounded"),
+  fill = c("green", "blue"),
+  lty = "blank",
+  cex = 1.5,
+  cat.cex = 1.5,
+  cat.col = c("green", "blue"), 
+  margin = .2,
+  main="test"
+)
+grid.newpage();
+grid.arrange(gTree(children=venn.plot), main="Differential Phosphorylation Overlap \n Confounded vs GelPrep Protein as a covariate")
+
+
+
+
