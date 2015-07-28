@@ -24,7 +24,7 @@ require(gplots)
 require(Hmisc)
 # directory = "D:/EnsemblDBProteome/iBAQ proteome/"
 directory = "E:/My Documents/Pilot/EnsemblDBProteome/iBAQ proteome/"
-
+directory = "D:/EnsemblDBProteome/iBAQ proteome/"
 
 # load protein files with particular variables populated using "loadMQ"
 Ziaproteins <- load.MQZ(directory)#7710 protein groups/81 variables
@@ -84,6 +84,25 @@ protein1 <- protein1[rowSums(is.na(protein1[,expCol[1:4]])) < 4 & rowSums(is.na(
                      & rowSums(is.na(protein1[,expCol[9:12]])) < 4,]
 
 #############
+
+# Differences in sequence coverage and number of uniqe + razor peptides per protein.
+############
+
+#unique plus razor proteins
+PhosPrep <- median(protein1$Razor...unique.peptides)
+GelPrep <- median(Ziaproteins1$Razor...unique.peptides)
+names(PhosPrep) <- "PhosPrep"
+names(GelPrep) <- "GelPrep"
+barplot(c(PhosPrep,GelPrep), ylab = "#peptides/protein", main = "Median unique and razor peptides/protein")
+
+#sequence coverage
+PhosPrep <- median(protein1$Sequence.coverage....)
+GelPrep <- median(Ziaproteins1$Sequence.coverage....)
+names(PhosPrep) <- "PhosPrep"
+names(GelPrep) <- "GelPrep"
+barplot(c(PhosPrep,GelPrep), ylab = "#peptides/protein", main = "Median sequence coverage/protein")
+################
+
 
 # merge dataframes, create four separate DFs by protein estimate type, normalize/batch correct (if necessary), 
 
@@ -257,6 +276,9 @@ data <- setNames(lapply(names,function(x) get(x)), names)
 PhosPrepRatioMedians <- as.data.frame(data)
 boxplot(PhosPrepRatioMedians)
 
+PhosPrepRatioMedians2 <- cbind(ccPhosPrepRatios18486, ccPhosPrepRatios18862, ccPhosPrepRatios19160)
+
+
 ##these can be combined directly with the normalized ratios from the protein prep data
 
 
@@ -345,6 +367,19 @@ for (i in 1:(ncol(quantiled))){
   else lines(density(quantiled[, i], na.rm=T), col = i)
 }
 
+##merge with the median per sample combat corrected phosphodata
+PhosProtmerged <- merge(PhosPrepRatioMedians, quantiled, by = "row.names")
+row.names(PhosProtmerged) <- PhosProtmerged$Row.names
+PhosProtmerged <- PhosProtmerged[,2:length(PhosProtmerged)]
+PhosProtmerged <- as.matrix(PhosProtmerged)
+
+##merge 2
+PhosProtmerged2 <- merge(PhosPrepRatioMedians2, quantiled, by = "row.names")
+row.names(PhosProtmerged2) <- PhosProtmerged2$Row.names
+PhosProtmerged2 <- PhosProtmerged2[,2:length(PhosProtmerged2)]
+PhosProtmerged2 <- as.matrix(PhosProtmerged2)
+
+
 #what is the correlation across these samples?
 
 cn.corr <- rcorr(as.matrix(ProtPrepRatios), type = "pearson")
@@ -355,8 +390,16 @@ cn.corr <- rcorr(as.matrix(ProtPrepRatios), type = "spearman")
 cn.corr <- rcorr(as.matrix(MedianNorm), type = "spearman")#median transform does not change correlation
 cn.corr <- rcorr(as.matrix(quantiled), type = "spearman")
 
+#combined1
+cn.corr <- rcorr(as.matrix(PhosProtmerged), type = "spearman")
 
-heatmap.2(
+# combined2
+cn.corr <- rcorr(as.matrix(PhosProtmerged2), type = "spearman")
+cn.corr <- rcorr(as.matrix(PhosProtmerged2), type = "pearson")
+
+
+
+  heatmap.2(
   cn.corr$r,
   key = TRUE,
   density.info = "none",#no histogram in key
@@ -366,7 +409,7 @@ heatmap.2(
   cellnote = round(cn.corr$r,3),
   notecex = 1.25,
   notecol = "black",
-  col=rev(rgbpal(20)),
+  col=rev(rgbpal(80)),
   cexCol=1.254,
   cexRow=1.254,
   margins = c(15,15)
@@ -383,6 +426,9 @@ keepers <- which(names(ProtRatiosbySample)!="Row.names")
 ProtRatiosbySample <- ProtRatiosbySample[,keepers]
 boxplot(ProtRatiosbySample)
 summary(ProtRatiosbySample)
+
+#Combine 'quantile' normalized with the persample combat corrected phosprep estimates
+
 
 cn.corr <- rcorr(as.matrix(ProtRatiosbySample), type = "pearson")
 
