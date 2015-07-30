@@ -35,10 +35,15 @@ index <- apply(SNPeffFinal[,sampleNames], 1, function(x){
   any(hapTypes %in% x)})
 
 #Because the standard line cannot contribute to the observed variation, variants unique to it are removed. (note if standard is homozygous positive for variant the peptide itself cannot be observed. See section on effect size estimates)
-SNPeffFinal <- SNPeffFinal[index,]#43234
+SNPeffFinal <- SNPeffFinal[index,]
+nrow(SNPeffFinal)#51427
 
-#roughly 18K coding variants in at least 1 line (including standard)
-length(unique(SNPeffFinal$snp))#17947
+#roughly 21K coding variants in at least 1 line (not including standard)
+length(unique(SNPeffFinal$snp))#21147
+
+#
+length(unique(SNPeffFinal$gene))#9208
+length(unique(SNPeffFinal$peptide))#25705
 
 
 
@@ -48,7 +53,7 @@ length(unique(SNPeffFinal$snp))#17947
 
 ##add sequence information to each entry from the fasta file. Then add a flag column indicating proximity to nearest S/T/Y. Then a flag column indicating yes/no for +- 7 from S/T/Y. The same should be done with phosphorylated site and phosphosite annotation information.
 
-# Just for the phosphosites observed; Are there snps in the vacinity of the phosphosite? The background for enrichmentwill be subtodiffphos + all snps.
+# Just for the phosphosites observed; Are there snps in the vicinity of the phosphosite? The background for enrichmentwill be subtodiffphos + all snps.
 
 #for each ENSPID find the squence contained within the FASTA file. Executed with an sapply call. 
 hits <- sapply(SNPeffFinal$peptide, function(x) {
@@ -167,8 +172,11 @@ DistToPhos <- function(ProteinGroup, ProteinGroupPosition){
 #apply closest snp to phosphorylation site function. UPDATED TO USE ONLY NS VARIANTS
 multExpanded1_withDE$ClosestSNPtoSite <- mapply(DistToPhos, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
 
-#apply closest snp to phosphorylation site function. UPDATED TO USE ONLY NS VARIANTS
-multExpanded1_withDE$ClosestSNPtoSite <- mapply(DistToPhos, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
+#apply closest snp to phosphorylation site function GelPrep assignments. UPDATED TO USE ONLY NS VARIANTS
+# multExpanded1_withDE$ClosestSNPtoSiteGelPrep <- mapply(DistToPhos, multExpanded1_withDE$ppProteinIDs, multExpanded1_withDE$ppPositionInProteins)
+
+#apply closest snp to phosphorylation site function PhosPrep assignments.
+
 
 
 
@@ -190,6 +198,43 @@ VarcompDist <- merge(varcomp, holder, by.x = "row.names", by.y = "idmult")
 
 index <- !is.na(VarcompDist$ClosestSNPtoSiteMin)
 VarcompDist <- VarcompDist[index,]#length of 2427
+
+
+#Hypothesis: Phosphosite inter-individual variance (limma adjusted F) correlates positively with the distance to observed phosphorylation site   
+
+#is there a positive correlation between bio Varcomp and closest SNP?
+holder <- multExpanded1_withDE[,c("idmult", "ClosestSNPtoSiteMin")]
+FDist <- merge(sigFvalsCombat, holder, by.x = "row.names", by.y = "idmult")
+
+index <- !is.na(FDist$ClosestSNPtoSiteMin)
+FDist <- FDist[index,]#length of 837
+
+
+plot(log10(FDist$ClosestSNPtoSiteMin), log10(FDist$F))
+plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$adj.P.Val))
+plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$P.Value), ylab = "-log10(Pvalue)", xlab = "log10(AA Distance between phosphosite and closest SNP)", main = "Confounded Data")
+
+
+
+
+#with phosprep covariate Fs
+FDist <- merge(sigFvalsPhosPrepProt, holder, by.x = "row.names", by.y = "idmult")
+index <- !is.na(FDist$ClosestSNPtoSiteMin)
+FDist <- FDist[index,]#length of 348
+
+plot(log10(FDist$ClosestSNPtoSiteMin), log10(FDist$F))
+plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$adj.P.Val))
+plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$P.Value), ylab = "-log10(Pvalue)", xlab = "log10(AA Distance between phosphosite and closest SNP)", main = "PhosPrep Covariate Data")
+
+#with GelPrep covariate Fs
+FDist <- merge(sigFvalsGelPrepProt, holder, by.x = "row.names", by.y = "idmult")
+index <- !is.na(FDist$ClosestSNPtoSiteMin)
+FDist <- FDist[index,]#length of 348
+
+plot(log10(FDist$ClosestSNPtoSiteMin), log10(FDist$F))
+plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$adj.P.Val))
+plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$P.Value), ylab = "-log10(Pvalue)", xlab = "log10(AA Distance between phosphosite and closest SNP)", main = "GelPrep Covariate Data")
+
 
 #There may be a relationship between the distance between phosphosite and the closest SNP and individual variance component magnitude. (per [0-5] AA window interval there may be more sites with disproportionate representation in the 'high' individual variance component section. Note that all of these sites belong to a protein group with at least one member having a nonsyn snp. Therefore these proteins are overrepresented in the diffexp subset. This graphic effectively tests for overrepresentation IN ADDITION TO OVERREPRESENTATION IN HIGH VARCOMP DUE TO HAVING A SNP? If there is an enrichment it seems very small.
 
@@ -230,7 +275,9 @@ AnyMatchProtSNPeff <- function(queryproteins){
 }
 #apply anymatch function to all 'leading proteins' and 'majority protein ids'
 multExpanded1_withDE$NsSnpPositive <- mapply(AnyMatchProtSNPeff, multExpanded1_withDE$Leading.proteins)
-multExpanded1_withDE$ppNsSnpPositive <- mapply(AnyMatchProtSNPeff, multExpanded1_withDE$ppMajorityProteinIDs)
+multExpanded1_withDE$GelPrepNsSnpPositive <- mapply(AnyMatchProtSNPeff, multExpanded1_withDE$ppMajorityProteinIDs)
+multExpanded1_withDE$PhosPrepNsSnpPositive <- mapply(AnyMatchProtSNPeff, multExpanded1_withDE$PhosPrepMajorityProteinIDs)
+
 
 #how many nonsyn snps per protein group assigned to a phosphopeptide?
 NumMatchesProtSNPeff <- function(queryproteins){
@@ -241,13 +288,16 @@ NumMatchesProtSNPeff <- function(queryproteins){
 
 #apply count function to all 'leading proteins' and 'majority protein ids'
 multExpanded1_withDE$NsSnpCount <- mapply(NumMatchesProtSNPeff, multExpanded1_withDE$Leading.proteins)
-multExpanded1_withDE$ppNsSnpCount <- mapply(NumMatchesProtSNPeff, multExpanded1_withDE$ppMajorityProteinIDs)
+multExpanded1_withDE$GelPrepNsSnpCount <- mapply(NumMatchesProtSNPeff, multExpanded1_withDE$ppMajorityProteinIDs)
+multExpanded1_withDE$PhosPrepNsSnpCount <- mapply(NumMatchesProtSNPeff, multExpanded1_withDE$PhosPrepMajorityProteinIDs)
+
 
 # Less than 1% of the phosphopeptides are mapped to a protein group that (collectively) contains > 1 snp #THIS NEEDS TO BE CORRECTED FOR UNIQUENESS
 table(multExpanded1_withDE$NsSnpCount)
 
 #For proteins mapped to peptides using protein prep data the picture is more complicated because more information is being used (more protein ids/peptide). That is the same snp is present in multiple isoforms, which cannot be disambiguated geven the shotgun level information. Proteotypic peptides are need for this.
-table(multExpanded1_withDE$ppNsSnpCount)
+table(multExpanded1_withDE$GelPrepNsSnpCount)
+table(multExpanded1_withDE$PhosPrepNsSnpCount)
 
 
 ###Mumblings ---------
@@ -378,35 +428,52 @@ intersect(protmatch,positionmatch)
 #                    NotDErow
 # 'in' category is any majority/leading protein(s) assigned to this phosphosite has a snp.  
 
-subtoDE <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE == "+",] #4738
-subtoDEpn <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEpn == "+",] #3488
+SubtoDEConfounded <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEConfounded == "+",] #4738
+SubtoDEGelProt <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEGelProt == "+",] #3488
+SubtoDEPhosProt <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEPhosProt == "+",] #1308
 
 #confounded analysis
-row1 <- c(nrow(subtoDE[subtoDE$globalFsig == "+" & subtoDE$NsSnpPositive == "+",]), 
-          nrow(subtoDE[subtoDE$globalFsig == "+" & subtoDE$NsSnpPositive == "-",]))
+row1 <- c(nrow(SubtoDEConfounded[SubtoDEConfounded$globalFsigConfounded == "+" & SubtoDEConfounded$NsSnpPositive == "+",]), 
+          nrow(SubtoDEConfounded[SubtoDEConfounded$globalFsigConfounded == "+" & SubtoDEConfounded$NsSnpPositive == "-",]))
 
-row2 <- c(nrow(subtoDE[subtoDE$globalFsig == "-" & subtoDE$NsSnpPositive == "+",]), 
-          nrow(subtoDE[subtoDE$globalFsig == "-" & subtoDE$NsSnpPositive == "-",]))
-
-#FEtest
-contmatrix <- rbind(row1,row2)
-result <- fisher.test(contmatrix, alternative = "g")
-result$p.value
-4.492123e-05 
-
-
-#protnormalized analysis using Zia's data (much less significant and speaks to penetrance at the post translational level)
-row1 <- c(nrow(subtoDEpn[subtoDEpn$globalFsigpn == "+" & subtoDEpn$ppNsSnpPositive == "+",]), 
-          nrow(subtoDEpn[subtoDEpn$globalFsigpn == "+" & subtoDEpn$ppNsSnpPositive == "-",]))
-
-row2 <- c(nrow(subtoDEpn[subtoDEpn$globalFsigpn == "-" & subtoDEpn$ppNsSnpPositive == "+",]), 
-          nrow(subtoDEpn[subtoDEpn$globalFsigpn == "-" & subtoDEpn$ppNsSnpPositive == "-",]))
+row2 <- c(nrow(SubtoDEConfounded[SubtoDEConfounded$globalFsigConfounded == "-" & SubtoDEConfounded$NsSnpPositive == "+",]), 
+          nrow(SubtoDEConfounded[SubtoDEConfounded$globalFsigConfounded == "-" & SubtoDEConfounded$NsSnpPositive == "-",]))
 
 #FEtest
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
-0.001188539
+6.107867e-06 
+
+
+#GelPrep analysis using Zia's data
+row1 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$globalFsigGelProt == "+" & SubtoDEGelProt$GelPrepNsSnpPositive == "+",]), 
+          nrow(SubtoDEGelProt[SubtoDEGelProt$globalFsigGelProt == "+" & SubtoDEGelProt$GelPrepNsSnpPositive == "-",]))
+
+row2 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$globalFsigGelProt == "-" & SubtoDEGelProt$GelPrepNsSnpPositive == "+",]), 
+          nrow(SubtoDEGelProt[SubtoDEGelProt$globalFsigGelProt == "-" & SubtoDEGelProt$GelPrepNsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+4.123789e-08 
+
+
+#PhosPrep analysis
+row1 <- c(nrow(SubtoDEPhosProt[SubtoDEPhosProt$globalFsigPhosProt == "+" & SubtoDEPhosProt$PhosPrepNsSnpPositive == "+",]), 
+          nrow(SubtoDEPhosProt[SubtoDEPhosProt$globalFsigPhosProt == "+" & SubtoDEPhosProt$PhosPrepNsSnpPositive == "-",]))
+
+row2 <- c(nrow(SubtoDEPhosProt[SubtoDEPhosProt$globalFsigPhosProt == "-" & SubtoDEPhosProt$PhosPrepNsSnpPositive == "+",]), 
+          nrow(SubtoDEPhosProt[SubtoDEPhosProt$globalFsigPhosProt == "-" & SubtoDEPhosProt$PhosPrepNsSnpPositive == "-",]))
+
+#FEtest
+contmatrix <- rbind(row1,row2)
+result <- fisher.test(contmatrix, alternative = "g")
+result$p.value
+1.449032e-05 
+
+
 
 #here is the relative proportion difference
 apply(contmatrix,1,function(x) x[1]/sum(x))
