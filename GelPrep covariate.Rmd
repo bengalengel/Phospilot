@@ -1,0 +1,73 @@
+---
+title: "GelPrep Protein Covariate"
+author: "BWE"
+date: "Thursday, July 30, 2015"
+output: 
+  html_document:
+    fontsize: 12pt
+    css: "./CSSscripts/FloatTOC.css"
+    toc: yes
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Fig2/',
+                      warning=FALSE, message=FALSE)
+```
+
+```{r}
+require(limma)
+```
+
+
+# The Problem
+GelPrep protein data does not have replication while Phosphopeptide data has nested replication. I would like to use the nested replicate via limma's duplicatecor function *while* fitting with GelPrep Prot as a covariate.
+
+
+# The Data
+```{r}
+#create data matrix with replicated phospho data and single point estimate protein data
+PhosProt3 <- merge(adata,GelPrep, by = "row.names")
+row.names(PhosProt3) <- PhosProt3$Row.names
+PhosProt3 <- PhosProt3[,2:16]
+PhosProt3 <- as.matrix(PhosProt3)
+dim(PhosProt3)
+head(PhosProt3)
+```
+
+# The design matrix
+```{r}
+individual <- as.factor(c(rep("18486", times = 4), rep("18862", times = 4), rep("19160", times = 4), "18862", "18486", "19160"))  
+Protein <- as.factor(c(rep(0,times = 12), rep(1, times = 3)))
+SingleCaseGel <- data.frame(individual = individual, Protein = Protein)
+row.names(SingleCaseGel) <- colnames(PhosProt3)
+design_GelPrep <- model.matrix(~0 + individual + Protein, data = SingleCaseGel)
+SingleCaseGel
+design_GelPrep
+```
+
+# blocking and fitting
+```{r}
+block = c(1,1,2,2,3,3,4,4,5,5,6,6,0,0,0)
+dupcor <- duplicateCorrelation(PhosProt3, design_GelPrep, block=block)
+dupcor$consensus.correlation
+fit <- lmFit(PhosProt3,design_GelPrep,block=block,correlation=dupcor$consensus)
+contrast.matrix <- makeContrasts(individual18862-individual18486, individual19160-individual18862, 
+                                 individual19160-individual18486, levels = design_GelPrep)
+fit2 <- contrasts.fit(fit, contrast.matrix)
+fit2 <- eBayes(fit2)
+```
+
+#Open Questions
+Overall I think this is the way it should be done but I am unsure about "0" blocks. Either the 'duplicateCorrelation' function ignores that data or it treats the 0s as a separate factor and includes them as an additional block. I think clearly the latter is happening given below:
+```{r}
+#note the design matrix for just the phospho data
+design_base
+#calculate dupcorr for the phosphodata alone
+block2 = c(1,1,2,2,3,3,4,4,5,5,6,6)
+dupcor2 <- duplicateCorrelation(adata,design_base,block=block2)
+dupcor2$consensus.correlation == dupcor$consensus.correlation
+```
+#Options
+Going forward we need a way to fit with GelPrep estimates while using technical replicate correlation information. This can either be done by altering the design matrix/block settings or by fitting using gls.series withing a for loop.
+
+
+
