@@ -27,7 +27,12 @@ source("AddAnnotation.R")
 
 
 #load, reformat and characterize MQ outputted mass spectrometry  --------
-# load phospho and protein files with particular variables populated using "loadMQ"
+# load phospho and protein files with particular variables populated using "loadMQ" on cluster
+phospho <- load.MQ(directory = "/mnt/lustre/home/bengelmann/MQfiles/EnsemblDBPhospho/", type = "phospho")
+# protein <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
+protein <- load.MQ(directory = "/mnt/lustre/home/bengelmann/MQfiles/EnsemblDBPhospho/", type = "protein")#file has ibaq values
+
+# load phospho and protein files with particular variables populated using "loadMQ" on laptop
 phospho <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "phospho")
 # protein <- load.MQ(directory = "D:/EnsemblDBPhospho/PilotPhosphoensemblDB/combined/txt/", type = "protein")
 protein <- load.MQ(directory = "D:/EnsemblDBPhospho/iBAQ quantification/", type = "protein")#with ibaq
@@ -95,7 +100,9 @@ pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replica
 # protein level assignment and normalization and  using phosprep and gelprep data --------
 
 ##read in the proteome fasta file that was used for search. Here Ensembl cCDS. This will be used for protein assignment.
-proteome <- read.fasta( file = "./FASTA//Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)#updataed to local machine. FASTA file used for search
+
+proteome <- read.fasta( file = "./FASTA//Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)
+#see 'ensembl FASTA for DB search' file if file not present. Source it to produce the file in the required directory
 
 #### Add protein level information from PhosPrep workup
 #Protein assignment adds protein ids, positions within protein, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup. Normalization? NORMALIZATION?
@@ -111,6 +118,7 @@ PhosPrepCombatPilot <- PhosPrepMatrices[[12]]#same as above with mean ratios for
 #First load MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: full MQoutput, MQ output raw data, median normalized, and quantile normalized. 
 
 # Choose directory containing proteomics data to pass to 'NormProt'
+CorrectedDataProt <- NormProt(directory = "/mnt/lustre/home/bengelmann/MQfiles/EnsemblDBProteome/")#on cluster INCLUDES IBAQ
 CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteome/iBAQ proteome/")#from home INCLUDES IBAQ
 CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")#from laptop INCLUDES IBAQ
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
