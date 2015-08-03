@@ -129,16 +129,11 @@ GelPrep <- NormalizedResults[[3]]#Protein level
 # Differential phosphorylation analysis using DiffPhos function on confounded data. 
 # Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
 
-# A new combined approach
+# A new combined approach. DiffPhos on confounded and 'corrected' (via covariate or normalization) data.
 multExpanded1_withDE <- DiffPhos(phosdata = adata, PhosPrep = PhosPrepCombatBio, GelPrep = GelPrep, multExpanded1)
 
+#still need comparison venns and perhaps discussion/analysis of these results. Power differences with various covariates need to be considered.
 
-multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
-
-#This function performs diffphos analysis on phosphodata (using normalized protein data as a covariate in progress. will add a flag to function call).
-#Accepts ME dataframe with confounded data annotation and normalized protein values.
-#Returns proteinnormalizedDE annotated ME dataframe and produces diffphos plots derived from protein corrected data.
-multExpanded1_withDE <- DiffPhosProt(multExpanded1_withDE, phosphonorm = pilot)#note REV_entries (5) already removed from pilot! See confounded diffphos section
 
 
 # Nested Random Effects modeling ------------------------------------------
