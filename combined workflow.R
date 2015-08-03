@@ -107,8 +107,6 @@ PhosPrepCombatBio <- PhosPrepMatrices[[11]]#normalized/batch corrected data fram
 PhosPrepCombatPilot <- PhosPrepMatrices[[12]]#same as above with mean ratios for each bio replicate
 
 
-
-
 #### Add protein level information from GelPrep workup
 #First load MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: full MQoutput, MQ output raw data, median normalized, and quantile normalized. 
 
@@ -124,12 +122,17 @@ ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contami
 NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)#pass com2 perhaps
 multExpanded1 <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
-
+GelPrep <- NormalizedResults[[3]]#Protein level
 
 # Differential phosphorylation on confounded and protein normalized data (2 ways) --------
 
 # Differential phosphorylation analysis using DiffPhos function on confounded data. 
 # Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
+
+# A new combined approach
+multExpanded1_withDE <- DiffPhos(phosdata = adata, PhosPrep = PhosPrepCombatBio, GelPrep = GelPrep, multExpanded1)
+
+
 multExpanded1_withDE <- DiffPhos(pilot, multExpanded1)
 
 #This function performs diffphos analysis on phosphodata (using normalized protein data as a covariate in progress. will add a flag to function call).

@@ -1,5 +1,6 @@
 ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phosphonorm, proteome){
   require(qdapRegex)
+  require(seqinr)
   ##This program assigns protein groups (from previous proteomic analysis) to phosphosites from the SCX-TiO2 workflow for normalization. It also brings along the ibaq estimates from those groups in the pertinant samples. 
   
   #   It also does the same thing for the protein groups identified/quantified via SCX-TiO2.
@@ -194,7 +195,14 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   AllPhos <- cbind(AllPhos, protein_norm)
   
   #############################
-  
+  #produce the matrix with the GelPrep numbers and phosprep idmults
+  GelPrep <- AllPhos[,c("idmult", "LH18862", "LH18486", "LH19160")]
+  row.names(GelPrep) <- GelPrep$idmult
+  GelPrep <- GelPrep[,2:4]
+  GelPrep <- na.omit(GelPrep)#11671
+  GelPrep <- as.matrix(GelPrep)
+
+
   #Normalize the passed phospho dataframe for return and produce EDA plots on normalized dataframe.
   ################################################################
   
@@ -317,7 +325,7 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
        ylab = "variance explained")
   
   
-  DFs <- list(AllPhos,ProtNormalized)
+  DFs <- list(AllPhos,ProtNormalized, GelPrep)
   
   return(DFs)
 }
