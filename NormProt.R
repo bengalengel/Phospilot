@@ -82,7 +82,9 @@ NormProt <- function(directory){
 
 ## Load file with gene models
 ## The gene models used are here: http://eqtl.uchicago.edu/RNA_Seq_data/ensembl_4_30.gz
-gene.models <- read.delim(gzfile("ensembl_4_30.gz"), stringsAsFactors=F, header=F)
+# gene.models <- read.delim(gzfile("ensembl_4_30.gz"), stringsAsFactors=F, header=F)#home
+gene.models <- read.delim(gzfile("D:/for_brett/ensembl_4_30.gz"), stringsAsFactors=F, header=F)#laptop
+#cluster
 ## Set relevant column names.
 names(gene.models) <- c("V1", "ENST", "chr", "strand", "txStart", "txEnd", "cdsStart", "cdsEnd", "exonCount", "exonStarts", "exonEnds", "V12", "ENSG", "V14", "V15", "V16")
 
@@ -131,6 +133,25 @@ for(pcol in pheno.cols) {
 # # GM18871 
 # 24 
 
+#rename and fix duplicated sample. NAs from duplicated sample are simply inserted. One is chosen arbitrarily to represent the individual? The mean is not taken across culture replicates:
+
+## This sample might have been mislabeled.
+names(pheno.pro)[which(names(pheno.pro) == "GM19012")] <- "GM19102"
+
+## GM18355 is actually GM18855.
+if(sum(names(pheno.pro) == "GM18355") > 0) {
+  run1 <- pheno.pro$GM18855
+  run2 <- pheno.pro$GM18355
+  for(i in 1:length(run1)) {
+    if(is.na(run1[i]) & (is.na(run2[i]) == F)) {
+      run1[i] <- run2[i]
+    }
+  }
+  pheno.pro$GM18855 <- run1 - mean(run1, na.rm=T)
+  pheno.pro <- pheno.pro[,-grep("GM18355", names(pheno.pro), fixed=T)]
+  pheno.cols <- grep("GM", names(pheno.pro), fixed=T)
+}
+
 #remove if not in at least half the samples
 pheno.cols <- grep("GM", names(pheno.pro), fixed=T)
 cnt.na <- function(i) {
@@ -162,8 +183,10 @@ save(pheno.pro, file="PRO_raw.RData")
 
 #Files needed: 
 ## Get iso data files.
-mean.genotype.files <- Sys.glob("E:/My Documents/R/ZiaScriptsEdited/data/genotypes_imputed/*.mean.genotype.txt")
-snpdata.files <- Sys.glob("E:/My Documents/R/ZiaScriptsEdited/data/genotypes_imputed/*.mean.genotype.txt")
+# mean.genotype.files <- Sys.glob("E:/My Documents/R/ZiaScriptsEdited/data/genotypes_imputed/*.mean.genotype.txt")
+# snpdata.files <- Sys.glob("E:/My Documents/R/ZiaScriptsEdited/data/genotypes_imputed/*.snpdata.txt")
+mean.genotype.files <- Sys.glob("D:/for_brett/data/genotypes_imputed/*.mean.genotype.txt")
+snpdata.files <- Sys.glob("D:/for_brett/data/genotypes_imputed/*.snpdata.txt")
 
 pull.chr <- function(x) {
   res <- gsub(".+chr", "chr", x,  perl=T)
@@ -176,7 +199,9 @@ mean.genotype.files <- data.frame(chr=unlist(lapply(mean.genotype.files, pull.ch
 genotype.files <- merge(snpdata.files, mean.genotype.files)
 
 ## Load individuals by column
-con  <- file("E:/My Documents/R/ZiaScriptsEdited/data/genotypes_imputed/individual.order.txt", open = "r")
+# con  <- file("E:/My Documents/R/ZiaScriptsEdited/data/genotypes_imputed/individual.order.txt", open = "r")
+con  <- file("D:/for_brett/data/genotypes_imputed/individual.order.txt", open = "r")
+
 ind.line <- readLines(con, n=1)
 ind.line <- gsub("IND ", "", ind.line, fixed=T)
 close(con)
@@ -219,6 +244,9 @@ load.genotypes <- function(i)  {
   gc()
   genotype.data <- genotype.data[sort(genotype.data$hg18.pos, index.return=T)$ix,]
   print(dim(genotype.data))
+  if(!file.exists("data")){
+    dir.create(file.path(getwd(), "data"))
+  }  
   if(!file.exists("data/geno_data")){
     dir.create(file.path(getwd(), "data/geno_data"))
   }
@@ -233,10 +261,322 @@ blank <- unlist(lapply(1:dim(genotype.files)[1], load.genotypes))# will not work
 # blank <- foreach(i = 1:dim(genotype.files)[1], .combine = 'c') %dopar% load.genotypes(i)
 # stopCluster(cl)
 
+#alter genotype cache st MAF > X and samples the same as those identified via proteomics
+pheno.data <- pheno.pro; suffix <- "pro"
+## Get table with genotype files.
+genotype.files <- Sys.glob("data/geno_data/chr*.RData")
+pull.chr <- function(x) {
+  res <- gsub(".+chr", "chr", x,  perl=T)
+  res <- gsub("\\..+", "", res, perl=T)
+  res
+}
+genotype.files <- data.frame(chr=unlist(lapply(genotype.files, pull.chr)), genotype.file=genotype.files, stringsAsFactors=F)
+
+## Loads data for analyzed cell lines and filters based on MAF.
+build.geno.cache <- function(g) {
+  ## Load genotype data for given chromosome.
+  chr <- genotype.files$chr[g]
+  ##cache.file <- paste("data/geno_data_cache_", suffix, "_maf5/", chr, ".RData", sep="")
+  cache.file <- paste("data/geno_data_cache_", suffix, "/", chr, ".RData", sep="")
+  data.file <- genotype.files$genotype.file[g]
+  load(data.file)
+  geno.cols <- grep("GM", names(genotype.data), fixed=T)
+  pheno.cols <- grep("GM", names(pheno.data), fixed=T)
+  
+  keep.geno <- merge(data.frame(ids=names(pheno.data)[pheno.cols]),
+                     data.frame(ids=names(genotype.data)[geno.cols], idx=geno.cols))
+  
+  ## Remove columns that don't intersect phenotype data.
+  remove.cols <- setdiff(geno.cols, keep.geno$idx)
+  if(length(remove.cols) > 0) {
+    genotype.data <- genotype.data[,-remove.cols]
+  }
+  ## Sort the columns based on name so they match pheno data.
+  geno.cols <- grep("GM", names(genotype.data), fixed=T)
+  geno.sort <- data.frame(ids=names(genotype.data)[geno.cols], idx=geno.cols, stringsAsFactors=F)
+  geno.cols.sort <- geno.sort[sort(geno.sort$ids, index.return=T)$ix,]$idx
+  genotype.data[, geno.cols] <- genotype.data[,geno.cols.sort]
+  ## Don't forget to update column names after sort.
+  names(genotype.data)[geno.cols] <- names(genotype.data[geno.cols.sort])
+  geno.cols <- grep("GM", names(genotype.data), fixed=T)
+  gc()
+  ## Get final genotype matrix.
+  geno.matrix <- as.matrix(genotype.data[,geno.cols])
+  
+  ## Compute minor allele frequency of each SNP.
+  compute.maf <- function(r) {
+    genotypes <- geno.matrix[r,]
+    ## Genotype codes.
+    ## 0-0.5] = BB allele
+    ## (0.5, 1.5] = heterozygous, AB alleles
+    ## (1.5, 2.5] = AA allele
+    major.cnt <- sum(0 <= genotypes & genotypes <= 0.5)
+    het.cnt <- sum(0.5 < genotypes & genotypes <= 1.5)
+    minor.cnt <- sum(1.5 < genotypes & genotypes <= 2.5)
+    N <- dim(geno.matrix)[2] 
+    major.freq <- (2*major.cnt + het.cnt) / (2*N)
+    minor.freq <- (2*minor.cnt + het.cnt) / (2*N)
+    min(major.freq, minor.freq)
+  }
+  maf <- unlist(lapply(1:dim(geno.matrix)[1], compute.maf))
+  
+  ## Test SNPs only with cutoff MAF
+  before.MAF.cut <- dim(genotype.data)[1]
+  ##genotype.data <- genotype.data[maf > 0.05,]
+  genotype.data <- genotype.data[maf > 0.1,]
+  if(!file.exists("data/geno_data_cache_pro")){
+    dir.create(file.path(getwd(), "data/geno_data_cache_pro"))
+  }  
+  save(genotype.data, file=cache.file)
+  NA
+}
+unlist(lapply(1:dim(genotype.files)[1], build.geno.cache))
+
+########
 
 
+#make the PC regression and imputation function
+library(impute)
+
+load.pro <- function(numPCs, keep.NAs=TRUE, standardize=TRUE) {
+  require(impute)
+  load("PRO_raw.RData")
+  if(numPCs == -1) {  return(pheno.pro)  }
+  
+  pheno.cols <- grep("GM", names(pheno.pro), fixed=T)
+  pheno.matrix <- as.matrix(pheno.pro[,pheno.cols])
+  
+  ## Gene-level standardization
+  ## Make each row Normal(0,1).
+  if(standardize) {
+    pheno.matrix <- t(apply(pheno.matrix,1,function(row){(row-mean(row,na.rm=T))/sd(row,na.rm=T)})) ##sd uses (n-1))
+  }
+  ## Column normalization by qqnorm, 
+  pheno.matrix <- apply(pheno.matrix,2,function(kk){qqnorm(kk, plot.it=F)$x})
+  pheno.matrix <- as.matrix(pheno.matrix)
+  pheno.matrix.with.NA <- pheno.matrix
+  
+  ## Impute missing values by KNN.
+  if(sum(is.na(pheno.matrix)) > 0 ) {
+    pheno.matrix <- impute.knn(pheno.matrix)$data
+  }
+  if(numPCs > 0) {
+    PCAobject <- prcomp(t(pheno.matrix))
+    expected <- t(PCAobject$x[,1:numPCs]  %*% t(PCAobject$rotation[,1:numPCs]))
+    pheno.matrix <- pheno.matrix - expected
+  }
+  
+  if(keep.NAs) {
+    for(i in 1:dim(pheno.matrix)[1]) {
+      NA.idx <- which(is.na(pheno.matrix.with.NA[i,]))
+      pheno.matrix[i,NA.idx] <- NA
+    }
+  }
+  
+  pheno.pro[,pheno.cols] <- pheno.matrix
+  return(pheno.pro)
+}
 
 
+########run the regressions-----------
+reg.name <- "pro"
+
+## Sample code for computing correlation p-value.
+## n <- 25
+## x <- rnorm(n)
+## y <- -x + rnorm(n)
+## R <- cor(x,y)
+## p.value <- 2*pt(-abs(R * sqrt(n-2) / sqrt(1-R*R)),df=n-2)
+## cor.test(x,y,)$p.value
+
+## Get table with genotype files.
+genotype.files <- Sys.glob(paste("data/geno_data_cache_", reg.name, "/chr*.RData", sep=""))
+pull.chr <- function(x) {
+  res <- gsub(".+chr", "chr", x,  perl=T)
+  res <- gsub("\\..+", "", res, perl=T)
+  res
+}
+genotype.files <- data.frame(chr=unlist(lapply(genotype.files, pull.chr)), genotype.file=genotype.files, stringsAsFactors=F)
+
+
+#error in test.matrix[not.na.idx,] subscript out of bounds
+
+##for(numPCs in 0:30) {
+##for(numPCs in seq(0,30,2)) {
+##for(numPCs in seq(1,30,2)) {
+##for(numPCs in seq(0,25,1)) {
+
+# for(numPCs in seq(0,20,1)) {
+#a foreach solution?
+cl <- makeCluster(2)#4 cores works well
+registerDoParallel(cl)
+#for protein groups with majority ids consisting wholly of isoforms (same gene) that ENSGID is returned. IF not, then 'NA' is returned.
+Blank <- foreach(numPCs = 0:1) %dopar% {
+## load protien data
+  pheno.data <- load.pro(numPCs)#PC corrected/regressed
+
+  process.chr <- function(g) {        
+    ## Load genotype data for given chromosome.
+    chr <- genotype.files$chr[g]
+    cache.file <- paste("data/geno_data_cache_", reg.name, "/", chr, ".RData", sep="")
+    print(cache.file)
+    
+    pheno.cols <- grep("GM", names(pheno.data), fixed=T)
+    
+    if(file.exists(cache.file)) {
+      load(cache.file)
+    }else {
+      stop("no cache file")
+    }
+    print(chr)
+    geno.cols <- grep("GM", names(genotype.data), fixed=T)
+    
+    ## Convert data to matricies for fast access.
+    geno.matrix <- as.matrix(genotype.data[,geno.cols])
+    row.names(geno.matrix) <- genotype.data$snp.name
+    snp.hg18.pos <- genotype.data$hg18.pos
+    
+    ## Get protein measurements for chromosome.
+    pheno.data.chr <- pheno.data[pheno.data$chr == chr,]
+    pheno.data.chr <- pheno.data.chr[sort(pheno.data.chr$ENSG, index.return=T)$ix,]  ## Sort so matched to mRNA
+    pheno.matrix.data <- as.matrix(pheno.data.chr[,pheno.cols]) #60 entries
+    
+    run.permutation <- function(i) {
+      pheno.cur <- pheno.matrix.data[i,]
+      n.dim <- length(pheno.cur)
+      n <- sum(is.na(pheno.cur) == F); nm2 <- n-2; sqrt.nm2 <- sqrt(nm2)
+      n.iter <- 10000
+      null.P.data <- numeric(n.iter)
+      ## Get genotypes in a given window.
+      txStart <- pheno.data.chr$txStart[i]; txEnd <- pheno.data.chr$txEnd[i]  
+      snp.rows <- which(txStart - 20000 <= snp.hg18.pos & snp.hg18.pos <= txEnd + 20000)
+      ##snp.rows <- which(txStart - 100000 <= snp.hg18.pos & snp.hg18.pos <= txStart + 100000)
+      if(length(snp.rows) > 0) {
+        if(length(snp.rows) == 1) {
+          test.matrix <- as.matrix(geno.matrix[snp.rows,]) ## transpose for faster correlation computation
+        }else {
+          test.matrix <- t(geno.matrix[snp.rows,]) ## transpose for faster correlation computation
+        }
+        ## Get corresponding SNPs.
+        test.snps <- genotype.data$snp.name[snp.rows]
+        
+        ## NA genotypes for NA phenotypes.
+        test.matrix[which(is.na(pheno.cur)),] <- NA
+        
+        ## Recalculate MAF for each SNP. 
+        compute.maf <- function(r) {
+          genotypes <- test.matrix[,r]
+          ## Genotype codes.
+          ## 0-0.5] = BB allele
+          ## (0.5, 1.5] = heterozygous, AB alleles
+          ## (1.5, 2.5] = AA allele
+          major.cnt <- sum(0 <= genotypes & genotypes <= 0.5, na.rm=T)
+          het.cnt <- sum(0.5 < genotypes & genotypes <= 1.5, na.rm=T)
+          minor.cnt <- sum(1.5 < genotypes & genotypes <= 2.5, na.rm=T)
+          ##N <- dim(geno.matrix)[2]
+          N <- sum(is.na(genotypes) == F)
+          major.freq <- (2*major.cnt + het.cnt) / (2*N)
+          minor.freq <- (2*minor.cnt + het.cnt) / (2*N)
+          min(major.freq, minor.freq)
+        }
+        maf <- unlist(lapply(1:dim(test.matrix)[2], compute.maf))
+        maf.cut <- 0.1
+        maf.OK <- which(maf > maf.cut)
+        test.matrix <- as.matrix(test.matrix[, maf.OK])
+        test.snps <- test.snps[maf.OK]
+        
+        if(length(test.snps) > 0) { 
+          ## Get protein p-values.
+          not.na.idx <- which(is.na(pheno.cur) == F)
+          test.matrix <- test.matrix[not.na.idx,]
+          pheno.cur <- pheno.cur[not.na.idx]
+          
+          R.data <- cor(pheno.cur, test.matrix)
+          
+          absT.data <- abs(R.data * sqrt.nm2 / sqrt(1-R.data*R.data))
+          p.values.data <- 2*pt(-absT.data,df=nm2)
+          maxT.data.idx <- which.max(absT.data)
+          maxT.data <- absT.data[maxT.data.idx]
+          snpname <- test.snps[maxT.data.idx]
+          snp.pvalue <- p.values.data[maxT.data.idx]
+          snp.R.value <- R.data[maxT.data.idx]
+          
+          for(iter in 1:n.iter) {    ## Use pearson correlation p-values.
+            R.data <- cor(pheno.cur[sample(n)], test.matrix)
+            null.P.data[iter] <-  max(abs(R.data * sqrt.nm2 / sqrt(1-R.data*R.data)), na.rm=T)
+          }
+          adj.gene.pvalue <- mean(null.P.data > maxT.data, na.rm=T)
+          list(p.value=adj.gene.pvalue,snp.name=snpname, snp.pvalue=snp.pvalue, snp.R.value=snp.R.value)
+        }
+        else {
+          list(p.value=NA, snp.name=NA, snp.pvalue=NA, snp.R.value=NA)
+        }
+      }
+      else {
+        list(p.value=NA, snp.name=NA, snp.pvalue=NA, snp.R.value=NA)
+      }
+    }
+    perm.results <- lapply(1:dim(pheno.data.chr)[1], run.permutation)
+    #perm.results <- mclapply(1:dim(pheno.data.chr)[1], run.permutation, mc.cores=6, mc.preschedule=F)
+    ##perm.results <- mclapply(1:dim(pheno.data.chr)[1], run.permutation, mc.cores=6, mc.preschedule=T)
+    
+    p.values <- unlist(lapply(perm.results, function(x) { x$p.value } ))
+    snp.name <- unlist(lapply(perm.results, function(x) { x$snp.name } ))
+    snp.pvalue <- unlist(lapply(perm.results, function(x) { x$snp.pvalue } ))
+    snp.R.value <- unlist(lapply(perm.results, function(x) { x$snp.R.value } ))
+    
+    res <- data.frame(ENSG=pheno.data.chr$ENSG,chr=chr,
+                      p.values=p.values,                      
+                      snp.name=snp.name,
+                      snp.pvalue=snp.pvalue,
+                      snp.R.value=snp.R.value,
+                      stringsAsFactors=F)
+    return(res)
+  }
+  
+  #     df.list <- mclapply(1:dim(genotype.files)[1], process.chr, mc.cores=12, mc.preschedule=F)
+  df.list <- lapply(1:dim(genotype.files)[1], process.chr)
+  
+  combined <- df.list[[1]]
+  if(length(df.list) > 1) {
+    for(i in 2:length(df.list)) {
+      combined <- rbind(combined, df.list[[i]])
+    }
+  }
+  
+  file.name <- paste("combined_", reg.name, "_numPCs_", numPCs ,".RData", sep="")
+  save(combined, file=file.name)
+}
+stopCluster(cl)
+
+#read in all PC regressed SNP pQTL association files and compute number of pQTLs (at given pvalue threshold).
+##threshold is empirical (permutation derived) gene level p value based on 10K permutations at .01
+pQTL.files <- Sys.glob("./combined_pro_numPCs*.RData")
+pQTL <- c()
+for (file in pQTL.files){
+  load(file)
+  #sort and truncate combined by "p.values" to 1% level.
+  combined <- combined[order(combined$p.values),]
+  combined <- combined[combined$p.values <= .50,]
+  pQTL <- c(pQTL, nrow(combined))
+}
+#plot results.
+plot(0:20, pQTL, xlab = "# PCs regressed from protein data", ylab = "pQTLs at .50 threshold")
+
+
+#trying using the snp.pvalue column with p.adjust function
+pQTL.files <- Sys.glob("./combined_pro_numPCs*.RData")
+pQTL <- c()
+for (file in pQTL.files){
+  load(file)
+  #sort and truncate combined by "p.values" to 1% level.
+  combined <- combined[order(combined$snp.pvalue),]
+  combined$padjust <- p.adjust(combined$snp.pvalue, method = "BH")
+  combined <- combined[combined$padjust <= .1,]
+  pQTL <- c(pQTL, nrow(combined))
+}
+#plot results.
+plot(0:20, pQTL, xlab = "# PCs regressed from protein data", ylab = "pQTLs at .1 'snp.pvalue' + BH threshold")
 
 
 
