@@ -117,7 +117,8 @@ PhosPrepCombatPilot <- PhosPrepMatrices[[12]]#same as above with mean ratios for
 #### Add protein level information from GelPrep workup
 #First load MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: full MQoutput, MQ output raw data, median normalized, and quantile normalized. 
 
-# Choose directory containing proteomics data to pass to 'NormProt'
+# Choose directory containing proteomics data to pass to 'NormProt'.
+#note that this function now requires "genotypes_imputed" files and ensembl_4_30.gz from Jack to run PCregression pQTL optimization anew. 
 CorrectedDataProt <- NormProt(directory = "/mnt/lustre/home/bengelmann/MQfiles/EnsemblDBProteome/")#on cluster INCLUDES IBAQ
 CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteome/iBAQ proteome/")#from home INCLUDES IBAQ
 CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")#from laptop INCLUDES IBAQ
