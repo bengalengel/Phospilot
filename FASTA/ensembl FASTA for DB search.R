@@ -1,10 +1,9 @@
+#this script produces the FASTA file used for proteome database search and downstream processing. It is ugly. Sorry future self.
+
 #biomart practice. I want to see if I can pull the peptide fasta sequences for transcripts that meet a certain level of annotation confidence. I also want the fastas for the ENSP ids.Some ENSP transcripts have ambiguous start and stops. (5' and 3' truncations). I don't want to search a protein database with truncated proteins.
 #options are CCDS and GENCODE basic. The latter may include truncated transcripts. Therefore the CCDs SET IS USED subject to a few filters.
 
 # http://www.ensembl.org/Help/Glossary?id=500
-
-
-
 library("biomaRt")
 library("seqinr")
 
@@ -67,18 +66,23 @@ table(ensembl_75_CCDS$transcript_biotype)
 #total of 35587 transcripts
 
 
-####subset the ENSP fasta s.t. only ENSP ids within ensembl_75_CCDS set are retained
+####subset the ENSP fasta s.t. only ENSP ids within ensembl_75_CCDS set are retained -----
 
-#upload FASTA from archive site; 
+#upload FASTA from archive site;
 #create FASTA directory if it doesn't already exist
-dir.create(file.path(getwd(), "FASTA"))
+if(!file.exists(file.path(getwd(), "FASTA"))){
+  dir.create(file.path(file.path(getwd(), "FASTA"))
+}  
 
 #download file and save the date (first pass on 5/1/15)
+if(!file.exists(file.path(getwd(), "FASTA", "Homo_sapiens.GRCh37.75.pep.all.fa.gz"))){
 url <- "ftp://ftp.ensembl.org/pub/release-75/fasta/homo_sapiens/pep/Homo_sapiens.GRCh37.75.pep.all.fa.gz"
 destfile <- "FASTA/Homo_sapiens.GRCh37.75.pep.all.fa.gz"
 download.file(url, destfile)
 date_downld <- date()
-
+save(date_downld, )
+write.csv(date_downld, file = "./FASTA/FASTA_download_date.csv")
+}
 
 #read in the FASTA file using 'read.fasta' and 'gzfile' to uncompress the file
 EnsProt <- read.fasta(file = gzfile("./FASTA/Homo_sapiens.GRCh37.75.pep.all.fa.gz"), seqtype = "AA", as.string = T)
