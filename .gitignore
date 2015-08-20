@@ -9,14 +9,17 @@
 *.txt
 *.csv
 *.vcf
-*.html
+#*.html I am going to track these rmd produced files due to requirements to build cache etc
 
 #specific folders to ignore#
 #################
+Figs/*
 images/*
 MQ output/*
 NetKinout/*
 perseus enrichment/*
+NestedRE_scripts/NestedRE_tests_cache/*
+NestedRE_scripts/NestedRE_tests_files/*
 test_pca/*
 PSP/*
 FASTA/*
