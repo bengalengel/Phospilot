@@ -98,11 +98,12 @@ pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replica
 
 
 # protein level assignment and normalization and  using phosprep and gelprep data --------
-
 ##read in the proteome fasta file that was used for search. Here Ensembl cCDS. This will be used for protein assignment.
+if(!file.exists("./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa")){
+  source("./FASTA/ensembl FASTA for DB search.R")#produce file for db search
+}
+proteome <- read.fasta( file = "./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)
 
-proteome <- read.fasta( file = "./FASTA//Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)
-#see 'ensembl FASTA for DB search' file if file not present. Source it to produce the file in the required directory
 
 #### Add protein level information from PhosPrep workup
 #Protein assignment adds protein ids, positions within protein, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup. Normalization? NORMALIZATION?
