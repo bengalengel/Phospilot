@@ -14,12 +14,14 @@
 #specific folders to ignore#
 #################
 Figs/*
+ChainFiles/*
 images/*
 MQ output/*
 NetKinout/*
 perseus enrichment/*
 NestedRE_scripts/NestedRE_tests_cache/*
 NestedRE_scripts/NestedRE_tests_files/*
+NestedRE_scripts/NestedQCImages/*
 test_pca/*
 PSP/*
 FASTA/*
