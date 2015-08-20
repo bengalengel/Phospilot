@@ -130,7 +130,7 @@ NormProt <- function(directory){
   
   # Return and save the matrix with the maximum number of pQTL calls
   GelProtPCRegressed <- load.pro(numPCs)#PC corrected/regressed
-  row.names(GelProtPCRegressed) <- GelProtPCRegressed$ENSG
+#   row.names(GelProtPCRegressed) <- GelProtPCRegressed$ENSG
   
   file.name <- paste("GelProt_", numPCs ,"_PCsRegressed", ".RData", sep="")
   save(GelProtPCRegressed, file = file.name)

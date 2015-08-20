@@ -12,6 +12,7 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   
   #revert names of proteinnorm back to 'HL' for continuity with the structure below. (Changed back at the end)
   names(proteinnorm) <- gsub(names(proteinnorm), pattern = "LH", replacement = "HL")
+  names(proteinnorm) <- gsub(names(proteinnorm), pattern = "GM", replacement = "HL")
   
   ##combine the normalized protein information and the annotation data into a common dataframe for matching to the phospho data
   #   ibaq values to append
@@ -104,7 +105,6 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   for(i in seq_along(multExpanded1_withDE[,1])){
 #     for(i in 1:50){
       
-    
     #get the peptide to search
     peptide <- as.character(multExpanded1_withDE$Phospho..STY..Probabilities[i])
     peptide <- gsub(pattern = " *\\(.*?\\) *", replacement = "", peptide)
@@ -114,8 +114,8 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
     
     #Retrieve position(s) of phosphosite within protein match(s).
     PositionInProteins <- c()
-    for(i in seq_along(matches)){
-    seq <- unlist(getSequence(object = proteome[[matches[1]]], as.string = T))
+    for(j in seq_along(matches)){
+    seq <- unlist(seqinr::getSequence(object = proteome[[matches[j]]], as.string = T))##should be j
     #position of peptide within protein
     protpos <- regexpr(peptide,seq)
     #now I need the position of the modified site within the peptide

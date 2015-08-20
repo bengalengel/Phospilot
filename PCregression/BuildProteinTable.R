@@ -112,6 +112,9 @@ pheno.cols <- grep("HL", colnames(ProteinGene))
 logratios <- -log2(pheno.pro[,pheno.cols])
 pheno.pro[,pheno.cols] <- logratios
 
+#add protein id as rownames for future merging
+row.names(pheno.pro) <- ProteinGene$id
+
 #replace HL with GM
 names(pheno.pro) <- gsub("HL", "GM", names(pheno.pro))
 

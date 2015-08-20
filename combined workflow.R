@@ -13,13 +13,11 @@ source("counts.R")
 source("breakdown.R")
 source("BatchNorm.R")
 source("DiffPhos.R")
-source("DiffPhosProt.R")
 source("loadMQ2.R") #non normalized data
 source("NestedVar.R")
 source("NormProt.R")
 source("ProtAssignment.R")
 source("ProtAssignment2.R")
-source("DiffPhosProt.R")
 source("AddAnnotation.R")
 source("Enrichment.R")
 source("PerseusOut.R")
@@ -125,11 +123,13 @@ CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteo
 CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")#from laptop INCLUDES IBAQ
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
+RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed
 
-#ProtAssignment2 matches the two datasets. It returns a DF with the normalized protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
+
+#ProtAssignment2 matches the two datasets. It returns a DF with the PCregressed protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
 
 #for the moment I am using ME1 as ME with DE. Perhaps discriptive uses can be moved to the diffphos and/or diffphosprot functions.
-NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = ProtQuantiled, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)#pass com2 perhaps
+NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)#pass com2 perhaps
 multExpanded1 <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
 GelPrep <- NormalizedResults[[3]]#Protein level
