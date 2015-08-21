@@ -56,9 +56,9 @@ ProtAssignment <- function(protein, proteome, multExpanded1){
 
     #Retrieve position(s) of phosphosite within protein match(s). Where a protein group member doesn't match an 'NA' is returned. Oftentimes these are contaminant proteins.
     PositionInProteins <- c()
-    for(i in seq_along(matches)){
-      index <- grep(matches[i], names(proteome))
-      seq <- unlist(getSequence(object = proteome[index], as.string = T))
+    for(j in seq_along(matches)){
+      index <- grep(matches[j], names(proteome))
+      seq <- unlist(seqinr::getSequence(object = proteome[index], as.string = T))
       #position of peptide within protein
       protpos <- regexpr(peptide,seq)
       #now I need the position of the modified site within the peptide
@@ -325,7 +325,7 @@ for (i in 1:(ncol(quantiled4))){
   #At least two calls in each batch (for Combat)
   DFs <- list(multExpanded1, RawRatios, MedianNorm, quantiled, quantiled2, quantiled3, quantiled4, quantiled5, quantiledBio,
               com2, adata, pilot)
-  
+  save(DFs, file = "./PhosPrepMatrices.RData")
   return(DFs)
 }
 

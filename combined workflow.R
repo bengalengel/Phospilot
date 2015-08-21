@@ -89,7 +89,11 @@ multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] 
 # Normalization and batch correction of confounded data -------------------
 
 #remove an outlier, normalize (median and quantile), and batch correct (combat). Returned are EDA plots and a list of DFs.See BatchNorm for details
+if(!file.exists("./CorrectedData.RData")) {
 CorrectedData <- BatchNorm(multExpanded1=multExpanded1)#class 1 sites
+}else{
+  load("./CorrectedData.RData")
+}
 com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
 adata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
 pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
@@ -104,8 +108,12 @@ proteome <- read.fasta( file = "./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCD
 
 
 #### Add protein level information from PhosPrep workup
-#Protein assignment adds protein ids, positions within protein, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup. Normalization? NORMALIZATION?
-PhosPrepMatrices <- ProtAssignment(protein, proteome, multExpanded1)
+#Protein assignment adds protein ids, positions within protein, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup.
+if(!file.exists("./PhosPrepMatrices.RData")) {
+  PhosPrepMatrices <- ProtAssignment(protein, proteome, multExpanded1)
+}else{
+  load("./PhosPrepMatrices.RData")
+}
 multExpanded1 <- PhosPrepMatrices[[1]]
 PhosPrepquantiledBio <- PhosPrepMatrices[[9]]#med/norm with one measurement in each bio rep
 PhosPrepCombat <- PhosPrepMatrices[[10]]#normalized/batch corrected (using ComBat) data frame
@@ -129,7 +137,12 @@ RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed
 #ProtAssignment2 matches the two datasets. It returns a DF with the PCregressed protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
 
 #for the moment I am using ME1 as ME with DE. Perhaps discriptive uses can be moved to the diffphos and/or diffphosprot functions.
-NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)#pass com2 perhaps
+
+#note this take awhile!!!
+if(!file.exists("./NormalizedResults.RData")){
+NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)}else{
+  load("./NormalizedResults.RData")
+}
 multExpanded1 <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
 GelPrep <- NormalizedResults[[3]]#Protein level

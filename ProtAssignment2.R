@@ -146,17 +146,20 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
       assignedProtein <- matchingGroups[which.max(counts),] #need to fix this to return desired numbers
       tmp <- assignedProtein[c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....", "Sequence.length", "Sequence.lengths", 
                                "HL18862", "HL18486", "HL19160", ibaq)]
+      tmp$PositionInProteins <- NA
       #protein_norm <- rbind(protein_norm,tmp)
     }
     if(nrow(matchingGroups) == 1){
       tmp <- matchingGroups[c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....", "Sequence.length", "Sequence.lengths", 
                               "HL18862", "HL18486", "HL19160", ibaq)]
+      tmp$PositionInProteins <- NA
       #protein_norm <- rbind(protein_norm,tmp)
     }
     if(nrow(matchingGroups)==0){#set names of dataframe in the event the first loop doesn't produce a match
       tmp <- as.data.frame(t(rep(NA,17)))
       names(tmp) <- c("Protein.IDs","Majority.protein.IDs","Sequence.coverage....", "Sequence.length", "Sequence.lengths", 
                       "HL18862", "HL18486", "HL19160", ibaq)
+      tmp$PositionInProteins <- NA
       #protein_norm <- rbind(protein_norm,tmp)
     }
     
@@ -169,15 +172,15 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
     Protein.IDs <- paste(Protein.IDsF, collapse = ";")
     tmp$Protein.IDs <- Protein.IDs
     
-    #add the position of the modified site information based on matching protein ids
-    PositionInProteins <- PositionInProteins[matches %in% Protein.IDsF]
-    tmp$PositionInProteins <- paste(PositionInProteins, collapse = ";")
-    
     Majority.protein.IDs <- strsplit(as.character(tmp$Majority.protein.IDs), ";")
     Majority.protein.IDs <- unlist(Majority.protein.IDs)
     Majority.protein.IDs <- Majority.protein.IDs[Majority.protein.IDs %in% matches]
     Majority.protein.IDs <- paste(Majority.protein.IDs, collapse = ";")
     tmp$Majority.protein.IDs <- Majority.protein.IDs
+    
+    #add the position of the modified site information based on matching protein ids
+    PositionInProteins <- PositionInProteins[matches %in% Protein.IDsF]
+    tmp$PositionInProteins <- paste(PositionInProteins, collapse = ";")
     
     #bind the dataframe
     protein_norm <- rbind(protein_norm,tmp)
@@ -187,9 +190,8 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   #affix string to the beginning of each element in the character vector
   
   ibaqnames <- paste("pp",ibaq, sep = "")
-  
   names(protein_norm) <- c("ppProteinIDs", "ppMajorityProteinIDs", "ppSequenceCoverage", "ppSequence.length", "ppSequence.lengths",
-                           "LH18862", "LH18486", "LH19160", "ppPositionInProteins", ibaqnames)
+                           "LH18862", "LH18486", "LH19160", ibaqnames, "ppPositionInProteins")
   
   #link the protein quants to the phospho ids to make a dataframe with normalized protein quants appended. Note "REV_" entries are removed again within this function in case they were passed accidentally.
   AllPhos <- cbind(AllPhos, protein_norm)
@@ -326,6 +328,6 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   
   
   DFs <- list(AllPhos,ProtNormalized, GelPrep)
-  
+  save(DFs, file = "./NormalizedResults.RData")
   return(DFs)
 }
