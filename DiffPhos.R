@@ -273,6 +273,15 @@ multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(FitData),"+",
 #add F test values to the table
 multExpanded1$globalFsig = ifelse(multExpanded1$idmult %in% row.names(sigFvals),"+","-")
 
+multExpanded1$globalFstat  <-  sapply(as.character(multExpanded1$idmult), function(x){
+  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "F"], "-")
+})
+multExpanded1$globalFPval  <-  sapply(as.character(multExpanded1$idmult), function(x){
+  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "P.Value"], "-")
+})
+multExpanded1$globalFAdjPval  <- sapply(as.character(multExpanded1$idmult), function(x){
+  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "adj.P.Val"], "-")
+})
 
 #add DE to table
 multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
@@ -288,7 +297,8 @@ multExpanded1$cont3up = ifelse(multExpanded1$idmult %in% row.names(c3up),"+","-"
 multExpanded1$cont3down = ifelse(multExpanded1$idmult %in% row.names(c3down),"+","-")
 
 #replace the names
-propernames <- c(paste(header, "SubtoDE", sep = ""), paste(header, "globalFsig", sep = ""),paste(header, "DEcont1", sep = ""),
+propernames <- c(paste(header, "SubtoDE", sep = ""), paste(header, "globalFsig", sep = ""), paste(header, "Fstat", sep = ""),
+                 paste(header, "FPval", sep = ""), paste(header, "FAdjPval", sep = ""), paste(header, "DEcont1", sep = ""),
                  paste(header, "DEcont2", sep = ""), paste(header, "DEcont3", sep = ""), paste(header, "cont1up", sep = ""),
                  paste(header, "cont1down", sep = ""), paste(header, "cont2up", sep = ""), paste(header, "cont2down", sep = ""),
                  paste(header, "cont3up", sep = ""), paste(header, "cont3down", sep = ""))
@@ -324,5 +334,6 @@ multExpanded1 <- ProcessFit(fit2 = GelPrepNormFit, header = "GelPrepNorm", FitDa
   
   #write the multExpanded table with DE information
   write.table(multExpanded1,"multExpanded1_withDE1.csv", sep=',',col.names=T, row.names=F)
+  save(multExpanded1, file = "./multExpanded_withDE.RData")
   return(multExpanded1)
 }
