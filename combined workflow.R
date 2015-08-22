@@ -342,11 +342,14 @@ barplot(table(ProteinSpread$shared.ind), main = "Shared (+) vs segregated (-) mu
 #############################
 
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
-multExpanded1_withDE <- AddAnnotation(multExpanded1_withDE)
-
+if(!file.exists("./multExpanded_withDE_annotated.RData")){}
+multExpanded1_withDE_annotated <- AddAnnotation(multExpanded1_withDE)
+}else{
+  load("./multExpanded_withDE_annotated.RData")
+}
 
 # (Ontology) Enrichment analysis performed on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
-enrichment_tables <- Enrichment(multExpanded1_withDE)
+enrichment_tables <- Enrichment(multExpanded1_withDE_annotated)
 #NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA. annotation added but no corresponding information for that id.
 
 #copynumber estimates using perseus total protein algorithm (can't use protein ruler approach with ensembl database). 
