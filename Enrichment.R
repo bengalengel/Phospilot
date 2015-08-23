@@ -68,192 +68,38 @@ Enrichment <- function(multExpanded1_withDE){
   }
   
   
-  #First is GO
+  #GO and reactome enrichments 
   #######################
-  #get background
-  backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE == "+",]
-  backgroundGO <- backgroundGO$GOIDs
-  BGGO <- SplitNClean(backgroundGO)
   
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$globalFsig == "+",]
-  enrichedGO <- enrichedGO$GOIDs
-  DEGO <- SplitNClean(enrichedGO)
+  #confounded
+  Confounded.BGGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$ConfoundedSubtoDE == "+", "confoundedGOID"]))
+  Confounded.DEGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$ConfoundedglobalFsig == "+", "confoundedGOID"]))  
+  Confounded.BGRO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$ConfoundedSubtoDE == "+", "confoundedReactIDs"]))
+  Confounded.DERO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$ConfoundedglobalFsig == "+", "confoundedReactIDs"]))  
   
-  #for the variance components.
-  backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$SubtoVarcomp == "+",]
-  backgroundGO <- backgroundGO$GOIDs
-  BGGOvarcomp <- SplitNClean(backgroundGO)
+  #phosprep protein covariate
+  PhosPrep.BGGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$PhosPrepCovSubtoDE == "+", "PhosPrepGOID"]))
+  PhosPrep.DEGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$PhosPrepCovglobalFsig == "+", "PhosPrepGOID"]))  
+  PhosPrep.BGRO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$PhosPrepCovSubtoDE == "+", "PhosPrepReactIDs"]))
+  PhosPrep.DERO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$PhosPrepCovglobalFsig == "+", "PhosPrepReactIDs"]))  
   
-  #high ind/highbio 
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$HighIndVar == "+" & multExpanded1_withDE$HighBioVar == "+",]
-  enrichedGO <- enrichedGO$GOIDs
-  varcompHIHB <- SplitNClean(enrichedGO)
-  
-  #low ind/low bio 
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$LowIndVar == "+" & multExpanded1_withDE$LowBioVar == "+",]
-  enrichedGO <- enrichedGO$GOIDs
-  varcompLILB <- SplitNClean(enrichedGO)
-  
-  #low ind/high bio 
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$LowIndVar == "+" & multExpanded1_withDE$HighBioVar == "+",]
-  enrichedGO <- enrichedGO$GOIDs
-  varcompLIHB <- SplitNClean(enrichedGO)
-  
-  #high ind/low bio 
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$HighIndVar == "+" & multExpanded1_withDE$LowBioVar == "+",]
-  enrichedGO <- enrichedGO$GOIDs
-  varcompHILB <- SplitNClean(enrichedGO)
-  
-  #now for the protein normalized DE
-  backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEpn =="+",]
-  backgroundGO <- backgroundGO$ppGOIDs
-  BGGOpn <- SplitNClean(backgroundGO)
-    
-    
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$globalFsigpn == "+",]
-  # enrichedGO <- enrichedGO[!duplicated(enrichedGO$id),]
-  enrichedGO <- enrichedGO$ppGOIDs
-  DEGOpn <- SplitNClean(enrichedGO)
-
-  #for the variance components.
-  backgroundGO <- multExpanded1_withDE[multExpanded1_withDE$ppSubtoVarcomp == "+",]
-  backgroundGO <- backgroundGO$ppGOIDs
-  pnBGGOvarcomp <- SplitNClean(backgroundGO)
-  
-  #high ind/highbio 
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$pnHighIndVar == "+" & multExpanded1_withDE$pnHighBioVar == "+",]
-  enrichedGO <- enrichedGO$ppGOIDs
-  pnvarcompHIHB <- SplitNClean(enrichedGO)
-  
-  #low ind/low bio 
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$pnLowIndVar == "+" & multExpanded1_withDE$pnLowBioVar == "+",]
-  enrichedGO <- enrichedGO$ppGOIDs
-  pnvarcompLILB <- SplitNClean(enrichedGO)
-  
-  #low ind/high bio 
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$pnLowIndVar == "+" & multExpanded1_withDE$pnHighBioVar == "+",]
-  enrichedGO <- enrichedGO$ppGOIDs
-  pnvarcompLIHB <- SplitNClean(enrichedGO)
-  
-  #high ind/low bio 
-  enrichedGO <- multExpanded1_withDE[multExpanded1_withDE$pnHighIndVar == "+" & multExpanded1_withDE$pnLowBioVar == "+",]
-  enrichedGO <- enrichedGO$ppGOIDs
-  pnvarcompHILB <- SplitNClean(enrichedGO)
+  #phosprep protein covariate
+  GelPrep.BGGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepGOID"]))
+  GelPrep.DEGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormglobalFsig == "+", "GelPrepGOID"]))  
+  GelPrep.BGRO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepReactIDs"]))
+  GelPrep.DERO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormglobalFsig == "+", "GelPrepReactIDs"]))  
   
   
   #run the enrich function for GO data. 10 enrichments total
   ############################################################
   #omnibus F enrichment
-  GOenrichment <- Enrich(BGGO, DEGO, ontology = "GO")
-  
-  #varcomp enrichments
-  GOenrichHIHB <- Enrich(BGGOvarcomp, varcompHIHB, ontology = "GO")
-  GOenrichHILB <- Enrich(BGGOvarcomp, varcompHILB, ontology = "GO")# NOTHING ENRICHED
-  GOenrichLIHB <- Enrich(BGGOvarcomp, varcompLIHB, ontology = "GO")
-  GOenrichLILB <- Enrich(BGGOvarcomp, varcompLILB, ontology = "GO")
-  
-  #protein normalized data
-  
-  #omnibus F enrichment
-  GOenrichmentpn <- Enrich(BGGOpn, DEGOpn, ontology = "GO")
-  
-  #varcomp enrichments
-  pnGOenrichHIHB <- Enrich(pnBGGOvarcomp, pnvarcompHIHB, ontology = "GO")
-  pnGOenrichHILB <- Enrich(pnBGGOvarcomp, pnvarcompHILB, ontology = "GO")# NOTHING ENRICHED
-  pnGOenrichLIHB <- Enrich(pnBGGOvarcomp, pnvarcompLIHB, ontology = "GO")
-  pnGOenrichLILB <- Enrich(pnBGGOvarcomp, pnvarcompLILB, ontology = "GO")
-
-
-  #same steps for reactome
-  ###################
-  backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$SubtoDE=="+",]
-  backgroundReact <- backgroundReact$ReactIDs
-  BGRO <- SplitNClean(backgroundReact)
-  
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$globalFsig == "+",]
-  enrichedReact <- enrichedReact$ReactIDs
-  DERO <- SplitNClean(enrichedReact)
-  
-  #for the variance components.
-  backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$SubtoVarcomp == "+",]
-  backgroundReact <- backgroundReact$ReactIDs
-  BGROvarcomp <- SplitNClean(backgroundReact)
-  
-  #high ind/highbio 
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$HighIndVar == "+" & multExpanded1_withDE$HighBioVar == "+",]
-  enrichedReact <- enrichedReact$ReactIDs
-  ROvarcompHIHB <- SplitNClean(enrichedReact)
-  
-  #low ind/low bio 
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$LowIndVar == "+" & multExpanded1_withDE$LowBioVar == "+",]
-  enrichedReact <- enrichedReact$ReactIDs
-  ROvarcompLILB <- SplitNClean(enrichedReact)
-  
-  #low ind/high bio 
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$LowIndVar == "+" & multExpanded1_withDE$HighBioVar == "+",]
-  enrichedReact <- enrichedReact$ReactIDs
-  ROvarcompLIHB <- SplitNClean(enrichedReact)
-  
-  #high ind/low bio 
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$HighIndVar == "+" & multExpanded1_withDE$LowBioVar == "+",]
-  enrichedReact <- enrichedReact$ReactIDs
-  ROvarcompHILB <- SplitNClean(enrichedReact)
-  
-  
-  #now for the protein normalized DE
-  backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEpn == "+",]
-  backgroundReact <- backgroundReact$ppReactIDs
-  pnBGRO <- SplitNClean(backgroundReact)
-  
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$globalFsigpn == "+",]
-  enrichedReact <- enrichedReact$ppReactIDs
-  pnDERO <- SplitNClean(enrichedReact)
-  
-  #for the variance components.
-  backgroundReact <- multExpanded1_withDE[multExpanded1_withDE$ppSubtoVarcomp == "+",]
-  backgroundReact <- backgroundReact$ppReactIDs
-  pnBGROvarcomp <- SplitNClean(backgroundReact)
-  
-  #high ind/highbio 
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$pnHighIndVar == "+" & multExpanded1_withDE$pnHighBioVar == "+",]
-  enrichedReact <- enrichedReact$ppReactIDs
-  pnROvarcompHIHB <- SplitNClean(enrichedReact)
-  
-  #low ind/low bio 
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$pnLowIndVar == "+" & multExpanded1_withDE$pnLowBioVar == "+",]
-  enrichedReact <- enrichedReact$ppReactIDs
-  pnROvarcompLILB <- SplitNClean(enrichedReact)
-  
-  #low ind/high bio 
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$pnLowIndVar == "+" & multExpanded1_withDE$pnHighBioVar == "+",]
-  enrichedReact <- enrichedReact$ppReactIDs
-  pnROvarcompLIHB <- SplitNClean(enrichedReact)
-  
-  #high ind/low bio 
-  enrichedReact <- multExpanded1_withDE[multExpanded1_withDE$pnHighIndVar == "+" & multExpanded1_withDE$pnLowBioVar == "+",]
-  enrichedReact <- enrichedReact$ppReactIDs
-  pnROvarcompHILB <- SplitNClean(enrichedReact)
-  
-  #run the function for Reactome. 10 Enrichments total
-  ##################################
-  
-  #omnibus F
-  ROenrichment <- Enrich(BGRO, DERO, ontology = "Reactome")
-  #varcomps
-  ROenrichHIHB <- Enrich(BGROvarcomp, ROvarcompHIHB, ontology = "Reactome")
-  ROenrichHILB <- Enrich(BGROvarcomp, ROvarcompHILB, ontology = "Reactome")
-  ROenrichLIHB <- Enrich(BGROvarcomp, ROvarcompLIHB, ontology = "Reactome")#from above
-  ROenrichLILB <- Enrich(BGROvarcomp, ROvarcompLILB, ontology = "Reactome")#NOTHING ENRICHED
-  
-  #protein normalized data
-  #omnibus F
-  ROenrichmentpn <- Enrich(pnBGRO, pnDERO, ontology = "Reactome")
-  #varcomps
-  pnROenrichHIHB <- Enrich(pnBGROvarcomp, pnROvarcompHIHB, ontology = "Reactome")#HIHB
-  pnROenrichHILB <- Enrich(pnBGROvarcomp, pnROvarcompHILB, ontology = "Reactome")#
-  pnROenrichLIHB <- Enrich(pnBGROvarcomp, pnROvarcompLIHB, ontology = "Reactome")#from above
-  pnROenrichLILB <- Enrich(pnBGROvarcomp, pnROvarcompLILB, ontology = "Reactome")#nothing enriched
-  
+  Enrich.GO.confounded <- Enrich(Confounded.BGGO, Confounded.DEGO, ontology = "GO")
+  Enrich.GO.PhosPrep <- Enrich(PhosPrep.BGGO, PhosPrep.DEGO, ontology = "GO")
+  Enrich.GO.GelPrep <- Enrich(GelPrep.BGGO, GelPrep.DEGO, ontology = "GO")
+  Enrich.RO.confounded <- Enrich(Confounded.BGRO, Confounded.DERO, ontology = "Reactome")
+  Enrich.RO.PhosPrep <- Enrich(PhosPrep.BGRO, PhosPrep.DERO, ontology = "Reactome")
+  Enrich.RO.GelPrep <- Enrich(GelPrep.BGRO, GelPrep.DERO, ontology = "Reactome")
+    
   
   #return a list of enrichment DFs
   ###############################
