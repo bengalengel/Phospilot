@@ -342,7 +342,7 @@ barplot(table(ProteinSpread$shared.ind), main = "Shared (+) vs segregated (-) mu
 #############################
 
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
-if(!file.exists("./multExpanded_withDE_annotated.RData")){}
+if(!file.exists("./multExpanded_withDE_annotated.RData")){
 multExpanded1_withDE_annotated <- AddAnnotation(multExpanded1_withDE)
 }else{
   load("./multExpanded_withDE_annotated.RData")
@@ -353,7 +353,7 @@ enrichment_tables <- Enrichment(multExpanded1_withDE_annotated)
 #NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA. annotation added but no corresponding information for that id.
 
 #copynumber estimates using perseus total protein algorithm (can't use protein ruler approach with ensembl database). 
-#Here copynumbers across samples and experimental approaches are compared (correlations) and bias for protein expression level is explored within the variance component clusters and diffphos for confounded and non-confounded samples. A resampling based approach may be needed here because of multiple phosphorylation sites/protein requires that I threshold proteins into high/med/low expression (or similar) categories. This function will be self contained but MAY add cn estimates to multexpanded table. 
+#Here copynumbers across samples and experimental approaches are compared    (correlations) and bias for protein expression level is explored within the variance component clusters and diffphos for confounded and non-confounded samples. A resampling based approach may be needed here because of multiple phosphorylation sites/protein requires that I threshold proteins into high/med/low expression (or similar) categories. This function will be self contained but MAY add cn estimates to multexpanded table. 
 
 
 #next is work at the genome level to explicitly show that genetic variation is driving these changes. nonsynSNPs, pQTLs, nonsynSNPs surrounding the phosphosite, etc

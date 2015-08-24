@@ -55,104 +55,148 @@ ensembl_75_CCDS <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_i
 ensembl_75_CCDS_EG <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'ensembl_peptide_id',"entrezgene"), 
                         filters = 'with_ccds', values = T, mart = ensembl_75)#four values without entrez ids
 
+ensembl_75_CCDS_pfam <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'ensembl_peptide_id',"pfam"), 
+                            filters = 'with_ccds', values = T, mart = ensembl_75)#four values without entrez ids
+
 
 #GOIDs, (hugo gene nomenclature committee) hgncid, hgncnam and associated description
 
 ### Define function for adding GOIDs, description, hgncid, hgncsymbol, entrezgene ----------
 
-annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG){
+annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam){
 # This function accepts a LIST of unique protein groups and assigns annotation using passed annotation DF
-
-#vector function flexible for preallocation
-GOIDs <- vector(mode = 'list', length = length(proteins))
-description <- vector(mode = 'list', length = length(proteins))
-hgncid <- vector(mode = 'list', length = length(proteins))
-hgncsymbol <- vector(mode = 'list', length = length(proteins))
-entrezgene <- vector(mode = 'list', length = length(proteins))
-ReactIDs <- vector(mode = 'list', length = length(proteins))
-
-
-cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
-registerDoParallel(cl)
-GOIDs <- foreach(i=1:length(proteins)) %dopar% {
-  ENSPIDs <- strsplit(proteins[[i]], ";")
-  ENSPIDs <- as.character(unlist(ENSPIDs))
-  ENSPIDs <- paste(ENSPIDs, collapse = "|")
-  index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
-  GOIDs[[i]] <- ensembl_75_CCDS$go_id[index]
-}
-stopCluster(cl)
-
-cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
-registerDoParallel(cl)
-description <- foreach(i=1:length(proteins)) %dopar% {
-  ENSPIDs <- strsplit(proteins[[i]], ";")
-  ENSPIDs <- as.character(unlist(ENSPIDs))
-  ENSPIDs <- paste(ENSPIDs, collapse = "|")
-  index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
-  description[[i]] <- unique(ensembl_75_CCDS$description[index])
-}
-stopCluster(cl)
-
-cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
-registerDoParallel(cl)
-hgncid <- foreach(i=1:length(proteins)) %dopar% {
-  ENSPIDs <- strsplit(proteins[[i]], ";")
-  ENSPIDs <- as.character(unlist(ENSPIDs))
-  ENSPIDs <- paste(ENSPIDs, collapse = "|")
-  index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
-  hgncid[[i]] <- unique(ensembl_75_CCDS$hgnc_id[index])
-}
-stopCluster(cl)
-
-cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
-registerDoParallel(cl)
-hgncsymbol <- foreach(i=1:length(proteins)) %dopar% {
-  ENSPIDs <- strsplit(proteins[[i]], ";")
-  ENSPIDs <- as.character(unlist(ENSPIDs))
-  ENSPIDs <- paste(ENSPIDs, collapse = "|")
-  index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
-  hgncsymbol[[i]] <- unique(ensembl_75_CCDS$hgnc_symbol[index])
-}
-stopCluster(cl)
-
-cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
-registerDoParallel(cl)
-entrezgene <- foreach(i=1:length(proteins)) %dopar% {
-  ENSPIDs <- strsplit(proteins[[i]], ";")
-  ENSPIDs <- as.character(unlist(ENSPIDs))
-  ENSPIDs <- paste(ENSPIDs, collapse = "|")
-  index <- grep(ENSPIDs, ensembl_75_CCDS_EG$ensembl_peptide_id)
-  entrezgene[[i]] <- unique(ensembl_75_CCDS_EG$entrezgene[index])
-}
-stopCluster(cl)
-
-#now for the reactomeIds. Entrezgene id is the only valid keytype
-
-cl <- makeCluster(5)#I had a crash when using all 8
-registerDoParallel(cl)
-ReactIDs <- foreach(i=seq_along(entrezgene), .packages = "reactome.db") %dopar% {
-  #define if hgnc is valid keytype for reactomedb
-  pos_err <- tryCatch(select(reactome.db, keys=as.character(entrezgene[[i]]), columns="REACTOMEID", keytype="ENTREZID"),error=function(e) e)
-  if(!inherits(pos_err, "error")){
-    tmp <- select(reactome.db, keys=as.character(entrezgene[[i]]), columns="REACTOMEID", keytype="ENTREZID")
-    ReactIDs[[i]] <- as.character(tmp$REACTOMEID)
+  #not easy to download so manually curated from pfam as of 8-24-15
+  pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
+                    "PF00017", "PF08416", "PF00168",#Y
+                    "PF00782", "PF00102", "PF13350", "PF06602", "PF04273", "PF03162", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
+                    "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
+                    "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
+  
+  
+  
+  #vector function flexible for preallocation
+  GOIDs <- vector(mode = 'list', length = length(proteins))
+  description <- vector(mode = 'list', length = length(proteins))
+  hgncid <- vector(mode = 'list', length = length(proteins))
+  hgncsymbol <- vector(mode = 'list', length = length(proteins))
+  entrezgene <- vector(mode = 'list', length = length(proteins))
+  ReactIDs <- vector(mode = 'list', length = length(proteins))
+  pfamIDs <- vector(mode = 'list', length = length(proteins))
+  pfamIDphospho <- vector(mode = 'list', length = length(proteins))
+  
+  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  registerDoParallel(cl)
+  GOIDs <- foreach(i=1:length(proteins)) %dopar% {
+    ENSPIDs <- strsplit(proteins[[i]], ";")
+    ENSPIDs <- as.character(unlist(ENSPIDs))
+    ENSPIDs <- paste(ENSPIDs, collapse = "|")
+    index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
+    GOIDs[[i]] <- ensembl_75_CCDS$go_id[index]
   }
-}
-stopCluster(cl)
-
-proteins <- as.character(proteins)
-names(GOIDs) <- proteins
-names(description) <- proteins
-names(hgncid) <- proteins
-names(hgncsymbol) <- proteins
-names(entrezgene) <- proteins
-names(ReactIDs) <- proteins
-
-annotation.results <- list(GOIDs, description, hgncid, hgncsymbol, entrezgene, ReactIDs)
-names(annotation.results) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs")
-
-return(annotation.results)
+  stopCluster(cl)
+  
+  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  registerDoParallel(cl)
+  description <- foreach(i=1:length(proteins)) %dopar% {
+    ENSPIDs <- strsplit(proteins[[i]], ";")
+    ENSPIDs <- as.character(unlist(ENSPIDs))
+    ENSPIDs <- paste(ENSPIDs, collapse = "|")
+    index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
+    description[[i]] <- unique(ensembl_75_CCDS$description[index])
+  }
+  stopCluster(cl)
+  
+  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  registerDoParallel(cl)
+  hgncid <- foreach(i=1:length(proteins)) %dopar% {
+    ENSPIDs <- strsplit(proteins[[i]], ";")
+    ENSPIDs <- as.character(unlist(ENSPIDs))
+    ENSPIDs <- paste(ENSPIDs, collapse = "|")
+    index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
+    hgncid[[i]] <- unique(ensembl_75_CCDS$hgnc_id[index])
+  }
+  stopCluster(cl)
+  
+  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  registerDoParallel(cl)
+  hgncsymbol <- foreach(i=1:length(proteins)) %dopar% {
+    ENSPIDs <- strsplit(proteins[[i]], ";")
+    ENSPIDs <- as.character(unlist(ENSPIDs))
+    ENSPIDs <- paste(ENSPIDs, collapse = "|")
+    index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
+    hgncsymbol[[i]] <- unique(ensembl_75_CCDS$hgnc_symbol[index])
+  }
+  stopCluster(cl)
+  
+  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  registerDoParallel(cl)
+  entrezgene <- foreach(i=1:length(proteins)) %dopar% {
+    ENSPIDs <- strsplit(proteins[[i]], ";")
+    ENSPIDs <- as.character(unlist(ENSPIDs))
+    ENSPIDs <- paste(ENSPIDs, collapse = "|")
+    index <- grep(ENSPIDs, ensembl_75_CCDS_EG$ensembl_peptide_id)
+    entrezgene[[i]] <- unique(ensembl_75_CCDS_EG$entrezgene[index])
+  }
+  stopCluster(cl)
+  
+  #now for the reactomeIds. Entrezgene id is the only valid keytype
+  cl <- makeCluster(5)#I had a crash when using all 8
+  registerDoParallel(cl)
+  ReactIDs <- foreach(i=seq_along(entrezgene), .packages = "reactome.db") %dopar% {
+    #define if hgnc is valid keytype for reactomedb
+    pos_err <- tryCatch(select(reactome.db, keys=as.character(entrezgene[[i]]), columns="REACTOMEID", keytype="ENTREZID"),error=function(e) e)
+    if(!inherits(pos_err, "error")){
+      tmp <- select(reactome.db, keys=as.character(entrezgene[[i]]), columns="REACTOMEID", keytype="ENTREZID")
+      ReactIDs[[i]] <- as.character(tmp$REACTOMEID)
+    }
+  }
+  stopCluster(cl)
+  
+  
+  #pfam ids
+  cl <- makeCluster(5)
+  registerDoParallel(cl)
+  pfamIDs <- foreach(i=1:length(proteins)) %dopar% {
+    ENSPIDs <- strsplit(proteins[[i]], ";")
+    ENSPIDs <- as.character(unlist(ENSPIDs))
+    ENSPIDs <- paste(ENSPIDs, collapse = "|")
+    index <- grep(ENSPIDs, ensembl_75_CCDS_pfam$ensembl_peptide_id)
+    tmp <- unique(ensembl_75_CCDS_pfam$pfam[index])
+    if(tmp != ""){
+      pfamIDs[[i]] <- unique(ensembl_75_CCDS_pfam$pfam[index])
+    }else {
+      pfamIDs[[i]] <- NA
+    }
+  }
+  stopCluster(cl)
+  
+  #binary assignment of pfam id as phospho 'relevant'
+  cl <- makeCluster(5)
+  registerDoParallel(cl)
+  pfamIDphospho <- foreach(i=1:length(pfamIDs)) %dopar% {
+    if(any(pfamIDs[[i]] %in% pfam.phospho)){
+      pfamIDphospho[[i]] <- "yes"
+    } else {
+      pfamIDphospho[[i]] <- "no"
+    }
+  }
+  stopCluster(cl)
+  
+  
+  proteins <- as.character(proteins)
+  names(GOIDs) <- proteins
+  names(description) <- proteins
+  names(hgncid) <- proteins
+  names(hgncsymbol) <- proteins
+  names(entrezgene) <- proteins
+  names(ReactIDs) <- proteins
+  names(pfamIDs) <- proteins
+  names(pfamIDphospho) <- proteins
+  
+  annotation.results <- list(GOIDs, description, hgncid, hgncsymbol, entrezgene, ReactIDs, pfamIDs, pfamIDphospho)
+  names(annotation.results) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs", "PFamIDs", "PFamIDPhospho")
+  
+  return(annotation.results)
 }
 
 ###Bulk annotation add ----------
@@ -165,8 +209,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG)
-names(confounded.annotation) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs")
+confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam)
 
 ###phosprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
@@ -176,8 +219,8 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG)
-names(PhosPrep.annotation) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs")
+PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam)
+
 ###gelprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
 proteins <- unique(multExpanded1_withDE$ppMajorityProteinIDs)
@@ -185,8 +228,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG)
-names(GelPrep.annotation) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs")
+GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam)
 
 
 #Add these annotation IDs to the original ME dataframe. 
