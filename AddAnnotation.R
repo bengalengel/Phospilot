@@ -35,6 +35,36 @@ require(biomaRt)
 # head(select(Homo.sapiens, keys=ids, columns="GOALL", keytype="UNIPROT"))#above is more direct
 ######################
 
+##biogrid information 
+# BIOGRID REST service for individual queries - http://wiki.thebiogrid.org/doku.php/biogridrest 
+# access key - 87836af89316ba4f59bcb1e8d81df273
+
+#get human interactions from the biogrid server.
+if(!file.exists("./BIOGRID")){
+  dir.create("./BIOGRID")
+}
+
+if(!file.exists("./BIOGRID/BIOGRID-ORGANISM-3.4.127.tab2.zip")){
+url <- 'http://thebiogrid.org/downloads/archives/Release%20Archive/BIOGRID-3.4.127/BIOGRID-ORGANISM-3.4.127.tab2.zip'
+destfile <- "./BIOGRID/BIOGRID-ORGANISM-3.4.127.tab2.zip"
+download.file(url, destfile)
+date_downld <- date()
+write.csv(date_downld, file = "./BIOGRID/BIOGRID_download_date.csv")
+}
+
+#unzip and load the human interactions
+if(!file.exists("./BIOGRID/BIOGRID-ORGANISM-Homo_sapiens-3.4.127.tab2.txt")){
+human <- unzip("./BIOGRID/BIOGRID-ORGANISM-3.4.127.tab2.zip", list = TRUE)[23,1]#this is the human file
+unzip("./BIOGRID/BIOGRID-ORGANISM-3.4.127.tab2.zip", files = human, exdir = "./BIOGRID")
+}
+Biogrid <- read.table("./BIOGRID/BIOGRID-ORGANISM-Homo_sapiens-3.4.127.tab2.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "", comment.char = "")
+
+#subset to physical interactions within human. keep only the entrez gene ids for both interactants
+Biogrid <- Biogrid[Biogrid$Organism.Interactor.A == 9606 & Biogrid$Organism.Interactor.B == 9606,]
+Biogrid <- Biogrid[Biogrid$Organism.Interactor.A == 9606 & Biogrid$Organism.Interactor.B == 9606,]
+Biogrid <- Biogrid[Biogrid$Experimental.System.Type == "physical",]
+Biogrid <- Biogrid[,c("Entrez.Gene.Interactor.A", "Entrez.Gene.Interactor.B")]
+
 
 # Adding annotations
 ######################
@@ -53,17 +83,17 @@ ensembl_75_CCDS <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_i
                          filters = 'with_ccds', values = T, mart = ensembl_75)
 
 ensembl_75_CCDS_EG <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'ensembl_peptide_id',"entrezgene"), 
-                        filters = 'with_ccds', values = T, mart = ensembl_75)#four values without entrez ids
+                        filters = 'with_ccds', values = T, mart = ensembl_75)#only four values without entrez ids
 
 ensembl_75_CCDS_pfam <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'ensembl_peptide_id',"pfam"), 
-                            filters = 'with_ccds', values = T, mart = ensembl_75)#four values without entrez ids
+                            filters = 'with_ccds', values = T, mart = ensembl_75)
 
 
 #GOIDs, (hugo gene nomenclature committee) hgncid, hgncnam and associated description
 
 ### Define function for adding GOIDs, description, hgncid, hgncsymbol, entrezgene ----------
 
-annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam){
+annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid){
 # This function accepts a LIST of unique protein groups and assigns annotation using passed annotation DF
   #not easy to download so manually curated from pfam as of 8-24-15
   pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
@@ -83,6 +113,7 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   ReactIDs <- vector(mode = 'list', length = length(proteins))
   pfamIDs <- vector(mode = 'list', length = length(proteins))
   pfamIDphospho <- vector(mode = 'list', length = length(proteins))
+  IntCount <- vector(mode = 'list', length = length(proteins))
   
   cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
   registerDoParallel(cl)
@@ -182,6 +213,19 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   }
   stopCluster(cl)
   
+  #assign max interaction count among all genes within a protein group using the entrez gene id
+  cl <- makeCluster(5)
+  registerDoParallel(cl)
+  IntCount <- foreach(i=seq_along(entrezgene)) %dopar% {
+    #for each entrezgene entry (note multiple entries for single gene) find it in either of the two biogrid columns
+    hits <- Biogrid[Biogrid[,1] %in% entrezgene[[i]] | Biogrid[,2] %in% entrezgene[[i]],]
+    #return the number of unique entries not equal to the search term
+    hits <- c(hits, recursive = T)
+    hits <- unique(hits)
+    IntCount[[i]] <- sum(!hits %in% entrezgene[[i]])
+  }
+  stopCluster(cl)
+  
   
   proteins <- as.character(proteins)
   names(GOIDs) <- proteins
@@ -192,9 +236,11 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   names(ReactIDs) <- proteins
   names(pfamIDs) <- proteins
   names(pfamIDphospho) <- proteins
+  names(IntCount) <- proteins
   
-  annotation.results <- list(GOIDs, description, hgncid, hgncsymbol, entrezgene, ReactIDs, pfamIDs, pfamIDphospho)
-  names(annotation.results) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs", "PFamIDs", "PFamIDPhospho")
+  annotation.results <- list(GOIDs, description, hgncid, hgncsymbol, entrezgene, ReactIDs, pfamIDs, pfamIDphospho, IntCount)
+  names(annotation.results) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs", "PFamIDs", 
+                                  "PFamIDPhospho", "InteractCount")
   
   return(annotation.results)
 }
@@ -209,7 +255,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam)
+confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid)
 
 ###phosprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
@@ -219,7 +265,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam)
+PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid)
 
 ###gelprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
@@ -228,7 +274,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam)
+GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid)
 
 
 #Add these annotation IDs to the original ME dataframe. 
