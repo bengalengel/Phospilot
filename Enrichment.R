@@ -101,6 +101,43 @@ Enrichment <- function(multExpanded1_withDE){
   Enrich.RO.GelPrep <- Enrich(GelPrep.BGRO, GelPrep.DERO, ontology = "Reactome")
     
   
+  ####test enrichment using spearman rank correlation vs adjusted p values.
+  
+#   lets look at the top GO enrich term (GO:0046872) for gel prep
+  for each phosphopeptide assign 0/1 depending on abs presence of this GO id
+  ont <- sapply(as.character(multExpanded1_withDE$GelPrepGOID), function(x){
+    tmp <- unlist(strsplit(x, ";"))
+    ifelse(any(tmp %in% "GO:0046872"), 1, 0)
+  })
+  
+  p.vals <- as.numeric(multExpanded1_withDE$GelPrepNormFAdjPval)
+  p.vals <- as.numeric(multExpanded1_withDE$GelPrepNormFPval)
+
+#note some strange issues with some gelprep proteins being quantified and asigned to sites that are not sub to diffphos? 
+# Also I have some duplicated pvalues here!
+# Also the frequency output in the table doesn't match the number of ids isn the subtodiffphos subset
+
+combined <- cbind(p.vals, ont)
+  combined <- combined[!is.na(combined[,1]),]
+  p.vals <- combined[,1]
+  ont <- combined[,2]
+
+  plot(log10(p.vals),ont)
+  cor(p.vals, ont, method = "spearman")
+  test <- cor.test(p.vals, ont, method = "spearman", alternative = "two.sided")$p.value
+
+  
+  
+  ## Sample code for computing correlation p-value.
+  n <- 25
+  x <- rnorm(n)
+  y <- -x + rnorm(n)
+  R <- cor(x,y)
+  p.value <- 2*pt(-abs(R * sqrt(n-2) / sqrt(1-R*R)),df=n-2)
+  cor.test(x,y,)$p.value
+  
+  
+  
   #return a list of enrichment DFs
   ###############################
   #final all dataframes in environment with names 'enrich'
