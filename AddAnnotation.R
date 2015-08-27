@@ -122,11 +122,11 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
     ENSPIDs <- as.character(unlist(ENSPIDs))
     ENSPIDs <- paste(ENSPIDs, collapse = "|")
     index <- grep(ENSPIDs, ensembl_75_CCDS$ensembl_peptide_id)
-    GOIDs[[i]] <- ensembl_75_CCDS$go_id[index]
+    GOIDs[[i]] <- unique(ensembl_75_CCDS$go_id[index])
   }
   stopCluster(cl)
   
-  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  cl <- makeCluster(5)
   registerDoParallel(cl)
   description <- foreach(i=1:length(proteins)) %dopar% {
     ENSPIDs <- strsplit(proteins[[i]], ";")
@@ -137,7 +137,7 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   }
   stopCluster(cl)
   
-  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  cl <- makeCluster(5)
   registerDoParallel(cl)
   hgncid <- foreach(i=1:length(proteins)) %dopar% {
     ENSPIDs <- strsplit(proteins[[i]], ";")
@@ -148,7 +148,7 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   }
   stopCluster(cl)
   
-  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  cl <- makeCluster(5)
   registerDoParallel(cl)
   hgncsymbol <- foreach(i=1:length(proteins)) %dopar% {
     ENSPIDs <- strsplit(proteins[[i]], ";")
@@ -159,7 +159,7 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   }
   stopCluster(cl)
   
-  cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+  cl <- makeCluster(5)
   registerDoParallel(cl)
   entrezgene <- foreach(i=1:length(proteins)) %dopar% {
     ENSPIDs <- strsplit(proteins[[i]], ";")
@@ -171,14 +171,14 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   stopCluster(cl)
   
   #now for the reactomeIds. Entrezgene id is the only valid keytype
-  cl <- makeCluster(5)#I had a crash when using all 8
+  cl <- makeCluster(5)
   registerDoParallel(cl)
   ReactIDs <- foreach(i=seq_along(entrezgene), .packages = "reactome.db") %dopar% {
     #define if hgnc is valid keytype for reactomedb
     pos_err <- tryCatch(select(reactome.db, keys=as.character(entrezgene[[i]]), columns="REACTOMEID", keytype="ENTREZID"),error=function(e) e)
     if(!inherits(pos_err, "error")){
       tmp <- select(reactome.db, keys=as.character(entrezgene[[i]]), columns="REACTOMEID", keytype="ENTREZID")
-      ReactIDs[[i]] <- as.character(tmp$REACTOMEID)
+      ReactIDs[[i]] <- unique(as.character(tmp$REACTOMEID))
     }
   }
   stopCluster(cl)

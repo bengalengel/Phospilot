@@ -102,40 +102,86 @@ Enrichment <- function(multExpanded1_withDE){
     
   
   ####test enrichment using spearman rank correlation vs adjusted p values.
-  
-#   lets look at the top GO enrich term (GO:0046872) for gel prep
-  for each phosphopeptide assign 0/1 depending on abs presence of this GO id
-  ont <- sapply(as.character(multExpanded1_withDE$GelPrepGOID), function(x){
-    tmp <- unlist(strsplit(x, ";"))
-    ifelse(any(tmp %in% "GO:0046872"), 1, 0)
-  })
-  
-  p.vals <- as.numeric(multExpanded1_withDE$GelPrepNormFAdjPval)
-  p.vals <- as.numeric(multExpanded1_withDE$GelPrepNormFPval)
-
-#note some strange issues with some gelprep proteins being quantified and asigned to sites that are not sub to diffphos? 
-# Also I have some duplicated pvalues here!
-# Also the frequency output in the table doesn't match the number of ids isn the subtodiffphos subset
-
-combined <- cbind(p.vals, ont)
-  combined <- combined[!is.na(combined[,1]),]
-  p.vals <- combined[,1]
-  ont <- combined[,2]
-
-  plot(log10(p.vals),ont)
-  cor(p.vals, ont, method = "spearman")
-  test <- cor.test(p.vals, ont, method = "spearman", alternative = "two.sided")$p.value
-
-  
-  
-  ## Sample code for computing correlation p-value.
-  n <- 25
-  x <- rnorm(n)
-  y <- -x + rnorm(n)
-  R <- cor(x,y)
-  p.value <- 2*pt(-abs(R * sqrt(n-2) / sqrt(1-R*R)),df=n-2)
-  cor.test(x,y,)$p.value
-  
+#   
+# #   lets look at the top GO enrich term (GO:0046872) for gel prep. This give a frequency of 438/494 (
+#   #for each phosphopeptide assign 0/1 depending on abs presence of this GO id
+#   ont <- sapply(as.character(multExpanded1_withDE$GelPrepGOID), function(x){
+#     tmp <- unlist(strsplit(x, ";"))
+#     ifelse(any(tmp %in% "GO:0046872"), 1, 0)
+#   })
+#   
+#   p.vals <- as.numeric(multExpanded1_withDE$GelPrepNormFAdjPval)
+#   p.vals <- as.numeric(multExpanded1_withDE$GelPrepNormFPval)
+# 
+# 
+# # Why doesn't the frequency output in the enrichment table match the number of ids isn the subtodiffphos subset for GO:0046872? it is identified 494 times...
+# #   Ans: This is due to the GO term being duplicated within a single protein group.
+# dups <- sapply(as.character(multExpanded1_withDE$GelPrepGOID), function(x){
+#   tmp <- unlist(strsplit(x, ";"))
+#   any(duplicated(tmp))
+# })
+# > table(dups)
+# dups
+# FALSE  TRUE 
+# 12800  4974 
+# 
+# # same for reactome
+# dups2 <- sapply(as.character(multExpanded1_withDE$GelPrepReactIDs), function(x){
+#   tmp <- unlist(strsplit(x, ";"))
+#   any(duplicated(tmp))
+# })
+# table(dups2)
+# dups2
+# FALSE  TRUE 
+# 17719    55 
+# 
+# dups3 <- sapply(ReactIDs, function(x){
+#   if(is.character(x)){
+#   tmp <- unlist(strsplit(x, ";"))
+#   any(duplicated(tmp))
+#   }else{
+#     NA}
+# })
+# table(dups3)
+# 
+# #so for a given phosphosite multiple annotation terms are added by eg the same isoforms within that protein group. 
+# 
+# # It would not bias enrichment if redundant terms from the same protein group are removed. In fact, including redundant terms contributed by isoforms only clouds the issue and may negatively impact p.values form exact test. Only the unique terms are kept PER SITE. 
+# # However, each phosphosite contributes to the enrichment test (in the case of fisher's test) to not bias result in favor of mult phosphorylated proteins. 
+# 
+# # How does this affect the pvalue binary vector of annotation membership spearman correlation business?...Is there a multiple phos problem?
+# # Not if each site's p value is included in the analysis? If the pvalues are random then the results will be negative. if the pvalues are correlated then it is biology driving that enrichment and that's what we want to identify.
+# 
+# # What about duplicated p values? p.adjust makes the issue worse. what is limma doing to create duplicate pvalues? 
+# 
+# sum(duplicated(multExpanded1_withDE[multExpanded1_withDE$ConfoundedFPval != "-", "ConfoundedFPval"] ))
+# 201
+# sum(duplicated(multExpanded1_withDE[multExpanded1_withDE$ConfoundedFAdjPval != "-", "ConfoundedFAdjPval"] ))
+# 1342
+# 
+# # Is this related to multiplicity?
+# 
+# 
+# 
+# combined <- cbind(p.vals, ont)
+#   combined <- combined[!is.na(combined[,1]),]
+#   p.vals <- combined[,1]
+#   ont <- combined[,2]
+# 
+#   plot(log10(p.vals),ont)
+#   cor(p.vals, ont, method = "spearman")
+#   test <- cor.test(p.vals, ont, method = "spearman", alternative = "two.sided")$p.value
+# 
+#   
+#   
+#   ## Sample code for computing correlation p-value.
+#   n <- 25
+#   x <- rnorm(n)
+#   y <- -x + rnorm(n)
+#   R <- cor(x,y)
+#   p.value <- 2*pt(-abs(R * sqrt(n-2) / sqrt(1-R*R)),df=n-2)
+#   cor.test(x,y,)$p.value
+#   
   
   
   #return a list of enrichment DFs
