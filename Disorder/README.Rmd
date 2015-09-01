@@ -1,0 +1,46 @@
+---
+title: "Annotating Protein Disorder"
+output: 
+  html_document:
+    fontsize: 12pt
+    css: "../CSSscripts/FloatTOC.css"
+    toc: yes
+---
+
+# Protein Disorder prediction software
+
+The [Iupred](http://iupred.enzim.hu/Downloads.php) and [RAPID](http://biomine-ws.ece.ualberta.ca/RAPID/index.php) algorithms are used to predict local  and protein level  disorder, respectively.
+
+Iupred source code is downloaded, compiled and run locally/on cluster while RAPID is executed using the linked webserver. 
+
+# RAPID
+RAPID: Regression-based Accurate Prediction of protein Intrinsic Disorder content
+
+## Input
+Webserver accepts multisequence FASTA file of up to 75K sequences with header length <= 12 characters. `FASTA_make.R` produces the appropriate input file for the server.
+
+## Execution
+FASTA with alternate headers is uploaded to server. 
+
+## Output
+Results for CCDs FASTA used for database search downloaded on Friday August 28th.
+RAPID job id: 20150828102809
+dir: /Disorder/Rapid/results.csv
+
+# Iupred
+Intrinsically Unstructured Protein/Prediction (IUPred). 
+
+## Input
+IUPred requires single protein fasta files. These are also produced by `FASTA_make.R` and output into the "Indfiles"" directory
+
+## Execution
+On the cluster compile the iupred program, ensure IUPred_PATH is set to the iupred directory and add iupred to the environment variable "PATH". Each sequence is processed using the 'long' argument.
+a shell script `run_iupred.sh` is ececuted from the head node after navigating to Programs/Iupred:
+```bash
+#from spudhead
+echo "./run_iupred.sh" | qsub -l h_vmem=2g -V -cwd
+```
+## Output
+Each text file is outputted to the "Results/Indfiles" folder. A score is given for each AA. >= .5 is considered disordered.
+Transfer of files from cluster performed manually.
+

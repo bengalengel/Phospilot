@@ -28,6 +28,8 @@ FASTA/*
 snpeff/log/*
 Perseus/*
 src/*
+Disorder/IUPred
+Disorder/Rapid
 
 # Compiled source #
 ###################
