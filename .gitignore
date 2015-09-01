@@ -27,6 +27,7 @@ PSP/*
 FASTA/*
 snpeff/log/*
 Perseus/*
+src/*
 
 # Compiled source #
 ###################
