@@ -1,9 +1,7 @@
 AddAnnotation <- function(multExpanded1_withDE){
-#This function adds the annotations from GO, reactome, entrez and HGNC. Also may add phosphositeplus, and corum? ME DF passed with DiffPhos analysis already performed on confounded and non-confounded datasets. 
+  #This function adds the annotations from GO, reactome, entrez and HGNC, PFAM, iupred, rapid, biogrid, and phosphosite (at least).
+  #Get cozy I am not a computer scientist
 
-#curated kinase annotation and known modifications from phosphositeplus downloaded manually
-# #files downloaded on 3/31/15
-# PSPdwnload <- date()
 
 #assign to multExpanded1 using leading proteins and majority protein ids for protein normalized data.
 #GO terms and reactome added using R annotation packages
@@ -33,9 +31,11 @@ require(biomaRt)
 # # Once you have some ids that you want to look up data for, the select method allows you to map these ids as long as you use the columns argument to indicate what you need to know and the keytype argument to specify what kind of keys they are.
 # select(Homo.sapiens, keys=ids, columns="GOID", keytype="UNIPROT")
 # head(select(Homo.sapiens, keys=ids, columns="GOALL", keytype="UNIPROT"))#above is more direct
-######################
+################## Adding annotations (biogrid, rapid, iupred, phosphosite)
 
-##biogrid information 
+
+
+##BIOGRID
 # BIOGRID REST service for individual queries - http://wiki.thebiogrid.org/doku.php/biogridrest 
 # access key - 87836af89316ba4f59bcb1e8d81df273
 
@@ -65,9 +65,20 @@ Biogrid <- Biogrid[Biogrid$Organism.Interactor.A == 9606 & Biogrid$Organism.Inte
 Biogrid <- Biogrid[Biogrid$Experimental.System.Type == "physical",]
 Biogrid <- Biogrid[,c("Entrez.Gene.Interactor.A", "Entrez.Gene.Interactor.B")]
 
+#RAPID protein level disorder data frame
+Rapid <- read.table("./Disorder/Rapid/results_fullnames.csv", sep = ",", header = T, stringsAsFactors = F, quote = "")
 
-# Adding annotations
-######################
+#Iupred amino acid level disorder 
+source("./Disorder/iupredProcessing.R")#creates list of dataframes
+
+#phosphosite positions of modifications. I am imaigining a list of protein dataframes with position, AA, modification.
+#curated kinase annotation and known modifications from phosphositeplus downloaded manually
+# #files downloaded on 3/31/15
+# PSPdwnload <- date()
+
+
+###################### Ensembl Derived annotations -----
+
 # use the ensembl 75 data wherever possible because depreciated identifiers lead to issues when using updated ensembl annotations. 
 # Can't get reactome from ensembl 75 so will use latest reactome.db to retireve ids using HGNC identifiers.
 
@@ -91,9 +102,9 @@ ensembl_75_CCDS_pfam <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcr
 
 #GOIDs, (hugo gene nomenclature committee) hgncid, hgncnam and associated description
 
-### Define function for adding GOIDs, description, hgncid, hgncsymbol, entrezgene ----------
+### Define function for assigning annotation to protein group ----------
 
-annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid){
+annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid){
 # This function accepts a LIST of unique protein groups and assigns annotation using passed annotation DF
   #not easy to download so manually curated from pfam as of 8-24-15
   pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
@@ -114,6 +125,7 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   pfamIDs <- vector(mode = 'list', length = length(proteins))
   pfamIDphospho <- vector(mode = 'list', length = length(proteins))
   IntCount <- vector(mode = 'list', length = length(proteins))
+  Disorder <- vector(mode = 'list', length = length(proteins))
   
   cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
   registerDoParallel(cl)
@@ -226,6 +238,35 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   }
   stopCluster(cl)
   
+  #assign % disorder to each protein using the 'RAPID' dataframe
+  cl <- makeCluster(5)
+  registerDoParallel(cl)
+  Disorder <- foreach(i=seq_along(proteins)) %dopar% {
+    ENSPIDs <- strsplit(proteins[[i]], ";")
+    ENSPIDs <- as.character(unlist(ENSPIDs))
+    ENSPIDs <- gsub("[A-Z]", "", ENSPIDs)
+    ENSPIDs <- gsub("(?<![0-9])0+", "", ENSPIDs, perl = TRUE)#rapid removes leading zeros. This is annoying.
+    ENSPIDs <- paste(ENSPIDs, collapse = "|")
+    index <- grep(ENSPIDs, Rapid$Prot..ID)
+    Disorder[[i]] <- Rapid$Disorder.Content..[index]
+  }
+  stopCluster(cl)  
+  
+  #binary assignment of local disorder at the peptide level using the iupred list of dataframes. >.5=disorder
+  cl <- makeCluster(5)
+  registerDoParallel(cl)
+  Disorder <- foreach(i=seq_along(proteins)) %dopar% {
+    ENSPIDs <- strsplit(proteins[[i]], ";")
+    ENSPIDs <- as.character(unlist(ENSPIDs))
+    ENSPIDs <- paste(ENSPIDs, collapse = "|")
+    index <- grep(ENSPIDs, names(Iupred))
+    #hmm need paired phosphorylation position as well. When passing must ensure that the length of each element (after splitting) is equal
+    
+    
+  }
+  stopCluster(cl)  
+  
+  
   
   proteins <- as.character(proteins)
   names(GOIDs) <- proteins
@@ -237,10 +278,11 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   names(pfamIDs) <- proteins
   names(pfamIDphospho) <- proteins
   names(IntCount) <- proteins
+  names(Disorder) <- proteins
   
-  annotation.results <- list(GOIDs, description, hgncid, hgncsymbol, entrezgene, ReactIDs, pfamIDs, pfamIDphospho, IntCount)
+  annotation.results <- list(GOIDs, description, hgncid, hgncsymbol, entrezgene, ReactIDs, pfamIDs, pfamIDphospho, IntCount, Disorder)
   names(annotation.results) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs", "PFamIDs", 
-                                  "PFamIDPhospho", "InteractCount")
+                                  "PFamIDPhospho", "InteractCount", "PercentDisorder")
   
   return(annotation.results)
 }
@@ -255,7 +297,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid)
+confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid)
 
 ###phosprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
@@ -265,7 +307,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid)
+PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid)
 
 ###gelprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
@@ -274,7 +316,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid)
+GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid)
 
 
 #Add these annotation IDs to the original ME dataframe. 

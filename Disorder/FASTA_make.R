@@ -10,7 +10,7 @@ proteome <- read.fasta( file = "./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCD
 #make new headers to the fasta file using only the numeric regions of the ENSPIDs (<12 chars)
 headers <- lapply(names(proteome), function(x){
   id <- unlist(strsplit(x, "[|]"))[2]
-  id <- gsub("[^0-9]","", id)
+  id <- gsub("[A-z]","", id)#keep last 11 characters
 })
 
 #write parsed fasta with new headers

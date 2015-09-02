@@ -27,6 +27,11 @@ Results for CCDs FASTA used for database search downloaded on Friday August 28th
 RAPID job id: 20150828102809
 dir: /Disorder/Rapid/results.csv
 
+Second output (with full ENSPids) downloaded Wednesday September 2nd.
+RAPID:20150902104034
+dir: /Disorder/Rapid/results_fullnames.csv
+
+
 # Iupred
 Intrinsically Unstructured Protein/Prediction (IUPred). 
 
