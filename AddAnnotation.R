@@ -291,6 +291,10 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
 
 #confounded analysis
 #'leading proteins' are used for the phospho alone annotated data. Leading proteins are the FIRST ENTRY from each matching protein group assigned to the peptide. Within a protein group ties are ignored. 'proteins' is all identified (potentially only by a modified site) proteins the peptide is associated with. 
+#
+must make a subseted vector of positinos in proteins using %in% operator.
+
+#now I need to add position. leading proteins does not align perfectly with 'proteins'. A match between the two vectors must be found and the corresponding indeces within the 'positions.within.proteins' field should be returne 
 
 proteins <- unique(multExpanded1_withDE$Leading.proteins)#note that all members of the protein group are not used for annotation.
 proteins <- as.character(proteins)
