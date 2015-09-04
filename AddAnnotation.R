@@ -298,10 +298,11 @@ must make a subseted vector of positinos in proteins using %in% operator.
 
 proteins <- unique(multExpanded1_withDE$Leading.proteins)#note that all members of the protein group are not used for annotation.
 proteins <- as.character(proteins)
-proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
+proteins <- proteins[proteins != ""]
 proteins <- as.list(proteins)
 
 confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid)
+
 
 ###phosprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
@@ -361,6 +362,70 @@ names(GelPrep) <- paste("GelPrep", names(GelPrep), sep = "")
 
 
 multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded, PhosPrep, GelPrep)
+
+
+#now perform amino acid position specific annotation.
+
+####local disorder using iupred
+
+#confounded
+#function retrieve matching peptide location
+calc.lead.prot.pos <- function(leading.prot, proteins, positions){
+  leading.prot <- strsplit(as.character(leading.prot), ";")
+  leading.prot <- as.character(unlist(leading.prot))
+  proteins <- strsplit(as.character(proteins), ";")
+  proteins <- as.character(unlist(proteins))
+  index <- proteins %in% leading.prot
+  #subset and return the positions vector. ensure single element passed back
+  positions <- strsplit(as.character(positions), ";")
+  positions <- as.character(unlist(positions))
+  positions <- positions[index]
+  positions <- paste(positions, collapse = ";")
+}
+
+multExpanded1_withDE$Leading.proteins.position <- mapply(calc.lead.prot.pos, multExpanded1_withDE$Leading.proteins, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
+
+#binary assigment of these positions to disorder/order using iupred list of dataframes. if at least one of the sites is in a disordered region it is considered disordered.
+
+disorder.assignment <- function(proteins, positions){
+#   for each protein position pair, assign to order/disorder
+  proteins <- strsplit(as.character(proteins), ";")
+  proteins <- as.character(unlist(proteins))
+  proteins <- proteins[!grepl("REV", proteins)]#these are omitted when finding the phosphoposition
+  positions <- strsplit(as.character(positions), ";")
+  positions <- as.character(unlist(positions))
+  if(length(proteins) > 0){
+  tmp <- c()
+  for(i in seq_along(proteins)){
+    diso.pred <- Iupred[[which(names(Iupred)==proteins[i])]]
+    tmp <- c(tmp, diso.pred[diso.pred$Position == positions[i],3] >= .5)
+  }
+  all(tmp==TRUE)
+  } else{
+    NA
+  }
+}
+
+multExpanded1_withDE$Confounded.Pos.Disorder <- mapply(disorder.assignment, as.character(multExpanded1_withDE$Leading.proteins), as.character(multExpanded1_withDE$Leading.proteins.position))
+#note negligible difference when calling disorder when all protein group members must be assigned >.5! Most sites in disordered regions.
+FALSE  TRUE 
+4333 13441 
+
+
+#phosprep. No NAs becasuse every site is assigned to a protein, although perhaps not quantified
+multExpanded1_withDE$PhosPrep.Pos.Disorder <- mapply(disorder.assignment, as.character(multExpanded1_withDE$PhosPrepMajorityProteinIDs), as.character(multExpanded1_withDE$PhosPrepPositionInProteinsTruncated))#truncated?
+
+
+#gelprep. NAs because some sites do not have matching protein quant estimates and therefore were not matched
+multExpanded1_withDE$GelPrep.Pos.Disorder <- mapply(disorder.assignment, as.character(multExpanded1_withDE$ppMajorityProteinIDs), as.character(multExpanded1_withDE$ppPositionInProteins))
+
+
+
+
+
+
+
+
 
 save(multExpanded1_withDE, file = "./multExpanded_withDE_annotated.RData")
 return(multExpanded1_withDE)
