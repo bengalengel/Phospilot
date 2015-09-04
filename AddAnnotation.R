@@ -385,7 +385,7 @@ calc.lead.prot.pos <- function(leading.prot, proteins, positions){
 
 multExpanded1_withDE$Leading.proteins.position <- mapply(calc.lead.prot.pos, multExpanded1_withDE$Leading.proteins, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
 
-#binary assigment of these positions to disorder/order using iupred list of dataframes. if at least one of the sites is in a disordered region it is considered disordered.
+#binary assigment of these positions to disorder/order using iupred list of dataframes. all of the sites for the protein group is in a disordered region it is considered disordered. #Note negligible difference when calling disorder when any protein group members are assigned >.5! Most sites in disordered regions.
 
 disorder.assignment <- function(proteins, positions){
 #   for each protein position pair, assign to order/disorder
@@ -407,9 +407,6 @@ disorder.assignment <- function(proteins, positions){
 }
 
 multExpanded1_withDE$Confounded.Pos.Disorder <- mapply(disorder.assignment, as.character(multExpanded1_withDE$Leading.proteins), as.character(multExpanded1_withDE$Leading.proteins.position))
-#note negligible difference when calling disorder when all protein group members must be assigned >.5! Most sites in disordered regions.
-FALSE  TRUE 
-4333 13441 
 
 
 #phosprep. No NAs becasuse every site is assigned to a protein, although perhaps not quantified
