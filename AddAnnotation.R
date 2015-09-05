@@ -73,8 +73,10 @@ source("./Disorder/iupredProcessing.R")#creates list of dataframes
 
 #phosphosite positions of modifications. I am imaigining a list of protein dataframes with position, AA, modification.
 #curated kinase annotation and known modifications from phosphositeplus downloaded manually
-# #files downloaded on 3/31/15
-# PSPdwnload <- date()
+# #files downloaded on 3/31/15. I could probably download this again.
+
+
+
 
 
 ###################### Ensembl Derived annotations -----
@@ -416,8 +418,7 @@ multExpanded1_withDE$PhosPrep.Pos.Disorder <- mapply(disorder.assignment, as.cha
 #gelprep. NAs because some sites do not have matching protein quant estimates and therefore were not matched
 multExpanded1_withDE$GelPrep.Pos.Disorder <- mapply(disorder.assignment, as.character(multExpanded1_withDE$ppMajorityProteinIDs), as.character(multExpanded1_withDE$ppPositionInProteins))
 
-
-
+#phosphosite annotation. Is residue annotated on phosphosite?
 
 
 
