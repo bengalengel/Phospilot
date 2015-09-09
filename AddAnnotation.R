@@ -35,7 +35,7 @@ require(biomaRt)
 
 
 
-##BIOGRID
+##BIOGRID----
 # BIOGRID REST service for individual queries - http://wiki.thebiogrid.org/doku.php/biogridrest 
 # access key - 87836af89316ba4f59bcb1e8d81df273
 
@@ -78,10 +78,19 @@ source("./Disorder/iupredProcessing.R")#creates list of dataframes
 
 #read all 'dataset' files into memory as a list. Includes all mods and curated K-S data
 file.names <- grep( "dataset", list.files("./PSP/"), ignore.case = T, value = T)
+file.names <- file.names[c(1,3:8)]#remove kinase substrate for now
 phosphosite <- lapply(file.names, function(file){
   read.table(gzfile(file.path(paste0(getwd(),"./PSP/", file))), sep = "\t", header = T, stringsAsFactors = F, quote = "", comment.char = "", skip = 3)
 })
 names(phosphosite) <- gsub(".gz", "", file.names)
+
+#remove empty assignments and subset to human
+human.subset <- function(x){
+  x <- x[which(x$ORGANISM == "human"),]
+  x <- x[which(x$GENE != ""),]
+}
+
+phosphosite <- lapply(phosphosite, human.subset)
 
 #first thing is to annotate novelty of the identified residues but this requires sequence conversion to uniprot identifiers.
 
@@ -365,6 +374,82 @@ names(GelPrep) <- paste("GelPrep", names(GelPrep), sep = "")
 
 
 multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded, PhosPrep, GelPrep)
+
+
+###### Phosphosite protein level modification counts using hgnc symbol to match ----
+#max on gene level is returned. For paralogous site matches the idea is that the dominant paralog will have more annotations. For example laminin1/2 or Abl1/2. Certainly a caveat but better than throwing them away.
+
+#a function to collapse each data frame and return a data frame with two columns, the hgncname and the number of modifications/gene
+count.mod <- function(x) {c(n.sites=dim(x)[1])}
+phosphosite.counts <- lapply(phosphosite, function(x) ddply(x, c("GENE"), count.mod))
+
+#merge them all and count the total number of mods
+# test <- join_all(phosphosite.counts, by = "GENE", type = 'full', match = 'all'). I don't know why this doesn't work...
+
+merged.counts <- phosphosite.counts[[1]]
+for (i in 2:length(phosphosite.counts)){
+  merged.counts <- merge(merged.counts, phosphosite.counts[[i]], by = "GENE", all = TRUE)
+  names(merged.counts)[c(i, i + 1)] <- names(phosphosite.counts)[c(i-1, i)]
+}
+names(merged.counts) <- gsub("site_dataset", "site.count", names(merged.counts))
+#rowsums
+merged.counts$total.mod.count <- rowSums(merged.counts[,2:8], na.rm = T)
+names(merged.counts)[1] <- "HGNCSymbol"
+
+### Add this data to the MEDF
+# test <- merge(multExpanded1_withDE, merged.counts, by.x = "confoundedHGNCSymbol", by.y = "HGNCSymbol", all.x = TRUE)#this will not work with multiple hgnc ids..
+
+# a foreach solution works nicely and can be run in parallel. -Inf entries signify nomatch in database
+
+#confounded
+HGNCsymbol <- as.character(multExpanded1_withDE$confoundedHGNCSymbol)
+cl <- makeCluster(5)
+registerDoParallel(cl)
+confounded.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
+   hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
+   hgnc.symbol <- as.character(unlist(hgnc.symbol))
+   matches <- merged[merged$HGNCSymbol %in% hgnc.symbol,]
+   matches <- matches[,2:9]
+   if(length(matches) > 1){
+     matches <- apply(matches, 2, max)
+     matches <- as.data.frame(t(matches))
+   }
+}
+#PhosPrep
+HGNCsymbol <- as.character(multExpanded1_withDE$PhosPrepHGNCSymbol)
+phosprep.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
+  hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
+  hgnc.symbol <- as.character(unlist(hgnc.symbol))
+  matches <- merged[merged$HGNCSymbol %in% hgnc.symbol,]
+  matches <- matches[,2:9]
+  if(length(matches) > 1){
+    matches <- apply(matches, 2, max)
+    matches <- as.data.frame(t(matches))
+  }
+}
+#GelPrep
+HGNCsymbol <- as.character(multExpanded1_withDE$GelPrepHGNCSymbol)
+gelprep.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
+  hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
+  hgnc.symbol <- as.character(unlist(hgnc.symbol))
+  matches <- merged[merged$HGNCSymbol %in% hgnc.symbol,]
+  matches <- matches[,2:9]
+  if(length(matches) > 1){
+    matches <- apply(matches, 2, max)
+    matches <- as.data.frame(t(matches))
+  }
+}
+stopCluster(cl)
+
+#fix names and append to MEDF
+names(confounded.mod.counts) <- paste(names(confounded.mod.counts), ".confounded", sep = "")
+names(phosprep.mod.counts) <- paste(names(phosprep.mod.counts), ".PhosPrep", sep = "")
+names(gelprep.mod.counts) <- paste(names(gelprep.mod.counts), ".GelPrep", sep = "")
+
+
+multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded.mod.counts, phosprep.mod.counts, gelprep.mod.counts)
+
+
 
 
 ### Amino acid position specific annotations ----
