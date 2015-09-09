@@ -454,7 +454,13 @@ multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded.mod.counts, phosp
 
 ### Amino acid position specific annotations ----
 
-phosphosite level annotations, local disorder, 
+phosphosite level annotations, local disorder, within pfam domains
+
+
+###pfam domain annotation
+#creat FASTA files for batch upload to pfam server.requires FASTA files smaller than 5100 sequences and has restrictions on FASTA headers.
+
+
 
 
 ### Local disorder using iupred -----
