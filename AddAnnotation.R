@@ -65,13 +65,13 @@ Biogrid <- Biogrid[Biogrid$Organism.Interactor.A == 9606 & Biogrid$Organism.Inte
 Biogrid <- Biogrid[Biogrid$Experimental.System.Type == "physical",]
 Biogrid <- Biogrid[,c("Entrez.Gene.Interactor.A", "Entrez.Gene.Interactor.B")]
 
-#RAPID protein level disorder data frame
+###RAPID protein level disorder data frame ----
 Rapid <- read.table("./Disorder/Rapid/results_fullnames.csv", sep = ",", header = T, stringsAsFactors = F, quote = "")
 
 #Iupred amino acid level disorder 
 source("./Disorder/iupredProcessing.R")#creates list of dataframes
 
-#phosphosite positions of modifications.
+###PHOSPHOSITE positions of modifications.
 #curated kinase annotation and known modifications from phosphositeplus downloaded manually
 # #files downloaded anew on 9/8/15. These are the august files. unarchived using git/bash/bin/tar. each file is read as a .gz file
 # write.csv(downld.date, file = "./PSP/PSP_download_date.csv")
@@ -93,11 +93,21 @@ human.subset <- function(x){
 phosphosite <- lapply(phosphosite, human.subset)
 
 #first thing is to annotate novelty of the identified residues but this requires sequence conversion to uniprot identifiers.
+#gene(s) level assignment of the number of modifications for now.
 
-#gene(s) level assignment of the number of modifications
+####INTERPROSCAN FOR PFAM BOUNDARIES -----
+# This data will be used to cross ref with annotated pfam domain to assign boundaries. These boundaries will then be used to assign binary indicators of sites to 'within domain' and 'within phospho associated domain'
 
-
-
+#Load output data from InterProScan. There should be 36 files!! For some reason cluster hangs on execution for a few of these...use "output2.tar.gz"
+# lapply load into list and then do.call to make into a dataframe
+if(!file.exists("./InterProScan/output")){dir.create("./InterProScan/output")}
+untar("./InterProScan/output2.tar.gz", compressed = "g", exdir = "./InterProScan/output")
+file.names <- list.files("./InterProScan/output", pattern = ".*.tsv")
+pfam.boundary <- lapply(file.names, function(file){
+  read.table(file.path(paste0(getwd(),"./InterProScan/output/", file)), sep = "\t", header = F, stringsAsFactors = F, quote = "", comment.char = "", skip = 3)
+})
+pfam.boundary <- do.call(rbind, pfam.boundary)
+names(pfam.boundary) <- c("ENSPID", "MD5seq", "SeqLength", "Analysis", "PFamID", "Description", "Start", "Stop", "Evalue", "MatchStatus", "Date")
 
 
 ###################### Ensembl Derived annotations -----
@@ -453,21 +463,132 @@ multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded.mod.counts, phosp
 
 
 ### Amino acid position specific annotations ----
+# local disorder, within pfam domains, and phosphosite level annotations
 
-phosphosite level annotations, local disorder, within pfam domains
+
+###pfam domain annotation ----
+#use the pfam.boundary file created using interproscan program that calls HMMER3/pfam. Was searched on the proteome.
+
+#binary assigment of these positions to in/out domain. If any of the sites in a protein group are in a domain it is considered 'within domain'. For those within a domain a flag yes/no is given regarding phosphorylation relevant. A foreach solution: nas when no protein group assigned to site or no domains in protein
+
+# Confounded data
+proteins <- as.character(multExpanded1_withDE$Leading.proteins)
+positions <- as.character(multExpanded1_withDE$Leading.proteins.position)
+
+cl <- makeCluster(5)
+registerDoParallel(cl)
+confounded.domain.boundary <- foreach(i = 1:length(proteins), .combine = "rbind") %dopar% {
+  protein.group <- strsplit(proteins[i], ";")
+  protein.group <- as.character(unlist(protein.group))
+  protein.group <- protein.group[!grepl("REV", protein.group)]#these are omitted when finding the phosphoposition
+  #Entries in pfam.boundary with no alpha or leading zeros. Altered for matching
+  protein.group <- gsub("[A-Z]", "", protein.group)
+  protein.group <- gsub("(?<![0-9])0+", "", protein.group, perl = TRUE)
+  sites <- strsplit(as.character(positions[i]), ";")
+  sites <- as.character(unlist(sites))
+  #if the protein contains domains, ascertain if site is within and, if so if that domain is associated with phoshporylation
+  if(length(protein.group) > 0){#not all sites have been matched to a protein group
+    #preallocate in.domain and phospho.relevant
+    in.domain <- vector(mode = 'logical', length = length(protein.group))
+    phospho.relevant <- vector(mode = 'logical', length = length(protein.group))
+    for(j in seq_along(protein.group)){
+      domains <- pfam.boundary[pfam.boundary$ENSPID == protein.group[j], c(5,7,8)]
+      if(dim(domains)[1] != 0){
+        #apply logical test of if protein/site combo is in ANY domain range (>=start and <=end)
+        hits <- domains[sites[j] >= domains$Start & sites[j] <= domains$Stop, "PFamID"]
+        in.domain[j] <- length(hits) > 0
+        phospho.relevant[j] <- any(hits %in% pfam.phospho)
+      }else{
+        in.domain[j] <- NA
+        phospho.relevant[j] <- NA
+      }
+    }
+    data.frame(site.in.domain = any(in.domain), phospho.relevant = any(phospho.relevant))
+  }else{
+    data.frame(site.in.domain = NA, phospho.relevant = NA)
+  }
+}
 
 
-###pfam domain annotation
-#creat FASTA files for batch upload to pfam server.requires FASTA files smaller than 5100 sequences and has restrictions on FASTA headers.
+# PhosPrep data
+proteins <- as.character(multExpanded1_withDE$PhosPrepMajorityProteinIDs)
+positions <- as.character(multExpanded1_withDE$PhosPrepPositionInProteinsTruncated)
 
+PhosPrep.domain.boundary <- foreach(i = 1:length(proteins), .combine = "rbind") %dopar% {
+  protein.group <- strsplit(proteins[i], ";")
+  protein.group <- as.character(unlist(protein.group))
+  protein.group <- protein.group[!grepl("REV", protein.group)]#these are omitted when finding the phosphoposition
+  #Entries in pfam.boundary with no alpha or leading zeros. Altered for matching
+  protein.group <- gsub("[A-Z]", "", protein.group)
+  protein.group <- gsub("(?<![0-9])0+", "", protein.group, perl = TRUE)
+  sites <- strsplit(as.character(positions[i]), ";")
+  sites <- as.character(unlist(sites))
+  #if the protein contains domains, ascertain if site is within and, if so if that domain is associated with phoshporylation
+  if(length(protein.group) > 0){#not all sites have been matched to a protein group
+    #preallocate in.domain and phospho.relevant
+    in.domain <- vector(mode = 'logical', length = length(protein.group))
+    phospho.relevant <- vector(mode = 'logical', length = length(protein.group))
+    for(j in seq_along(protein.group)){
+      domains <- pfam.boundary[pfam.boundary$ENSPID == protein.group[j], c(5,7,8)]
+      if(dim(domains)[1] != 0){
+        #apply logical test of if protein/site combo is in ANY domain range (>=start and <=end)
+        hits <- domains[sites[j] >= domains$Start & sites[j] <= domains$Stop, "PFamID"]
+        in.domain[j] <- length(hits) > 0
+        phospho.relevant[j] <- any(hits %in% pfam.phospho)
+      }else{
+        in.domain[j] <- NA
+        phospho.relevant[j] <- NA
+      }
+    }
+    data.frame(site.in.domain = any(in.domain), phospho.relevant = any(phospho.relevant))
+  }else{
+    data.frame(site.in.domain = NA, phospho.relevant = NA)
+  }
+}
+
+        
+# GelPrep data
+proteins <- as.character(multExpanded1_withDE$ppMajorityProteinIDs)
+positions <- as.character(multExpanded1_withDE$ppPositionInProteins)
+
+GelPrep.domain.boundary <- foreach(i = 1:length(proteins), .combine = "rbind") %dopar% {
+  protein.group <- strsplit(proteins[i], ";")
+  protein.group <- as.character(unlist(protein.group))
+  protein.group <- protein.group[!grepl("REV", protein.group)]#these are omitted when finding the phosphoposition
+  #Entries in pfam.boundary with no alpha or leading zeros. Altered for matching
+  protein.group <- gsub("[A-Z]", "", protein.group)
+  protein.group <- gsub("(?<![0-9])0+", "", protein.group, perl = TRUE)
+  sites <- strsplit(as.character(positions[i]), ";")
+  sites <- as.character(unlist(sites))
+  #if the protein contains domains, ascertain if site is within and, if so if that domain is associated with phoshporylation
+  if(length(protein.group) > 0){#not all sites have been matched to a protein group
+    #preallocate in.domain and phospho.relevant
+    in.domain <- vector(mode = 'logical', length = length(protein.group))
+    phospho.relevant <- vector(mode = 'logical', length = length(protein.group))
+    for(j in seq_along(protein.group)){
+      domains <- pfam.boundary[pfam.boundary$ENSPID == protein.group[j], c(5,7,8)]
+      if(dim(domains)[1] != 0){
+        #apply logical test of if protein/site combo is in ANY domain range (>=start and <=end)
+        hits <- domains[sites[j] >= domains$Start & sites[j] <= domains$Stop, "PFamID"]
+        in.domain[j] <- length(hits) > 0
+        phospho.relevant[j] <- any(hits %in% pfam.phospho)
+      }else{
+        in.domain[j] <- NA
+        phospho.relevant[j] <- NA
+      }
+    }
+    data.frame(site.in.domain = any(in.domain), phospho.relevant = any(phospho.relevant))
+  }else{
+    data.frame(site.in.domain = NA, phospho.relevant = NA)
+  }
+}
+stopCluster(cl)
 
 
 
 ### Local disorder using iupred -----
 
-#confounded
-
-#first identify positions for 'leading proteins'
+#first identify positions for 'leading proteins' in the confounded dataset
 #function retrieve matching peptide location
 calc.lead.prot.pos <- function(leading.prot, proteins, positions){
   leading.prot <- strsplit(as.character(leading.prot), ";")
@@ -484,7 +605,7 @@ calc.lead.prot.pos <- function(leading.prot, proteins, positions){
 
 multExpanded1_withDE$Leading.proteins.position <- mapply(calc.lead.prot.pos, multExpanded1_withDE$Leading.proteins, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
 
-#binary assigment of these positions to disorder/order using iupred list of dataframes. If all of the sites in a protein group are in a disordered region it is considered disordered. #Note negligible difference when calling disorder when any protein group members are assigned >.5! Most sites in disordered regions.
+#binary assigment of these positions to disorder/order using iupred list of dataframes. If all of the phosphorylation positions within a protein group are in a disordered region the site is considered disordered. #Note negligible difference when calling disorder when any protein group members are assigned >.5! Most sites are in disordered regions.
 
 disorder.assignment <- function(proteins, positions){
 #   for each protein position pair, assign to order/disorder
