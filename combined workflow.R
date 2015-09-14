@@ -153,10 +153,13 @@ GelPrep <- NormalizedResults[[3]]#Protein level
 # Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
 
 # A new combined approach. DiffPhos on confounded and 'corrected' (via covariate or normalization) data.
-multExpanded1_withDE <- DiffPhos(phosdata = adata, PhosPrep = PhosPrepCombatBio, GelPrep = GelPrep, multExpanded1)
+if(!file.exists("./multExpanded_withDE.RData")){
+  multExpanded1 <- DiffPhos(phosdata = adata, PhosPrep = PhosPrepCombatBio, GelPrep = GelPrep, multExpanded1)
+}else{
+  load("./multExpanded_withDE.RData")
+}
 
 #still need comparison venns and perhaps discussion/analysis of these results. Power differences with various covariates need to be considered.
-
 
 
 # Nested Random Effects modeling ------------------------------------------
@@ -211,7 +214,7 @@ multExpanded1_withDE$pnLowBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.
 
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
 if(!file.exists("./multExpanded_withDE_annotated.RData")){
-multExpanded1_withDE_annotated <- AddAnnotation(multExpanded1_withDE)
+multExpanded1_withDE_annotated <- AddAnnotation(multExpanded1)
 }else{
   load("./multExpanded_withDE_annotated.RData")
 }

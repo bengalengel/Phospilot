@@ -17,6 +17,7 @@ require(iterators)
 require(foreach)
 require(doParallel)
 require(biomaRt)
+require(plyr)
 
 #Examples using db objects
 ##############
@@ -141,15 +142,8 @@ ensembl_75_CCDS_pfam <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcr
 
 ### Define function for assigning annotation to protein group (protein level) ----------
 
-annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid){
-# This function accepts a LIST of unique protein groups and assigns annotation using passed annotation DF
-  #not easy to download so manually curated from pfam as of 8-24-15
-  pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
-                    "PF00017", "PF08416", "PF00168",#Y
-                    "PF00782", "PF00102", "PF13350", "PF06602", "PF04273", "PF03162", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
-                    "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
-                    "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
-  
+annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho){
+# This function accepts a LIST of unique protein groups and assigns annotation using passed annotation DF  
   
   
   #vector function flexible for preallocation
@@ -311,19 +305,22 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
 
 ###Bulk annotation add ----------
 
+#not easy to download so manually curated from pfam as of 8-24-15
+pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
+                  "PF00017", "PF08416", "PF00168",#Y
+                  "PF00782", "PF00102", "PF13350", "PF06602", "PF04273", "PF03162", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
+                  "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
+                  "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
+
+
 #confounded analysis
 #'leading proteins' are used for the phospho alone annotated data. Leading proteins are the FIRST ENTRY from each matching protein group assigned to the peptide. Within a protein group ties are ignored. 'proteins' is all identified (potentially only by a modified site) proteins the peptide is associated with. 
-#
-must make a subseted vector of positinos in proteins using %in% operator.
-
-#now I need to add position. leading proteins does not align perfectly with 'proteins'. A match between the two vectors must be found and the corresponding indeces within the 'positions.within.proteins' field should be returne 
-
 proteins <- unique(multExpanded1_withDE$Leading.proteins)#note that all members of the protein group are not used for annotation.
 proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]
 proteins <- as.list(proteins)
 
-confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid)
+confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho)
 
 
 ###phosprep annotation
@@ -334,7 +331,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid)
+PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho)
 
 ###gelprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
@@ -343,7 +340,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid)
+GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho)
 
 
 #Add these annotation IDs to the original ME dataframe. 
@@ -418,7 +415,7 @@ registerDoParallel(cl)
 confounded.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
    hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
    hgnc.symbol <- as.character(unlist(hgnc.symbol))
-   matches <- merged[merged$HGNCSymbol %in% hgnc.symbol,]
+   matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
    matches <- matches[,2:9]
    if(length(matches) > 1){
      matches <- apply(matches, 2, max)
@@ -430,7 +427,7 @@ HGNCsymbol <- as.character(multExpanded1_withDE$PhosPrepHGNCSymbol)
 phosprep.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
   hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
   hgnc.symbol <- as.character(unlist(hgnc.symbol))
-  matches <- merged[merged$HGNCSymbol %in% hgnc.symbol,]
+  matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
   matches <- matches[,2:9]
   if(length(matches) > 1){
     matches <- apply(matches, 2, max)
@@ -442,7 +439,7 @@ HGNCsymbol <- as.character(multExpanded1_withDE$GelPrepHGNCSymbol)
 gelprep.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
   hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
   hgnc.symbol <- as.character(unlist(hgnc.symbol))
-  matches <- merged[merged$HGNCSymbol %in% hgnc.symbol,]
+  matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
   matches <- matches[,2:9]
   if(length(matches) > 1){
     matches <- apply(matches, 2, max)
@@ -460,10 +457,26 @@ names(gelprep.mod.counts) <- paste(names(gelprep.mod.counts), ".GelPrep", sep = 
 multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded.mod.counts, phosprep.mod.counts, gelprep.mod.counts)
 
 
-
-
 ### Amino acid position specific annotations ----
 # local disorder, within pfam domains, and phosphosite level annotations
+
+#first identify positions for 'leading proteins' in the confounded dataset
+#function retrieve matching peptide location
+calc.lead.prot.pos <- function(leading.prot, proteins, positions){
+  leading.prot <- strsplit(as.character(leading.prot), ";")
+  leading.prot <- as.character(unlist(leading.prot))
+  proteins <- strsplit(as.character(proteins), ";")
+  proteins <- as.character(unlist(proteins))
+  index <- proteins %in% leading.prot
+  #subset and return the positions vector. ensure single element passed back
+  positions <- strsplit(as.character(positions), ";")
+  positions <- as.character(unlist(positions))
+  positions <- positions[index]
+  positions <- paste(positions, collapse = ";")
+}
+
+multExpanded1_withDE$Leading.proteins.position <- mapply(calc.lead.prot.pos, multExpanded1_withDE$Leading.proteins, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
+
 
 
 ###pfam domain annotation ----
@@ -584,26 +597,19 @@ GelPrep.domain.boundary <- foreach(i = 1:length(proteins), .combine = "rbind") %
 }
 stopCluster(cl)
 
+#make names distinctive then append to dataframe
+names(confounded.domain.boundary) <- paste0(names(confounded.domain.boundary), ".confounded")
+names(PhosPrep.domain.boundary) <- paste0(names(PhosPrep.domain.boundary), ".confounded")
+names(GelPrep.domain.boundary) <- paste0(names(GelPrep.domain.boundary), ".confounded")
+
+
+#append annotation to MEDF
+multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded.domain.boundary, PhosPrep.domain.boundary, GelPrep.domain.boundary)
+
 
 
 ### Local disorder using iupred -----
 
-#first identify positions for 'leading proteins' in the confounded dataset
-#function retrieve matching peptide location
-calc.lead.prot.pos <- function(leading.prot, proteins, positions){
-  leading.prot <- strsplit(as.character(leading.prot), ";")
-  leading.prot <- as.character(unlist(leading.prot))
-  proteins <- strsplit(as.character(proteins), ";")
-  proteins <- as.character(unlist(proteins))
-  index <- proteins %in% leading.prot
-  #subset and return the positions vector. ensure single element passed back
-  positions <- strsplit(as.character(positions), ";")
-  positions <- as.character(unlist(positions))
-  positions <- positions[index]
-  positions <- paste(positions, collapse = ";")
-}
-
-multExpanded1_withDE$Leading.proteins.position <- mapply(calc.lead.prot.pos, multExpanded1_withDE$Leading.proteins, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
 
 #binary assigment of these positions to disorder/order using iupred list of dataframes. If all of the phosphorylation positions within a protein group are in a disordered region the site is considered disordered. #Note negligible difference when calling disorder when any protein group members are assigned >.5! Most sites are in disordered regions.
 
@@ -636,27 +642,27 @@ multExpanded1_withDE$PhosPrep.Pos.Disorder <- mapply(disorder.assignment, as.cha
 #gelprep. NAs because some sites do not have matching protein quant estimates and therefore were not matched
 multExpanded1_withDE$GelPrep.Pos.Disorder <- mapply(disorder.assignment, as.character(multExpanded1_withDE$ppMajorityProteinIDs), as.character(multExpanded1_withDE$ppPositionInProteins))
 
-## Phosphosite annotations ---- 
+## Phosphosite annotations. on hold ---- 
 
-# Is residue annotated on phosphosite? Using Hugo nomenclature ids. this is really slow. need to import phosphosite with human already subsetted away.
-is.present <- function(hgnc.symbol, positions){
-  hgnc.symbol <- strsplit(as.character(hgnc.symbol), ";")
-  hgnc.symbol <- as.character(unlist(hgnc.symbol))
-  annotated.sites <- phosphosite$Phosphorylation_site_dataset[phosphosite$Phosphorylation_site_dataset$ORGANISM == "human" &
-                                                          phosphosite$Phosphorylation_site_dataset$GENE %in% hgnc.symbol,  ]
-  annotated.sites <- annotated.sites$MOD_RSD
-  annotated.sites <- gsub("[^0-9]", "", annotated.sites)
-  positions <- strsplit(as.character(positions), ";")
-  positions <- as.character(unlist(positions))
-  any(!positions %in% annotated.sites)
-  #well if only the major isoform is annotated this will give many hits! I likely need to sync this annotation with the site.group.id...
-  #uniprot ids must be used. 
-#   Positions must match the uniprot ids. Note that for a tryptic phosphopeptide matching multiple proteins will have the same site group id.
-}
-
-#confounded
-test <- mapply(is.present, as.character(multExpanded1_withDE$confoundedHGNCSymbol), as.character(multExpanded1_withDE$Leading.proteins.position))
-table(test)
+# # Is residue annotated on phosphosite? Using Hugo nomenclature ids. this is really slow. need to import phosphosite with human already subsetted away.
+# is.present <- function(hgnc.symbol, positions){
+#   hgnc.symbol <- strsplit(as.character(hgnc.symbol), ";")
+#   hgnc.symbol <- as.character(unlist(hgnc.symbol))
+#   annotated.sites <- phosphosite$Phosphorylation_site_dataset[phosphosite$Phosphorylation_site_dataset$ORGANISM == "human" &
+#                                                           phosphosite$Phosphorylation_site_dataset$GENE %in% hgnc.symbol,  ]
+#   annotated.sites <- annotated.sites$MOD_RSD
+#   annotated.sites <- gsub("[^0-9]", "", annotated.sites)
+#   positions <- strsplit(as.character(positions), ";")
+#   positions <- as.character(unlist(positions))
+#   any(!positions %in% annotated.sites)
+#   #well if only the major isoform is annotated this will give many hits! I likely need to sync this annotation with the site.group.id...
+#   #uniprot ids must be used. 
+# #   Positions must match the uniprot ids. Note that for a tryptic phosphopeptide matching multiple proteins will have the same site group id.
+# }
+# 
+# #confounded
+# test <- mapply(is.present, as.character(multExpanded1_withDE$confoundedHGNCSymbol), as.character(multExpanded1_withDE$Leading.proteins.position))
+# table(test)
 
 
 save(multExpanded1_withDE, file = "./multExpanded_withDE_annotated.RData")
