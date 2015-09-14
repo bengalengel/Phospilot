@@ -1,4 +1,4 @@
-#read into an iupred results into a list. unpack the tar.gz file (tarball) first
+#read iupred results into a list. unpack the tar.gz file (tarball) first
 require("foreach")
 require("iterators")
 require("doParallel")
