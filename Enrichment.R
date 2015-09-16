@@ -99,7 +99,38 @@ Enrichment <- function(multExpanded1_withDE){
   Enrich.RO.confounded <- Enrich(Confounded.BGRO, Confounded.DERO, ontology = "Reactome")
   Enrich.RO.PhosPrep <- Enrich(PhosPrep.BGRO, PhosPrep.DERO, ontology = "Reactome")
   Enrich.RO.GelPrep <- Enrich(GelPrep.BGRO, GelPrep.DERO, ontology = "Reactome")
-    
+  
+#   NO SIG ENRICHMENT FOR PROT NORMALIZED VALUES. PHOSPREP HAS A BIT BUT THESE ARE LIKELY SPURIOUS
+  
+  #bonus for gelprep only
+  ################################
+
+
+#phosprep protein covariate
+GelPrep.BGGO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepGOID"]))
+GelPrep.DEGO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont1 == "+", "GelPrepGOID"]))  
+GelPrep.BGRO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepReactIDs"]))
+GelPrep.DERO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont1 == "+", "GelPrepReactIDs"]))  
+
+GelPrep.BGGO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepGOID"]))
+GelPrep.DEGO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont2 == "+", "GelPrepGOID"]))  
+GelPrep.BGRO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepReactIDs"]))
+GelPrep.DERO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont2 == "+", "GelPrepReactIDs"]))  
+
+GelPrep.BGGO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepGOID"]))
+GelPrep.DEGO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont3 == "+", "GelPrepGOID"]))  
+GelPrep.BGRO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepReactIDs"]))
+GelPrep.DERO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont3 == "+", "GelPrepReactIDs"]))  
+
+#GelPrep normalized contrast enrichments
+Enrich.GO.1 <- Enrich(GelPrep.BGGO.cont1, GelPrep.DEGO.cont1, ontology = "GO")
+Enrich.GO.2 <- Enrich(GelPrep.BGGO.cont2, GelPrep.DEGO.cont2, ontology = "GO")
+Enrich.GO.3 <- Enrich(GelPrep.BGGO.cont3, GelPrep.DEGO.cont3, ontology = "GO")
+Enrich.RO.1 <- Enrich(GelPrep.BGRO.cont1, GelPrep.DERO.cont1, ontology = "Reactome")
+Enrich.RO.2 <- Enrich(GelPrep.BGRO.cont2, GelPrep.DERO.cont2, ontology = "Reactome")
+Enrich.RO.3 <- Enrich(GelPrep.BGRO.cont3, GelPrep.DERO.cont3, ontology = "Reactome")
+
+
   
   ####test enrichment using spearman rank correlation vs adjusted p values.
 #   
@@ -187,7 +218,7 @@ Enrichment <- function(multExpanded1_withDE){
   #return a list of enrichment DFs
   ###############################
   #final all dataframes in environment with names 'enrich'
-  EnrichmentDFs <- setNames(lapply(ls(pattern="enrich"), function(x) {if(class(get(x)) == "data.frame") get(x)}),ls(pattern="enrich")) #returns some NULL list elements
+  EnrichmentDFs <- setNames(lapply(ls(pattern="Enrich."), function(x) {if(class(get(x)) == "data.frame") get(x)}),ls(pattern="Enrich.")) #returns some NULL list elements
   EnrichmentDFs <- EnrichmentDFs[!sapply(EnrichmentDFs,is.null)]#note there is an 'is.null' function! and needed to use sappply for ligical indexing
   return(EnrichmentDFs)
   
