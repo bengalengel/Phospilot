@@ -599,8 +599,8 @@ stopCluster(cl)
 
 #make names distinctive then append to dataframe
 names(confounded.domain.boundary) <- paste0(names(confounded.domain.boundary), ".confounded")
-names(PhosPrep.domain.boundary) <- paste0(names(PhosPrep.domain.boundary), ".confounded")
-names(GelPrep.domain.boundary) <- paste0(names(GelPrep.domain.boundary), ".confounded")
+names(PhosPrep.domain.boundary) <- paste0(names(PhosPrep.domain.boundary), ".PhosPrep")
+names(GelPrep.domain.boundary) <- paste0(names(GelPrep.domain.boundary), ".GelPrep")
 
 
 #append annotation to MEDF

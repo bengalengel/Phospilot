@@ -49,6 +49,13 @@ dev.off()
 source("Enrichment.R")
 
 enrichment_tables <- Enrichment(multExpanded1_withDE_annotated)
+dir.create("./Enrichments") 
+for(i in 1:length(enrichment_tables)){
+  write.table(enrichment_tables[[i]], file.path(getwd(), paste0("Enrichments/", names(enrichment_tables)[i], ".txt")),
+              sep = "\t", row.names = F)
+}
+
+#output for cytoscape
 
 
 ##barplot for connectivity, % Disorder, extent of PTM modifications ----
