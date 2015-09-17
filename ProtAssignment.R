@@ -325,7 +325,7 @@ for (i in 1:(ncol(quantiled4))){
   #At least two calls in each batch (for Combat)
   DFs <- list(multExpanded1, RawRatios, MedianNorm, quantiled, quantiled2, quantiled3, quantiled4, quantiled5, quantiledBio,
               com2, adata, pilot)
-  save(DFs, file = "./PhosPrepMatrices.RData")
+  saveRDS(DFs, file = "./PhosPrepMatrices.rds")
   return(DFs)
 }
 

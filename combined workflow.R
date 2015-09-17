@@ -109,10 +109,10 @@ proteome <- read.fasta( file = "./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCD
 
 #### Add protein level information from PhosPrep workup
 #Protein assignment adds protein ids, positions within protein, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup.
-if(!file.exists("./PhosPrepMatrices.RData")) {
+if(!file.exists("./PhosPrepMatrices.rds")) {
   PhosPrepMatrices <- ProtAssignment(protein, proteome, multExpanded1)
 }else{
-  load("./PhosPrepMatrices.RData")
+  load("./PhosPrepMatrices.rds")
 }
 multExpanded1 <- PhosPrepMatrices[[1]]
 PhosPrepquantiledBio <- PhosPrepMatrices[[9]]#med/norm with one measurement in each bio rep
