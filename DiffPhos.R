@@ -1,3 +1,12 @@
+#' Differential phosphorylation analysis
+#'
+#' Per gene differential phosporylation analysis controlling for protein levels 
+#' quantified using PhosPre. Each model is a mixed effect model with a fixed effect
+#' of individual cell lines and a random effect of cell culture; each individual's
+#' corresponding protein level for the peptide is used as a covariate.
+#' 
+#' 
+
 DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   #this function accepts phospho and protein matrices runs diffphos analysis using limma. Columns are appended
   #to the multexpanded1 file according to the presence of DE or not. As of now combat correction is being performed upstream and protein levels are being fitted as a covariate as opposed to normalizing phosdata and fitting withiout the covariate. It is unclear how normalization would affect fitting biorep as defacto RE.
