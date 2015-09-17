@@ -89,10 +89,10 @@ multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] 
 # Normalization and batch correction of confounded data -------------------
 
 #remove an outlier, normalize (median and quantile), and batch correct (combat). Returned are EDA plots and a list of DFs.See BatchNorm for details
-if(!file.exists("./CorrectedData.RData")) {
+if(!file.exists("./CorrectedData.rds")) {
 CorrectedData <- BatchNorm(multExpanded1=multExpanded1)#class 1 sites
 }else{
-  load("./CorrectedData.RData")
+  CorrectedData <- readRDS("./CorrectedData.rds")
 }
 com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
 adata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep

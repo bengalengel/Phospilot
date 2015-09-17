@@ -233,6 +233,6 @@ BatchNorm <- function(multExpanded1){
   
   #data frames to be returned; quantiled1-5, com2, adata, pilot
   DFs <- list(RawRatios, MedianNorm, quantiled, quantiled2, quantiled3, quantiled4, quantiled5, com2, adata, pilot)
-  save(DFs, file = "./CorrectedData.RData")
+  saveRDS(DFs, file = "./CorrectedData.rds")
   return(DFs)
 }
