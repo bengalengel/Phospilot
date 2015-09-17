@@ -334,6 +334,6 @@ multExpanded1 <- ProcessFit(fit2 = GelPrepNormFit, header = "GelPrepNorm", FitDa
   
   #write the multExpanded table with DE information
   write.table(multExpanded1,"multExpanded1_withDE1.csv", sep=',',col.names=T, row.names=F)
-  save(multExpanded1, file = "./multExpanded_withDE.RData")
+  saveRDS(multExpanded1, file = "multExpanded1_withDE.rds")
   return(multExpanded1)
 }

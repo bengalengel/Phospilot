@@ -665,7 +665,7 @@ multExpanded1_withDE$GelPrep.Pos.Disorder <- mapply(disorder.assignment, as.char
 # table(test)
 
 
-save(multExpanded1_withDE, file = "./multExpanded_withDE_annotated.RData")
+saveRDS(multExpanded1_withDE, file = "./multExpanded1_withDE_annotated.rds")
 return(multExpanded1_withDE)
 }
 
