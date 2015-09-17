@@ -327,7 +327,7 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
        ylab = "variance explained")
   
   
-  DFs <- list(AllPhos,ProtNormalized, GelPrep)
-  save(DFs, file = "./NormalizedResults.RData")
-  return(DFs)
+  ProtAssignment2.out <- list(AllPhos,ProtNormalized, GelPrep)
+  saveRDS(ProtAssignment2.out, file = "./NormalizedResults.rds")
+  return(ProtAssignment2.out)
 }

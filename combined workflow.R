@@ -112,7 +112,7 @@ proteome <- read.fasta( file = "./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCD
 if(!file.exists("./PhosPrepMatrices.rds")) {
   PhosPrepMatrices <- ProtAssignment(protein, proteome, multExpanded1)
 }else{
-  load("./PhosPrepMatrices.rds")
+  PhosPrepMatrices <- readRDS("./PhosPrepMatrices.rds")
 }
 multExpanded1 <- PhosPrepMatrices[[1]]
 PhosPrepquantiledBio <- PhosPrepMatrices[[9]]#med/norm with one measurement in each bio rep
@@ -139,9 +139,10 @@ RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed
 #for the moment I am using ME1 as ME with DE. Perhaps discriptive uses can be moved to the diffphos and/or diffphosprot functions.
 
 #note this take awhile!!!
-if(!file.exists("./NormalizedResults.RData")){
-NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)}else{
-  load("./NormalizedResults.RData")
+if(!file.exists("./NormalizedResults.rds")){
+NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)
+} else {
+  readRDS(load("./NormalizedResults.rds"))
 }
 multExpanded1 <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
