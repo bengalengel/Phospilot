@@ -350,8 +350,8 @@ table(multExpanded1_withDE_annotated$PhosPrepNsSnpCount)
 # 'in' category is any majority/leading protein(s) assigned to this phosphosite has a snp.  
 
 SubtoDEGelProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",] #3257
-# SubtoDEConfounded <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$ConfoundedSubtoDE == "+",] #4738
-# SubtoDEPhosProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$PhosPrepCovSubtoDE == "+",] #1308
+SubtoDEConfounded <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$ConfoundedSubtoDE == "+",] #4738
+SubtoDEPhosProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$PhosPrepCovSubtoDE == "+",] #1308
 
 #GelPrep analysis using Zia's data
 row1 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "+" & SubtoDEGelProt$GelPrepNsSnpPositive == "+",]), 
@@ -402,6 +402,12 @@ result$p.value
 # 
 # row1      row2 
 # 0.4036872 0.3530026 
+
+
+
+
+
+
 
 
 
@@ -861,22 +867,6 @@ row2 1330 2586
 
 
 ###################
-
-
-
-
-
-#protnormalized analysis using Zia's data
-row1 <- c(nrow(subtoDEpn[subtoDEpn$globalFsig == "+" & subtoDEpn$NsSnpPositive == "+",]), 
-          nrow(subtoDEpn[subtoDEpn$globalFsig == "+" & subtoDEpn$NsSnpPositive == "-",]))
-
-row2 <- c(nrow(subtoDEpn[subtoDEpn$globalFsig == "-" & subtoDEpn$NsSnpPositive == "+",]), 
-          nrow(subtoDEpn[subtoDEpn$globalFsig == "-" & subtoDEpn$NsSnpPositive == "-",]))
-
-#FEtest
-contmatrix <- rbind(row1,row2)
-result <- fisher.test(contmatrix, alternative = "g")
-result$p.value
 
 
 

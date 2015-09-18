@@ -97,15 +97,16 @@ table(multExpanded1_withDE$GelPreppQTLCount)
 # new start ---------------------------------------------------------------
 
 
-#John's new file. Modified with excel. Needs to have '#' removed in one of the column headers! 
+#John's new file. Modified with excel (EM). Needs to have '#' removed in one of the column headers! 
 pqtl <- read.table("D:/EMpqtl-genos.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")#278
+pqtl <- read.table("E:/My Documents/Pilot/EMpqtl-genos.txt", sep = "\t", header = T, stringsAsFactors = F, quote = "")#278
 
 #subset to those carried over to hg19
 pqtl <- pqtl[!is.na(pqtl$CHROM),]
 
 #subset to those present in any of our samples
 
-#subset to 4 samples of interest: 18486, 18862, 19160, and the 19238 standard
+#subset to 3 samples of interest: 18486, 18862, 19160, (19238 is the standard so is not included)
 sampleNames <- grep("18486|18862|19160", names(pqtl), value = T)
 variables <- names(pqtl)[1:15]
 pqtl <- pqtl[,c(variables,sampleNames)]
@@ -116,10 +117,9 @@ hapTypes <- c("0|1", "1|0", "1|1")
 index <- apply(pqtl[,sampleNames], 1, function(x){
   any(hapTypes %in% x)})
 pqtl <- pqtl[index,]
+nrow(pqtl)#199
 
-nrow(pqtl)
-[1] 199!
-  
+
 #subset to those variants where at least one line is different
 index <- apply(pqtl[,sampleNames],1,function(x){
   x <- as.character(x)
@@ -127,11 +127,12 @@ index <- apply(pqtl[,sampleNames],1,function(x){
     }
   )
 pqtl <- pqtl[index,]
-nrow(pqtl)
-[1] 181
+nrow(pqtl) #181
 
-###assign pqtl to phosphosites
 
+### Assign pqtls to phosphosites ----
+
+# I will use biomart to asssign ENSGids to ENSPids and from there to the phosphosites
 
 #how many of the ensgids are in the biomart ensembl75 GRCh37.p13/hg19 repository?
 library("biomaRt")
@@ -140,13 +141,13 @@ library("seqinr")
 #archive hsapiens mart
 ensembl_75 = useMart(biomart="ENSEMBL_MART_ENSEMBL", host="feb2014.archive.ensembl.org", path="/biomart/martservice", dataset="hsapiens_gene_ensembl")
 
-
+# Biomart entries for the pQTL genes
 ensembl_75_pqtls <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'ensembl_peptide_id','description','hgnc_id',
                                          'hgnc_symbol','gene_biotype', 'transcript_biotype', 'status', 'transcript_status', 'ccds'),
                           filters = "ensembl_gene_id", values = pqtl$ENSG, mart = ensembl_75)
 
 
-length(unique(pqtl$ENSG)) - length(unique(ensembl_75_pqtls$ensembl_gene_id))#no genes missing. (181 of 181)
+length(unique(pqtl$ENSG)) == length(unique(ensembl_75_pqtls$ensembl_gene_id))#no genes missing. (181 of 181)
 
 #from 181 pqtl genes, how many have at least one CCDs protein id and were therefore included in the database for the search?
 
@@ -173,7 +174,7 @@ length(unique(ensembl_75_pqtlscds$ensembl_gene_id))
 
 
 
-#match for any assigned protein from the protein group to a gene with a pqtl?
+#apply a match test for any assigned protein from the protein group to a gene with a pqtl.
 AnyMatchProtQTL <- function(queryproteins){
   #This function looks for a match between queryproteins and the proteins containing a non-synonymous snp
   #queryproteins are proteins assigned to the given phosphopeptide
@@ -183,28 +184,47 @@ AnyMatchProtQTL <- function(queryproteins){
     "-"
   }
 }
+
 #apply anymatch function to all 'leading proteins' and 'majority protein ids'. around 340 sites match to a protein with a pQTL
-multExpanded1_withDE$pQTLPositive <- mapply(AnyMatchProtQTL, multExpanded1_withDE$Leading.proteins)
-multExpanded1_withDE$GelPreppQTLPositive <- mapply(AnyMatchProtQTL, multExpanded1_withDE$ppMajorityProteinIDs)
-multExpanded1_withDE$PhosPreppQTLPositive <- mapply(AnyMatchProtQTL, multExpanded1_withDE$PhosPrepMajorityProteinIDs)
+multExpanded1_withDE_annotated$pQTLPositive <- mapply(AnyMatchProtQTL, multExpanded1_withDE_annotated$Leading.proteins)
+multExpanded1_withDE_annotated$GelPreppQTLPositive <- mapply(AnyMatchProtQTL, multExpanded1_withDE_annotated$ppMajorityProteinIDs)
+multExpanded1_withDE_annotated$PhosPreppQTLPositive <- mapply(AnyMatchProtQTL, multExpanded1_withDE_annotated$PhosPrepMajorityProteinIDs)
+
+#339 sites map to a pQTL protein
+table(multExpanded1_withDE_annotated$GelPreppQTLPositive)
+
+#80 proteins
+length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPreppQTLPositive == "+", "ppMajorityProteinIDs"]))
+
+
+#how many sites/proteins subjected to diffphos?
+
+#38 proteins
+length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPreppQTLPositive == "+" &
+                                               multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", 
+                                             "ppMajorityProteinIDs"]))
+#100 sites
+nrow(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPreppQTLPositive == "+" &
+                                               multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", ])
+
 
 
 
 ###LATER
-#how many ENSPids from a pQTL gene per protein group are assigned to a phosphopeptide?
-NumMatchesProtQTL <- function(queryproteins){
-  #This function counts the matches between queryproteins and the proteins containing a non-synonymous snp
-  #queryproteins are proteins assigned to the peptide
-  sum(unlist(strsplit(as.character(queryproteins), ";")) %in% ensembl_75_pqtlscds$ensembl_peptide_id)
-}
-
-#apply count function to all 'leading proteins' and 'majority protein ids'
-multExpanded1_withDE$pQTLCount <- mapply(NumMatchesProtQTL, multExpanded1_withDE$Leading.proteins)
-multExpanded1_withDE$GelPreppQTLCount <- mapply(NumMatchesProtQTL, multExpanded1_withDE$ppMajorityProteinIDs)
-
-# This is likely due to multiple protein isoforms corresponding to a single gene. How many pQTLs correspond are mapped to multiple genes (paralogs)?
-table(multExpanded1_withDE$pQTLCount)
-table(multExpanded1_withDE$GelPreppQTLCount)
+# #how many ENSPids from a pQTL gene per protein group are assigned to a phosphopeptide?
+# NumMatchesProtQTL <- function(queryproteins){
+#   #This function counts the matches between queryproteins and the proteins containing a non-synonymous snp
+#   #queryproteins are proteins assigned to the peptide
+#   sum(unlist(strsplit(as.character(queryproteins), ";")) %in% ensembl_75_pqtlscds$ensembl_peptide_id)
+# }
+# 
+# #apply count function to all 'leading proteins' and 'majority protein ids'
+# multExpanded1_withDE$pQTLCount <- mapply(NumMatchesProtQTL, multExpanded1_withDE$Leading.proteins)
+# multExpanded1_withDE$GelPreppQTLCount <- mapply(NumMatchesProtQTL, multExpanded1_withDE$ppMajorityProteinIDs)
+# 
+# # This is likely due to multiple protein isoforms corresponding to a single gene. How many pQTLs correspond are mapped to multiple genes (paralogs)?
+# table(multExpanded1_withDE$pQTLCount)
+# table(multExpanded1_withDE$GelPreppQTLCount)
 
 
 
@@ -220,57 +240,80 @@ table(multExpanded1_withDE$GelPreppQTLCount)
 #                    NotDErow
 # 'in' category is any majority/leading protein(s) assigned to this phosphosite has a pQTL.  
 
-SubtoDEConfounded <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEConfounded == "+",] #4738
-SubtoDEGelProt <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEGelProt == "+",] #3488
-SubtoDEPhosProt <- multExpanded1_withDE[multExpanded1_withDE$SubtoDEPhosProt == "+",] #1308
 
-#confounded analysis
-row1 <- c(nrow(SubtoDEConfounded[SubtoDEConfounded$globalFsigConfounded == "+" & SubtoDEConfounded$pQTLPositive == "+",]), 
-          nrow(SubtoDEConfounded[SubtoDEConfounded$globalFsigConfounded == "+" & SubtoDEConfounded$pQTLPositive == "-",]))
-
-row2 <- c(nrow(SubtoDEConfounded[SubtoDEConfounded$globalFsigConfounded == "-" & SubtoDEConfounded$pQTLPositive == "+",]), 
-          nrow(SubtoDEConfounded[SubtoDEConfounded$globalFsigConfounded == "-" & SubtoDEConfounded$pQTLPositive == "-",]))
-
-
-#FEtest
-contmatrix <- rbind(row1,row2)
-result <- fisher.test(contmatrix, alternative = "g")
-result$p.value
-row1 
-0.02942428
-# row1 (previous)
-# 0.1776086  
-
+SubtoDEGelProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",] #3257
+SubtoDEConfounded <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$ConfoundedSubtoDE == "+",] #4738
+SubtoDEPhosProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$PhosPrepCovSubtoDE == "+",] #1308
 
 #GelPrep analysis using Zia's data
-row1 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$globalFsigGelProt == "+" & SubtoDEGelProt$GelPreppQTLPositive == "+",]), 
-          nrow(SubtoDEGelProt[SubtoDEGelProt$globalFsigGelProt == "+" & SubtoDEGelProt$GelPreppQTLPositive == "-",]))
+row1 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "+" & SubtoDEGelProt$GelPreppQTLPositive == "+",]), 
+          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "+" & SubtoDEGelProt$GelPreppQTLPositive == "-",]))
 
-row2 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$globalFsigGelProt == "-" & SubtoDEGelProt$GelPreppQTLPositive == "+",]), 
-          nrow(SubtoDEGelProt[SubtoDEGelProt$globalFsigGelProt == "-" & SubtoDEGelProt$GelPreppQTLPositive == "-",]))
-
-#FEtest
-contmatrix <- rbind(row1,row2)
-result <- fisher.test(contmatrix, alternative = "g")
-result$p.value
-row1 
-0.7265125 
-# (previous)
-# 0.0006978427
-
-#PhosPrep analysis
-row1 <- c(nrow(SubtoDEPhosProt[SubtoDEPhosProt$globalFsigPhosProt == "+" & SubtoDEPhosProt$PhosPreppQTLPositive == "+",]), 
-          nrow(SubtoDEPhosProt[SubtoDEPhosProt$globalFsigPhosProt == "+" & SubtoDEPhosProt$PhosPreppQTLPositive == "-",]))
-
-row2 <- c(nrow(SubtoDEPhosProt[SubtoDEPhosProt$globalFsigPhosProt == "-" & SubtoDEPhosProt$PhosPreppQTLPositive == "+",]), 
-          nrow(SubtoDEPhosProt[SubtoDEPhosProt$globalFsigPhosProt == "-" & SubtoDEPhosProt$PhosPreppQTLPositive == "-",]))
+row2 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "-" & SubtoDEGelProt$GelPreppQTLPositive == "+",]), 
+          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "-" & SubtoDEGelProt$GelPreppQTLPositive == "-",]))
 
 #FEtest
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
-row1 
-0.06490571 
+0.08152954 (9/18/2015)
+
+
+# Threshold dependency test ----
+
+# Regress p-values against binary assignment of sites. Assess if significant spearman rank based correlation.
+
+
+
+
+
+
+
+
+# # confounded analysis
+# row1 <- c(nrow(SubtoDEConfounded[SubtoDEConfounded$ConfoundedglobalFsig == "+" & SubtoDEConfounded$pQTLPositive == "+",]), 
+#           nrow(SubtoDEConfounded[SubtoDEConfounded$ConfoundedglobalFsig == "+" & SubtoDEConfounded$pQTLPositive == "-",]))
+# 
+# row2 <- c(nrow(SubtoDEConfounded[SubtoDEConfounded$ConfoundedglobalFsig == "-" & SubtoDEConfounded$pQTLPositive == "+",]), 
+#           nrow(SubtoDEConfounded[SubtoDEConfounded$ConfoundedglobalFsig == "-" & SubtoDEConfounded$pQTLPositive == "-",]))
+# 
+# #FEtest
+# contmatrix <- rbind(row1,row2)
+# result <- fisher.test(contmatrix, alternative = "g")
+# result$p.value
+# 0.02942428
+# 
+# 
+# #PhosPrep analysis
+# row1 <- c(nrow(SubtoDEPhosProt[SubtoDEPhosProt$PhosPrepCovglobalFsig == "+" & SubtoDEPhosProt$PhosPreppQTLPositive == "+",]), 
+#           nrow(SubtoDEPhosProt[SubtoDEPhosProt$PhosPrepCovglobalFsig == "+" & SubtoDEPhosProt$PhosPreppQTLPositive == "-",]))
+# 
+# row2 <- c(nrow(SubtoDEPhosProt[SubtoDEPhosProt$PhosPrepCovglobalFsig == "-" & SubtoDEPhosProt$PhosPreppQTLPositive == "+",]), 
+#           nrow(SubtoDEPhosProt[SubtoDEPhosProt$PhosPrepCovglobalFsig == "-" & SubtoDEPhosProt$PhosPreppQTLPositive == "-",]))
+# 
+# #FEtest
+# contmatrix <- rbind(row1,row2)
+# result <- fisher.test(contmatrix, alternative = "g")
+# result$p.value
+# 0.06490571 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
