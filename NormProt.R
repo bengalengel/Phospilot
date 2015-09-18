@@ -43,10 +43,6 @@ NormProt <- function(directory){
     BuildProt(protein1)
   }
   
-  ## load altered 'protein1' continaing protein assignment to specific genes.
-  protein1 <- readRDS("
-  
-  
   
   #2 - check for genotype data and cahe files. Build if necessary. Note using Jack's imputed data. Note it takes awhile to make cache files. Here I am using MAF of .10
   if(length(Sys.glob("./PCregression/data/geno_data/*.RData")) == 0) {
