@@ -7,8 +7,6 @@
 
 #packages
 require(plyr)
-require(dplyr)
-require(ggplot)
 library(gplots)
 
 ##########Enrichment of highly expressed proteins in diffphos? ----
@@ -37,7 +35,7 @@ smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
               )
 reg.line <- lm(y~x, na.action = "na.omit")
 abline(reg.line, lwd = 1.5, lty = 2)
-text(8.8, 10.2, expression(R^2 == -.03), col = "darkred", cex = 1) # rsquared and pvalue
+text(8.8, 10.2, expression(R == -.03), col = "darkred", cex = 1) # rsquared and pvalue
 text(8.8, 9.4, expression(p == .1), col = "darkred", cex = 1)
 dev.off()
 
@@ -205,6 +203,14 @@ GelPrep.data <- GelPrep.data[GelPrep.data$GelPrepNormSubtoDE == "+",]
 
 sig.index <- GelPrep.data$GelPrepNormglobalFsig == "+"
 
+#function for mean and se calculations
+mean.se.calc <- function(pos.set, neg.set){
+  m1 <- mean(pos.set[is.finite(pos.set)], na.rm = T)
+  sem1 <- sd(pos.set[is.finite(pos.set)])/ sqrt(sum(is.finite(pos.set)))
+  m2 <- mean(neg.set[is.finite(neg.set)], na.rm = T)
+  sem2 <- sd(neg.set[is.finite(neg.set)])/ sqrt(sum(is.finite(neg.set)))
+  list(means = c(m1, m2), stderr = c(sem1, sem2))
+}
 
 ##connectivity with biogrid
 

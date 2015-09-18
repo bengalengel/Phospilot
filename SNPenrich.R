@@ -2,6 +2,9 @@
 
 # SNPenrich <- function(multExpanded1_withDE){
 require(seqinr)
+require(iterators)
+require(foreach)
+require(doParallel)
 
 ####create variant data frame and subset to those present in any of the three samples including the standard --------
 #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
@@ -64,6 +67,21 @@ hits <- sapply(SNPeffFinal$peptide, function(x) {
     }
 }
 )
+
+cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
+registerDoParallel(cl)
+hits <- foreach(i = 1:length(SNPeffFinal$peptide), .combine = "c") %dopar% {
+  peptide <- SNPeffFinal$peptide[i]
+  hit <- grep(peptide, names(proteome))
+  if(length(hit)==0){
+    "no match" 
+    } else {
+      return(hit)
+    }
+}
+stopCluster(cl)
+
+
 SNPeffFinal$ProteomeIndex <- hits
 
 
@@ -82,7 +100,7 @@ TyrDist <- function(ProtSeq, VariantPosition){
   #if ProtSeq index is valid 
   if(ProtSeq != "no match"){
     #retrieve sequence and Tyr index
-    seq <- getSequence(proteome[[as.numeric(ProtSeq)]])
+    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
     Tyr <- grep("Y", seq)
     #if sequence contains tyrosines
     if(length(Tyr) > 0){
@@ -101,7 +119,7 @@ SerDist <- function(ProtSeq, VariantPosition){
   #if ProtSeq index is valid 
   if(ProtSeq != "no match"){
     #retrieve sequence and Syr index
-    seq <- getSequence(proteome[[as.numeric(ProtSeq)]])
+    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
     Ser <- grep("S", seq)
     #if sequence contains Serines
     if(length(Ser) > 0){
@@ -120,7 +138,7 @@ ThrDist <- function(ProtSeq, VariantPosition){
   #if ProtSeq index is valid 
   if(ProtSeq != "no match"){
     #retrieve sequence and Thr index
-    seq <- getSequence(proteome[[as.numeric(ProtSeq)]])
+    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
     Thr <- grep("T", seq)
     #if sequence contains Serines
     if(length(Thr) > 0){
@@ -169,19 +187,19 @@ DistToPhos <- function(ProteinGroup, ProteinGroupPosition){
   }
 }
 
-#apply closest snp to phosphorylation site function. UPDATED TO USE ONLY NS VARIANTS
-multExpanded1_withDE$ClosestSNPtoSite <- mapply(DistToPhos, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
+#apply closest snp to phosphorylation site function. UPDATED TO USE ONLY MISSENSE VARIANTS
+multExpanded1_withDE_annotated$ClosestSNPtoSite <- mapply(DistToPhos, multExpanded1_withDE$Proteins, multExpanded1_withDE$Positions.within.proteins)
 
-#apply closest snp to phosphorylation site function GelPrep assignments. UPDATED TO USE ONLY NS VARIANTS
-# multExpanded1_withDE$ClosestSNPtoSiteGelPrep <- mapply(DistToPhos, multExpanded1_withDE$ppProteinIDs, multExpanded1_withDE$ppPositionInProteins)
+#apply closest snp to phosphorylation site function GelPrep assignments. UPDATED TO USE ONLY MISSENSE VARIANTS
+multExpanded1_withDE_annotated$ClosestSNPtoSiteGelPrep <- mapply(DistToPhos, multExpanded1_withDE$ppProteinIDs, multExpanded1_withDE$ppPositionInProteins)
 
-#apply closest snp to phosphorylation site function PhosPrep assignments.
+#apply closest snp to phosphorylation site function PhosPrep assignments. ON HOLD
 
 
 
 
 # calculate minimum of all the distances for each protein group
-multExpanded1_withDE$ClosestSNPtoSiteMin <- sapply(multExpanded1_withDE$ClosestSNPtoSite, function(x){
+multExpanded1_withDE_annotated$ClosestSNPtoSiteMin <- sapply(multExpanded1_withDE_annotated$ClosestSNPtoSite, function(x){
   distances <- as.numeric(unlist(strsplit(x, ";")))
   if(!all(is.na(distances))){
     min(distances, na.rm = T)
@@ -189,16 +207,50 @@ multExpanded1_withDE$ClosestSNPtoSiteMin <- sapply(multExpanded1_withDE$ClosestS
   {NA}
 })  
 
-#Hypothesis: Biological phosphosite variance correlates positively with the distance to observed phosphorylation site   
+multExpanded1_withDE_annotated$ClosestSNPtoSiteMinGelPrep <- sapply(multExpanded1_withDE_annotated$ClosestSNPtoSiteGelPrep, function(x){
+  distances <- as.numeric(unlist(strsplit(x, ";")))
+  if(!all(is.na(distances))){
+    min(distances, na.rm = T)
+  }else
+  {NA}
+})  
+
+
+#Hypothesis: omnibus pvalues correlate with the distance to observed phosphorylation site   
+GelPrep.distances <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",
+                                                    c("GelPrepNormglobalFsig", "GelPrepNormFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
+y <- -log10(as.numeric(GelPrep.distances$GelPrepNormFAdjPval))
+x <- log10(GelPrep.distances$ClosestSNPtoSiteMinGelPrep + 1)#
+
+plot(x,y)
+R <- cor(x, y, method = "pearson", use = "complete.obs")
+R
+cor.test(x,y)$p.value
+
+#make and save plot
+pdf("distance_pvalue_density.pdf", 7, 5)
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              xlab = expression(log[10](AA~distance~between~SNP~and~phosphosite)),
+              ylab = expression(-log[10](P~value)), lwd = 10
+)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 1.5, lty = 2)
+text(3.2, 7.5, expression(R == -.02), col = "darkred", cex = 1) # rsquared and pvalue
+text(3.2, 7.0, expression(p == .5), col = "darkred", cex = 1)
+dev.off()
+
+
+#Hypothesis: Biological phosphosite variance correlates positively with the distance to observed phosphorylation site. ON HOLD
 
 #is there a positive correlation between bio Varcomp and closest SNP?
-holder <- multExpanded1_withDE[,c("idmult", "ClosestSNPtoSiteMin")]
-
-VarcompDist <- merge(varcomp, holder, by.x = "row.names", by.y = "idmult")
-
-index <- !is.na(VarcompDist$ClosestSNPtoSiteMin)
-VarcompDist <- VarcompDist[index,]#length of 2427
-
+# holder <- multExpanded1_withDE[,c("idmult", "ClosestSNPtoSiteMin")]
+# 
+# VarcompDist <- merge(varcomp, holder, by.x = "row.names", by.y = "idmult")
+# 
+# index <- !is.na(VarcompDist$ClosestSNPtoSiteMin)
+# VarcompDist <- VarcompDist[index,]#length of 2427
+# 
 
 #Hypothesis: Phosphosite inter-individual variance (limma adjusted F) correlates positively with the distance to observed phosphorylation site   
 
