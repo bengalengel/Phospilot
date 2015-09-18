@@ -149,7 +149,7 @@ RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed.
 if(!file.exists("./NormalizedResults.rds")){
 NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)
 } else {
-  readRDS(load("./NormalizedResults.rds"))
+  NormalizedResults <- readRDS("./NormalizedResults.rds")
 }
 multExpanded1 <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
@@ -224,7 +224,7 @@ multExpanded1_withDE$pnLowBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.
 if(!file.exists("multExpanded1_withDE_annotated.rds")){
 multExpanded1_withDE_annotated <- AddAnnotation(multExpanded1_withDE)
 }else{
-  multExpanded1_withDE_annotated <- readRDS("multExpanded_withDE_annotated.rds")
+  multExpanded1_withDE_annotated <- readRDS("multExpanded1_withDE_annotated.rds")
 }
 
 # (Ontology) Enrichment analysis performed on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
