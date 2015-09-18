@@ -109,6 +109,9 @@ proteome <- read.fasta( file = "./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCD
 
 #### Add protein level information from PhosPrep workup
 #Protein assignment adds protein ids, positions within protein, H/L values and ibaq values to phosphosites for protein level normalization using the "protein groups" file produced from the phospho workup.
+
+#note that this function performs protein level batch correction/normalization and assignment to phosphopeptides.
+
 if(!file.exists("./PhosPrepMatrices.rds")) {
   PhosPrepMatrices <- ProtAssignment(protein, proteome, multExpanded1)
 }else{
@@ -122,7 +125,11 @@ PhosPrepCombatPilot <- PhosPrepMatrices[[12]]#same as above with mean ratios for
 
 
 #### Add protein level information from GelPrep workup
-#First load MQ output from proteomic analysis of 60 LCL lines, subsets to the three of interest, median then quantile normalizes. Returned is a list of 4 DFs: full MQoutput, MQ output raw data, median normalized, and quantile normalized. 
+
+#For GelPrep protein normalization and assignment of proteins to phosphopeptides is done in two steps. 
+
+# Normprot performs 'traditional' quantile normalization AND calls multiple scripts to perform a pQTL optimization routing by regressing PCs.
+# See the PCregression folder for more details
 
 # Choose directory containing proteomics data to pass to 'NormProt'.
 #note that this function now requires "genotypes_imputed" files and ensembl_4_30.gz from Jack to run PCregression pQTL optimization anew. 
@@ -131,14 +138,14 @@ CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteo
 CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")#from laptop INCLUDES IBAQ
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
-RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed
+RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed.
+
+###!!! Ensure RegressedCommon contains row.names = proteingroup ids. If not delete "./PCregression/PRO_raw.RData" and call NormProt again.
 
 
 #ProtAssignment2 matches the two datasets. It returns a DF with the PCregressed protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
 
-#for the moment I am using ME1 as ME with DE. Perhaps discriptive uses can be moved to the diffphos and/or diffphosprot functions.
-
-#note this take awhile!!!
+#for the moment I am using ME1 as ME with DE. Sorry for this future self, I must move forward. Also note this takes awhile!!!
 if(!file.exists("./NormalizedResults.rds")){
 NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)
 } else {
