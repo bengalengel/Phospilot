@@ -4,6 +4,7 @@
 *.Rproj
 .Rhistory
 *.RData
+*.rds
 *.png
 *.pdf
 *.txt
