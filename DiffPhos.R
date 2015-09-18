@@ -5,7 +5,20 @@
 #' of individual cell lines and a random effect of cell culture; each individual's
 #' corresponding protein level for the peptide is used as a covariate.
 #' 
+#' @param phosdata Phosphorylated peptides quantifications. Each row uniquely identifies
+#'	           a peptide with an individual, cell culture, and technical replicate.
+#' @param PhosPrep Protein quantification from PhosPrep workup. Each row uniquely 
+#'		   identifies a protein with an individual, cell culture, and
+#'		   technical replicate.
+#' @param GelPrep Protein quantification from GelPrep workup. Each row uniquely 
+#'		  identifies a protein with an individual, cell culture, and
+#'		  technical replicate.
+#'  
+#' @param multExpanded1 
+#' @export
 #' 
+#' @examples
+#' DiffPhos()
 
 DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   #this function accepts phospho and protein matrices runs diffphos analysis using limma. Columns are appended
