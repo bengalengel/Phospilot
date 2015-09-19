@@ -366,6 +366,38 @@ result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
 0.04566358
 
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+NSsnp.matrix <- SubtoDEGelProt[, c("GelPrepNsSnpPositive", "GelPrepNormFPval")]
+
+#switch to 0/1 designation
+NSsnp.matrix$GelPrepNsSnpPositive <- ifelse(NSsnp.matrix$GelPrepNsSnpPositive == "+", 1, 0)
+NSsnp.matrix[] <- lapply(NSsnp.matrix, as.numeric)
+
+plot(NSsnp.matrix[[1]], -log10(NSsnp.matrix[[2]]))
+plot(-log10(NSsnp.matrix[[2]]), NSsnp.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment.
+cor(NSsnp.matrix[[1]], -log10(NSsnp.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.matrix[[2]]), NSsnp.matrix[[1]], method = "spearman")
+0.08343157
+
+#the correlation is significant.
+cor.test(NSsnp.matrix[[1]], NSsnp.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 1.861217e-06
+
+
+#bootstrap based estimate (http://content.csbs.utah.edu/~rogers/datanal/labprj/bootstrap/index.html)
+robs <- cor(-log10(NSsnp.matrix[[2]]), NSsnp.matrix[[1]], method = "spearman") # observed r
+tail.prob <- 0
+nreps <- 500
+for(i in 1:nreps) {
+  y <- sample(NSsnp.matrix[[1]])   # randomly reorder values of 2nd variable
+  rsim <- cor(-log10(NSsnp.matrix[[2]]), y, method="spearman")     # simulated r
+  if(abs(rsim) >= abs(robs)) {   # abs makes test 2-tailed
+    tail.prob <- tail.prob + 1
+  }
+}
+tail.prob <- tail.prob / nreps
 
 
 #confounded analysis
