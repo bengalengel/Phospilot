@@ -218,7 +218,7 @@ multExpanded1_withDE$pnHighBioVar <- ifelse(multExpanded1_withDE$idmult %in% row
 multExpanded1_withDE$pnLowBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$low_bio_var=="+",]), "+", "-")
 
 
-#######Enrichment analyses. A lot of them ----
+#######Enrichment analyses. quite a few of them ----
 
 #Add GOID, Reactome, Entrez, HGNCID, HGNC symbol, and HGNC derived description of each protein gene annotation to multExpanded DF
 if(!file.exists("multExpanded1_withDE_annotated.rds")){
