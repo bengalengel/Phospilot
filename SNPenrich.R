@@ -205,7 +205,11 @@ multExpanded1_withDE_annotated$ClosestSNPtoSiteMinGelPrep <- sapply(multExpanded
 })  
 
 
-#Hypothesis: omnibus pvalues correlate with the distance to observed phosphorylation site   
+#Hypothesis: omnibus pvalues correlate with the distance to observed phosphorylation site. Gives an indication of how stongly phosphomotif changes are driving global differential phosphorylation patterns.
+
+# The minimal distance to the phosphorylation site does NOT significantly impact variation in phosphorylation for that proximal site
+
+
 GelPrep.distances <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",
                                                     c("GelPrepNormglobalFsig", "GelPrepNormFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
 y <- -log10(as.numeric(GelPrep.distances$GelPrepNormFAdjPval))
