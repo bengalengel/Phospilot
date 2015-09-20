@@ -227,6 +227,37 @@ multExpanded1_withDE_annotated <- AddAnnotation(multExpanded1_withDE)
   multExpanded1_withDE_annotated <- readRDS("multExpanded1_withDE_annotated.rds")
 }
 
+
+#combine with hprd motifs. processed using perseus on 9.19.15
+motifs <- read.table("./Perseus/motif_annotations.txt", sep = "\t", header = T, stringsAsFactors = F)
+motifs <- motifs[[1]]
+multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, motifs)
+
+
+#protein level enrichments
+
+
+
+#peptide level enrichments
+
+
+
+# snp enrichments
+
+
+
+
+
+
+# pqtl enrichment
+
+
+
+
+
+
+
+
 # (Ontology) Enrichment analysis performed on diffphos omnibus F significant and enrichment for each of the four combinations (high/low ind/bio) of variance component estimates. 
 enrichment_tables <- Enrichment(multExpanded1_withDE_annotated)
 #NOTE THE STRANGE REACTOME ISSUE FOR THE CONFOUNDED DATA. annotation added but no corresponding information for that id.
