@@ -53,34 +53,44 @@ for(i in 1:length(enrichment_tables)){
               sep = "\t", row.names = F)
 }
 
-#output for cytoscape
+## output for cytoscape ----
 
-
-need to creat my own 'gmt' file..
+# Require that I create my own 'gmt' file..
 
 require(biomaRt)
+ensembl_75 = useMart(biomart="ENSEMBL_MART_ENSEMBL", host="feb2014.archive.ensembl.org", path="/biomart/martservice", 
+                     dataset="hsapiens_gene_ensembl")
 
-ensembl_75 = useMart(biomart="ENSEMBL_MART_ENSEMBL", host="feb2014.archive.ensembl.org", path="/biomart/martservice", dataset="hsapiens_gene_ensembl")
-
-#lets see how many we get and how many have an HGNC identifier etc etc.
-ensembl_75_CCDS <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'ensembl_peptide_id','description','hgnc_id','hgnc_symbol','gene_biotype',
-                                        'transcript_biotype', 'status', 'transcript_status', 'ccds', "go_id"), 
-                         filters = 'with_ccds', values = T, mart = ensembl_75)
-
-
-
-##create the required file, apparently goid, go desciption, all genes within this goid
-goid tab go discription tab gen1 tab gene2 tab ....
+##create the required file:
+# goid tab go discription tab gen1 tab gene2 tab ....
 
 ensembl_hgncid_go <- getBM(attributes = c("go_id", "hgnc_symbol"), filters = 'with_go_id', values = T, mart = ensembl_75)
 
-#cast this out so that each hgnc is in its own row
-require(reshape2)
-test <- dcast(ensembl_hgncid_go, go_id ~ hgnc_symbol)
+
+#For each goid, collect all the matching hgncid. originall tried cast but this took to long and there are differing numbers of genes per go_id, requiring a list output
+ensembl_hgncid_go$go_id <- as.factor(ensembl_hgncid_go$go_id)
+
+require(foreach)
+require(iterators)
+require(GO.db)
+
+goid.list <- foreach(go.id = levels(ensembl_hgncid_go$go_id)) %do% {
+  #the biomart db and the go.db may not match
+  pos_err <- tryCatch(select(GO.db, keys = as.character(go.id), keytype = "GOID", columns = c("TERM")), error = function(e) e)
+  if(!inherits(pos_err, "error")){
+    info <- select(GO.db, keys = as.character(go.id), keytype = "GOID", columns = c("TERM"))
+    genes <- c(ensembl_hgncid_go[ensembl_hgncid_go$go_id == go.id, "hgnc_symbol"])
+    genes <- genes[sapply(genes, function(x) x != "")]
+    c(as.character(info), genes)
+  }
+}
+
+#remove null elements from the list
+goid.list <- goid.list[lapply(goid.list, length) > 0]
 
 
-
-filters <- listFilters(ensembl_75)
+#write out in 'gmt' format
+lapply(goid.list, write, "GO.gmt", append = TRUE, ncolumns = 500, sep = "\t")
 
 
 
