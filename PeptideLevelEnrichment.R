@@ -120,13 +120,33 @@ row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix)
 result$p.value
-[1] 0.64664
++[1] 0.64664
 
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+phospho.domain.matrix <- GelPrep.data[, c("phospho.relevant.GelPrep", "GelPrepNormFPval")]
+
+#switch to 0/1 designation
+phospho.domain.matrix$phospho.relevant.GelPrep <- ifelse(phospho.domain.matrix$phospho.relevant.GelPrep == TRUE, 1, 0)
+phospho.domain.matrix[] <- lapply(phospho.domain.matrix, as.numeric)
+
+plot(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]))
+plot(-log10(phospho.domain.matrix[[2]]), phospho.domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Here rho is negative
+phospho.domain.matrix <- na.omit(phospho.domain.matrix)#omit NA values
+cor(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method = "spearman")
+cor(-log10(phospho.domain.matrix[[2]]), phospho.domain.matrix[[1]], method = "spearman")
+[1] 0.002691815
+
+#the correlation is not significant
+cor.test(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method = "spearman", exact = F)$p.value
+[1] 0.8821199
 
 
 # HPRD motif enrichment analysis ----
 
-
+#no significant motif enrichments
 
 Enrich <- function(x,y){
   # This function accepts character vectors of a selected subset and background and returns a DF of adjusted pvalues for categorical enrichment using a one sided fisher's exact test.
@@ -224,6 +244,11 @@ Enrich.motifs.2up <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont2up) # 1 enri
 Enrich.motifs.2down <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont2down)
 Enrich.motifs.3up <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont3up) # 1 enrichment
 Enrich.motifs.3down <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont3down)
+
+
+# motif-x heatmap ----
+
+# why? does the enrichment of certain motifs buttress our function claim? shows that something non-random is happening
 
 
 

@@ -56,6 +56,36 @@ for(i in 1:length(enrichment_tables)){
 #output for cytoscape
 
 
+need to creat my own 'gmt' file..
+
+require(biomaRt)
+
+ensembl_75 = useMart(biomart="ENSEMBL_MART_ENSEMBL", host="feb2014.archive.ensembl.org", path="/biomart/martservice", dataset="hsapiens_gene_ensembl")
+
+#lets see how many we get and how many have an HGNC identifier etc etc.
+ensembl_75_CCDS <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'ensembl_peptide_id','description','hgnc_id','hgnc_symbol','gene_biotype',
+                                        'transcript_biotype', 'status', 'transcript_status', 'ccds', "go_id"), 
+                         filters = 'with_ccds', values = T, mart = ensembl_75)
+
+
+
+##create the required file, apparently goid, go desciption, all genes within this goid
+goid tab go discription tab gen1 tab gene2 tab ....
+
+ensembl_hgncid_go <- getBM(attributes = c("go_id", "hgnc_symbol"), filters = 'with_go_id', values = T, mart = ensembl_75)
+
+#cast this out so that each hgnc is in its own row
+require(reshape2)
+test <- dcast(ensembl_hgncid_go, go_id ~ hgnc_symbol)
+
+
+
+filters <- listFilters(ensembl_75)
+
+
+
+
+
 ##barplot for connectivity, % Disorder, extent of PTM modifications ----
 # FE test 'with domains', with phosphorelevant domains. These are binary assignments and the latter should be tested with using a glm
 # and pfam domain positive? as a covariate
