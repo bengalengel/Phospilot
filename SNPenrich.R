@@ -344,6 +344,121 @@ table(multExpanded1_withDE_annotated$PhosPrepNsSnpCount)
 
 
 
+###pfam domain annotation ----
+#use the pfam.boundary file created using interproscan program that calls HMMER3/pfam. Was searched on the proteome.
+
+#read in and configure:
+# Load output data from InterProScan. There should be 36 files!! For some reason cluster hangs on execution for a few of these...use "output2.tar.gz"
+# lapply load into list and then do.call to make into a dataframe
+if(!file.exists("./InterProScan/output")){dir.create("./InterProScan/output")}
+untar("./InterProScan/output2.tar.gz", compressed = "g", exdir = "./InterProScan/output")
+file.names <- list.files("./InterProScan/output", pattern = ".*.tsv")
+pfam.boundary <- lapply(file.names, function(file){
+  read.table(file.path(paste0(getwd(),"./InterProScan/output/", file)), sep = "\t", header = F, stringsAsFactors = F, quote = "", comment.char = "", skip = 3)
+})
+pfam.boundary <- do.call(rbind, pfam.boundary)
+names(pfam.boundary) <- c("ENSPID", "MD5seq", "SeqLength", "Analysis", "PFamID", "Description", "Start", "Stop", "Evalue", "MatchStatus", "Date")
+
+#subset snpeff dataframe s.t. only enspids matching the 'proteome' are returned
+SNPeffFinal <- SNPeffFinal[SNPeffFinal$ProteomeIndex != "no match", ]
+
+
+
+#binary assigment of snpeff AA mutation positions to in/out domain. For those within a domain a flag yes/no is given regarding phosphorylation relevant. A foreach solution: 
+# col1: T/F in any domain 
+# col2: T/F in any phospho relevant domain
+
+#not easy to download so manually curated from pfam as of 8-24-15
+pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
+                  "PF00017", "PF08416", "PF00168",#Y
+                  "PF00782", "PF00102", "PF13350", "PF06602", "PF04273", "PF03162", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
+                  "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
+                  "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
+
+
+require(stringr)
+require(doParallel)
+cl <- makeCluster(cl)
+registerDoParallel(cl)
+
+snp.domain.boundary <- foreach(i = 1:length(SNPeffFinal$peptide), .combine = "rbind", .packages = "stringr") %dopar% {
+  #retrieve protein and site
+  protein <- SNPeffFinal$peptide[i]
+  #alter to match 'pfam.boundary' DF
+  protein <- gsub("[A-Z]", "", protein)
+  protein <- gsub("(?<![0-9])0+", "", protein, perl = TRUE)
+  #extract site information. Use the first number within the chacter string for insertions etc.
+  site <- SNPeffFinal$aa[i]
+  site <- str_extract(site, "[0-9]+")
+  #identify all domains matching the protein
+  domains <- pfam.boundary[pfam.boundary$ENSPID == protein, c(5,7,8)]
+  if(dim(domains)[1] != 0){
+    #apply logical test of if protein/site combo is in ANY domain range (>=start and <=end)
+    hits <- domains[site >= domains$Start & site <= domains$Stop, "PFamID"]
+    in.domain <- length(hits) > 0
+    phospho.relevant <- any(hits %in% pfam.phospho)
+  }else{
+    in.domain <- FALSE
+    phospho.relevant <- FALSE
+  }
+  data.frame(variant.in.domain = in.domain, domain.phospho.relevant = phospho.relevant)
+}
+stopCluster(cl)
+
+
+SNPeffFinal <- cbind(SNPeffFinal, snp.domain.boundary)
+
+#add these results to MEDF
+
+cl <- makeCluster(5)
+registerDoParallel(cl)
+
+GelPrep.SNP.domain <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajorityProteinIDs), .combine = "rbind") %dopar% {
+  protein.group <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
+  if(multExpanded1_withDE_annotated$GelPrepNsSnpPositive[i] == "+"){
+    if(protein.group != ""){
+      protein.group <- strsplit(protein.group, ";")
+      protein.group <- as.character(unlist(protein.group))
+      protein.group <- protein.group[!grepl("REV", protein.group)]#remove reverse entries
+      #for each member of the group, does it contain a snp in a domain/phospho.domain?
+      in.domain <- vector(mode = 'logical', length = length(protein.group))
+      phospho.relevant <- vector(mode = 'logical', length = length(protein.group))
+      for(protein in seq_along(protein.group)){
+        in.domain[protein] <- ifelse(length(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "variant.in.domain"]) > 0, 
+                                     SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "variant.in.domain"], NA)
+        
+        phospho.relevant[protein] <- ifelse(length(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "domain.phospho.relevant"]) > 0,
+                                            SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "domain.phospho.relevant"], NA)
+      }
+      data.frame(snp.in.domain = any(in.domain, na.rm = T), snp.domain.phospho.relevant = any(phospho.relevant, na.rm = T))
+    }
+  } else {
+    data.frame(snp.in.domain = NA, snp.domain.phospho.relevant = NA)
+  }
+}
+stopCluster(cl)
+
+#quite a few with snps in domains
+table(GelPrep.SNP.domain[,1])
+
+FALSE  TRUE 
+3204  1381  
+
+#enough
+table(GelPrep.SNP.domain[,2])
+FALSE  TRUE 
+4467   118 
+
+#add back to parent table
+multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, GelPrep.SNP.domain)
+
+
+#and how many sites map to proteins with a snp
+table(multExpanded1_withDE_annotated$GelPrepNsSnpPositive)
+  -     + 
+13189  4585 
+
+
 
 ##############Enrichment tests ------
 # 1)  Test for enrichment in diffphos. background is all sites subject to DiffPhos. Foreground is omnibus F significance. Category is 'with snp' or without snp at the phosphopeptide level. Contingency matrix is of the form:
@@ -404,40 +519,57 @@ for(i in 1:nreps) {
 tail.prob <- tail.prob / nreps
 
 
-#confounded analysis
-# row1 <- c(nrow(SubtoDEConfounded[SubtoDEConfounded$ConfoundedglobalFsig == "+" & SubtoDEConfounded$NsSnpPositive == "+",]), 
-#           nrow(SubtoDEConfounded[SubtoDEConfounded$ConfoundedglobalFsig == "+" & SubtoDEConfounded$NsSnpPositive == "-",]))
-# 
-# row2 <- c(nrow(SubtoDEConfounded[SubtoDEConfounded$ConfoundedglobalFsig == "-" & SubtoDEConfounded$NsSnpPositive == "+",]), 
-#           nrow(SubtoDEConfounded[SubtoDEConfounded$ConfoundedglobalFsig == "-" & SubtoDEConfounded$NsSnpPositive == "-",]))
-# 
-# #FEtest
-# contmatrix <- rbind(row1,row2)
-# result <- fisher.test(contmatrix, alternative = "g")
-# result$p.value
-# 6.107867e-06 
-# 
-# 
-# #PhosPrep analysis
-# row1 <- c(nrow(SubtoDEPhosProt[SubtoDEPhosProt$PhosPrepCovglobalFsig == "+" & SubtoDEPhosProt$PhosPrepNsSnpPositive == "+",]), 
-#           nrow(SubtoDEPhosProt[SubtoDEPhosProt$PhosPrepCovglobalFsig == "+" & SubtoDEPhosProt$PhosPrepNsSnpPositive == "-",]))
-# 
-# row2 <- c(nrow(SubtoDEPhosProt[SubtoDEPhosProt$PhosPrepCovglobalFsig == "-" & SubtoDEPhosProt$PhosPrepNsSnpPositive == "+",]), 
-#           nrow(SubtoDEPhosProt[SubtoDEPhosProt$PhosPrepCovglobalFsig == "-" & SubtoDEPhosProt$PhosPrepNsSnpPositive == "-",]))
-# 
-# #FEtest
-# contmatrix <- rbind(row1,row2)
-# result <- fisher.test(contmatrix, alternative = "g")
-# result$p.value
-# 1.449032e-05 
-# 
-# 
-# 
-# #here is the relative proportion difference
-# apply(contmatrix,1,function(x) x[1]/sum(x))
-# 
-# row1      row2 
-# 0.4036872 0.3530026 
+# 2) snp in domain enrichment using snp positive as background
+
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+NSsnp.domain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+", c("snp.in.domain", "GelPrepNormFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.domain.matrix$snp.in.domain <- ifelse(NSsnp.domain.matrix$snp.in.domain == T, 1, 0)
+NSsnp.domain.matrix$snp.in.domain[is.na(NSsnp.domain.matrix$snp.in.domain)] <- 0
+
+NSsnp.domain.matrix[] <- lapply(NSsnp.domain.matrix, as.numeric)
+
+plot(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]))
+plot(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here depletion
+cor(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]], method = "spearman")
+-0.03875624 
+
+#the correlation is NOT significant.
+cor.test(NSsnp.domain.matrix[[1]], NSsnp.domain.matrix[[2]], method = "spearman", exact = F)$p.value
+0.1473777
+
+
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+NSsnp.domain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+", c("snp.domain.phospho.relevant", "GelPrepNormFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.domain.matrix$snp.domain.phospho.relevant<- ifelse(NSsnp.domain.matrix$snp.domain.phospho.relevant == T, 1, 0)
+NSsnp.domain.matrix$snp.domain.phospho.relevant[is.na(NSsnp.domain.matrix$snp.domain.phospho.relevant)] <- 0
+
+NSsnp.domain.matrix[] <- lapply(NSsnp.domain.matrix, as.numeric)
+
+plot(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]))
+plot(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here depletion
+cor(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]], method = "spearman")
+-0.05853319 
+
+#the negative correlation is significant at alpha  = .05; 
+cor.test(NSsnp.domain.matrix[[1]], NSsnp.domain.matrix[[2]], method = "spearman", exact = F)$p.value
+0.02857873
+
+# What does it mean to have a depletion on top of an enrichment?...within the population of proteins that have a nonsyn snp,
+those with a snp in a phosphodomain are less likely to be differentially phosphorylated than those with a snp somewhere else. 
+The move away from variation makes no sense, and likely has something to do with domain containin proteins being more tightly regulated
+than proteins without domains. I would in fact expect an enrichment when controlling for this. Simpson's paradox
 
 
 
@@ -449,21 +581,6 @@ tail.prob <- tail.prob / nreps
 
 
 
-
-
-
-###Mumblings ---------
-# first list; #s 3-4 and some more
-# 3) For a given snp found in the phosphoproteomics data, which lines have it?
-# 4) For each line that has the snp, what is its genotype?
-
-# Questions about variability should be addressed in the differential phosphorylation analysis via enrichment analysis. Perhaps snps within a domain are enriched, within unstructured regions are enriched, or sites near to a phosphorylatable residue are *especially* enriched for variability. The effect of snps would have to be controlled for somehow by comparing if phosphorylation sites within these regions are intrinsically  
-
-# This information will be used to ask questions about observation and effect size of genetically induced differences in phosphorylation at steady state. 
-# 
-# hypothesis 1) Missing phosphosites where an individual does not have phosphorylatable residue in one condition but does in another. heterozygote/homozygote cases...OK getting closer
-# 
-# If it is not observed. must plot the normalized by genotype results for instances where there is differential exprssion within the the DE subset?
 
 ######### Effect Size estimate attempt  ------------------
 # teaser only 350 possible snps and I only found 1 that was identified, let alone quantified
