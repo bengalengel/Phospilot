@@ -72,15 +72,15 @@ BatchNorm <- function(multExpanded1){
   swamp <- swamp[,1:12]
   ##### sample annotations (data.frame)
   set.seed(50)
-  o1<-data.frame(Factor1=factor(rep(c("A","A","B","B"),3)),
-                 Numeric1=rnorm(12),row.names=colnames(swamp))
+  o1<-data.frame(Batch = factor(rep(c("A","A","B","B"),3)),
+                 Random = rnorm(12), row.names=colnames(swamp))
   
   # PCA analysis
   res1<-prince(swamp,o1,top=10,permute=T)
   str(res1)
   a <- res1$linp#plot p values
   b <- res1$linpperm#plot p values for permuted data
-  prince.plot(prince=res1)
+  prince.plot(prince=res1, key = F, note = T)
   
   #There is a batch effect associated with the process date.
   # I must combat this
@@ -88,11 +88,11 @@ BatchNorm <- function(multExpanded1){
   swamp <- as.matrix(quantiled4)
   ##### sample annotations (data.frame)
   set.seed(50)
-  o1<-data.frame(Factor1=factor(rep(c("A","A","B","B"),3)),
-                 Numeric1=rnorm(12),row.names=colnames(swamp))
+  o1<-data.frame(Batch=factor(rep(c("A","A","B","B"),3)),
+                 Random=rnorm(12),row.names=colnames(swamp))
   
   
-  com2<-combat(swamp,o1$Factor1,batchcolumn=1) #WORKS AFTER ENSURING AT LEAST TWO IN A BATCH.
+  com2<-combat(swamp,o1$Batch,batchcolumn=1) #WORKS AFTER ENSURING AT LEAST TWO IN A BATCH.
   # Found 2 batches
   # Found 0 covariate(s)
   # Found 25032 Missing Data Values
@@ -193,7 +193,7 @@ BatchNorm <- function(multExpanded1){
   names(pc)
   
   cols <- as.factor(substr(colnames(cdata), 3, 7))##check me out. use 5 digit exp name.
-  plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "Combat Batch Corrected PCA", xlab = "PC1", ylab = "PC2")
+  plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "Batch Effect Corrected PCA", xlab = "PC1", ylab = "PC2")
   legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1)
   
   

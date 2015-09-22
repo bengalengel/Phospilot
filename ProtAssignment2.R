@@ -286,8 +286,8 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   require(gplots)
   
   # Create dendrogram using the data without NAs
-  feature.dend<- as.dendrogram(hclust(dist(r),method="ward"))
-  sample.dend<- as.dendrogram(hclust(dist(t(c)),method="ward"))##note that dist caclculates distance between rows by default
+  feature.dend<- as.dendrogram(hclust(dist(r),method="complete"))
+  sample.dend<- as.dendrogram(hclust(dist(t(c)),method="complete"))##note that dist caclculates distance between rows by default
   
   
   ##produce the heatmap. 
