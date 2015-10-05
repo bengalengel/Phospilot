@@ -1,6 +1,36 @@
+#' Differential phosphorylation analysis
+#'
+#' Per gene differential phosporylation analysis controlling for protein levels 
+#' quantified using PhosPre. Each model is a mixed effect model with a fixed effect
+#' of individual cell lines and a random effect of cell culture; each individual's
+#' corresponding protein level for the peptide is used as a covariate.
+#' 
+#' @param phosdata Phosphorylated peptides quantifications. Each row uniquely identifies
+#'	           a peptide with an individual, cell culture, and technical replicate.
+#' @param PhosPrep Protein quantification from PhosPrep workup. Each row uniquely 
+#'		   identifies a protein with an individual, cell culture, and
+#'		   technical replicate.
+#' @param GelPrep Protein quantification from GelPrep workup. Each row uniquely 
+#'		  identifies a protein with an individual, cell culture, and
+#'		  technical replicate.
+#'  
+#' @param multExpanded1 
+#' @export
+#' 
+#' @examples
+#' setwd("~/Dropbox/GitHub/Phospilot/diffphos-data")
+#' GelPrep <- readRDS("GelPrep.rds")
+#' phosdata <- readRDS("phosdata.rds")
+#' PhosPrep <- readRDS("PhosPrep.rds")
+#' MultExpanded1 <- readRDS("MultExpanded1.rds")
+#'
+#' DiffPhos()
+
 DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
-  #this function accepts phospho and protein matrices runs diffphos analysis using limma. Columns are appended
-  #to the multexpanded1 file according to the presence of DE or not. As of now combat correction is being performed upstream and protein levels are being fitted as a covariate as opposed to normalizing phosdata and fitting withiout the covariate. It is unclear how normalization would affect fitting biorep as defacto RE.
+  # This function accepts phospho and protein matrices runs diffphos 
+  # analysis using limma. Columns are appended
+  # to the multexpanded1 file according to the presence of DE or not. 
+  # As of now combat correction is being performed upstream and protein levels are being fitted as a covariate as opposed to normalizing phosdata and fitting withiout the covariate. It is unclear how normalization would affect fitting biorep as defacto RE.
   
   require(limma)
   require(sva)
@@ -9,309 +39,349 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   require(plyr)
   require(reshape2)
   
-  ##############################  Confounded data -----
-  # First convert the adata matrix to add the meta-data information to the matrix (protein level information can be added here later as well). I should use a melted data format similar to the one used in the random effects model. each row is an observation. Each column specifies the phospho (confounded with protein), individual, 
   
-  melted <- melt(phosdata, measure.vars = names(phosdata))#using batch corrected/normalized DF with at least one measurement per biological rep
+    
+  ### LINEAR MIXED MODEL USING CULTURE AS RANDOM EFFECT ####################  
+
+  ### PREPARE DATA
+    
+  # Make meta data matrix
+  sampleLabels <- strsplit( colnames(phosdata), split = "_")
+  metaData <- data.frame(individual = as.factor(sapply(sampleLabels, "[[", 1)),
+                          biorep = as.factor(sapply(sampleLabels, "[[", 2)),
+                          techrep = as.factor(sapply(sampleLabels, "[[", 3)) )
+    
+  # Make the design matrix for the individual effect
+  designMatrix <- model.matrix(~ 0 + individual, data = metaData)
   
-  #identify individual name and add it to the table
-  matches <- gregexpr("[0-9]{5}", melted$Var2, perl=T)
-  individual <- regmatches(melted$Var2,matches)
-  individual <- as.character(individual)
-  individual <- as.factor(individual)
-  melted$individual <- individual
+  # Make the design matrix for the random effect of 
+  # culture replicate
+  block <- as.factor(metaData$biorep)
   
-  #identify the biological replicate
-  biorep <- rm_between(melted$Var2, "_", "_", extract=TRUE)
-  biorep <- as.character(biorep)
-  biorep <- as.factor(biorep)
-  melted$biorep <- biorep
+  # Compute correlations between culture replciates
+  dupcor <- duplicateCorrelation(phosdata, designMatrix, block = block)
+  allCorrelations <- tanh(dupcor$atanh.correlations)
+  boxplot(allCorrelations, main = "Per peptide biorep correlation")
   
-  #identify the technical replicate
-  matches <- gregexpr("[0-9]$", melted$Var2, perl=T)
-  techrep <- regmatches(melted$Var2,matches)
-  techrep <- as.character(techrep)
-  techrep <- as.factor(techrep)
-  melted$techrep <- techrep
+  # Fit a linear mixed model using biorep as a 
+  # random effect where the magnitude of the random effect
+  # is estimated to be the same across peptides
+  fit <- lmFit(phosdata, designMatrix, block = block, correlation = dupcor$consensus)
   
-  #Create a small model matrix of variables of interest and blocking variables (replicates)
-  SingleCase <- melted[melted$Var1 %in% levels(melted$Var1)[1],]
-  row.names(SingleCase) <- SingleCase$Var2
-  SingleCase <- SingleCase[,4:6]
+  # Construct the contrast matrix
+  contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
+                                   individualHL19160 - individualHL18486, levels = designMatrix)
+  fit2 <- contrasts.fit(fit, contrastMatrix)
   
-  # make the simple model matrix
-  design_base <- model.matrix(~0 + individual, data = SingleCase)#with more explicit values
-  
-  #calculate the correlation between technical replicates from a series of arrays.
-  block = rep(seq(1:6), each = 2)
-  dupcor <- duplicateCorrelation(phosdata,design_base,block=block)
-  all.correlations <- tanh(dupcor$atanh.correlations)
-  boxplot(all.correlations)
-  fit <- lmFit(phosdata,design_base,block=block,correlation=dupcor$consensus)
-  
-  #construct the contrast matrix
-  contrast.matrix <- makeContrasts(individual18862-individual18486, individual19160-individual18862, 
-                                   individual19160-individual18486, levels = design_base)
-  fit2 <- contrasts.fit(fit, contrast.matrix)
-  
-  #eBayes
+  # eBayes
   ConfoundedFit <- eBayes(fit2)
   
-  #################### PhosPrep as a covariate ---------
   
-  #add 'protein' to colnames of PhosPrep
-  colnames(PhosPrep) <- paste("Protein",colnames(PhosPrep), sep = "")#4122 obs
-    
-  #merge phospho and protein estimates. Each has at least one measurement in all bio replicates
-  PhosProt <- merge(phosdata, PhosPrep, by = "row.names")#1308 observations
-  row.names(PhosProt) <- PhosProt$Row.names
-  PhosProt <- PhosProt[,2:length(PhosProt)]
+  ### PHOSPREP AS COVARIATE ################################################
+  ### DIFFERENTIAL PHOSPHORYLATION ANALYSIS
+  ### using culture replicate as a random effect
+
+  ### PREPARE DATA 
+  PhosProt <- merge(phosdata, PhosPrep, by = "row.names", 
+                    suffixes = c("_peptide", "_PhosPrep") ) #1308 observations
+  rownames(PhosProt) <- PhosProt$Row.names
+  PhosProt <- PhosProt[ , -1]
   PhosProt <- as.matrix(PhosProt)
   
-  #create the model matrix. Here SingleCase needs to be doubled in size with the last 12 rows corresponding to protein estimates.
-  SingleCase2 <- SingleCase
-  row.names(SingleCase2) <- colnames(PhosPrep)
-  PhosProtSingleCase <- rbind(SingleCase,SingleCase2)
-  #now add protein binary flag
-  PhosProtSingleCase$Protein <- as.factor(rep(c(0,1), each = 12))
-  design_PhosProt <- model.matrix(~0 + individual + Protein, data = PhosProtSingleCase)#with more explicit values
+  # Make meta data matrix
+  sampleLabels <- strsplit( colnames(PhosProt), split = "_", fixed = FALSE)
+  metaData <- data.frame(individual = as.factor(sapply(sampleLabels, "[[", 1)),
+                         biorep = as.factor(sapply(sampleLabels, "[[", 2)),
+                         techrep = as.factor(sapply(sampleLabels, "[[", 3)),
+                         dataType = as.factor(sapply(sampleLabels, "[[", 4)) )
+  metaData$label <- with(metaData, paste(individual, biorep, techrep, sep = "_"))
+
+  # Imput missing values in the PhosPrep part of the data
+  metaData_phos <- metaData[ metaData$dataType == "PhosPrep", ]
+  PhosProt_phos <- PhosProt[ , metaData$dataType == "PhosPrep"]
+  PhosProt_phos_imput <- 
+        lapply( 1:nrow(PhosProt_phos), function(per_peptide) {
+                phosMat <- PhosProt_phos[per_peptide, ]
+                
+                ind_vals <- lapply(unique(metaData_phos$individual), function(per_individual) {
+                
+                                    bio_vals <- lapply(unique(metaData_phos$biorep), function(per_biorep) {
+                                                        iiReplace <- metaData_phos$individual == per_individual &
+                                                                        metaData_phos$biorep == per_biorep 
+                                                        vals <- phosMat[iiReplace]
+                                                        if( sum(is.na(vals) > 0) ) {
+                                                            vals[ is.na(vals)] <- vals[ !is.na(vals) ]
+                                                            vals
+                                                        } else {
+                                                            vals    
+                                                        }
+                                                        }) 
+                                    bio_vals <- do.call(c, bio_vals)
+                                    bio_vals
+                    }) 
+                ind_vals <- do.call(c, ind_vals)
+                ind_vals
+    })
+  PhosProt_phos_imput <- do.call(rbind, PhosProt_phos_imput)
   
-  #calculate the duplicate correlation before fitting. DupCor is similar for each molecular phenotype
-  dupcorPhos <- dupcor #from confounded fitting
+  ### FIT A LINEAR MODEL FOR ONE PEPTIDE AT A TIME
+  ### Use the consensus correlation computed earlier in
+  ### the linear mixed model without protein level as
+  ### a covariate
+
+  # Compute correlation due to the random effect of
+  # biological replicate
+  corrsPhosProt <- sapply(1:nrow(PhosProt), function(per_peptide) {
+      
+      # Make a data matrix for peptide i information
+      per_phenoData <- cbind(metaData[ metaData$dataType == "peptide", ],
+                             peptide = PhosProt[per_peptide, metaData$dataType == "peptide"],
+                             phosprep = PhosProt_phos_imput[per_peptide, ] )
+      designMatrix <- model.matrix(~ 0 + individual + phosprep, 
+                                    data = per_phenoData)
+      block <- per_phenoData$biorep
+      yy <- per_phenoData$peptide
+      
+      mixedModel2Fit_multiple_design(design = designMatrix, block = block, yy = yy)
+  })
+  corrsPhosProt_mean <- mean(corrsPhosProt)
   
-  #calculate dupcor for protein
-  design_Prot <- model.matrix(~0 + individual, data = SingleCase2)#with more explicit values
-  block = rep(seq(1:6), each = 2)
-  dupcorProt <- duplicateCorrelation(PhosPrep,design_Prot,block=block)
-  dupcorProt$consensus.correlation
+  # Per gene limma mixed model 
+  ii_peptide <- metaData$dataType == "peptide"
+  metaData_peptide <- metaData[ ii_peptide, ]
+  designMatrix <- model.matrix(~ 0 + individual, data = metaData_peptide )
+  glsRes <- gls.series_multiple_designs(M = PhosProt[ ,ii_peptide ], 
+                                        cov_matrix = PhosProt_phos_imput, 
+                                        design = designMatrix, 
+                                        ndups = 1, 
+                                        spacing = 1, 
+                                        block = metaData[ ii_peptide, ]$biorep, 
+                                        correlation = corrsPhosProt_mean)
   
-  #boxplots of genewise correlations for protein and phospho
-  PhosCorrelations <- tanh(dupcorPhos$atanh.correlations)
-  ProtCorrelations <- tanh(dupcorProt$atanh.correlations)
-  boxplot(PhosCorrelations, main = "PhosCorr")
-  boxplot(ProtCorrelations, main = "ProtCorr")
+  # Contrast test
+  designMatrixCov <- model.matrix(~ 0 + individual + pseudoCov, 
+                                  data = data.frame(metaData_peptide, pseudoCov = runif(12) ) )
+  contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
+                                   individualHL19160 - individualHL18486, 
+                                   levels = designMatrixCov)
   
-  #THE AVE OF THESE NUMBERS IS USED FOR THE FITTING
-  CorForFitting <- mean(c(dupcorProt$consensus.correlation, dupcorPhos$consensus.correlation))
-  
-  #Fit
-  block = rep(seq(1:12), each = 2)
-  fit <- lmFit(PhosProt, design_PhosProt, block=block, correlation=CorForFitting)
-  
-  #lets try the contrasts using the new design matrix.
-  contrast.matrix <- makeContrasts(individual18862-individual18486, individual19160-individual18862, 
-                                   individual19160-individual18486, levels = design_PhosProt)
-  
-  fit2 <- contrasts.fit(fit, contrast.matrix)
+  fit2 <- contrasts.fit(glsRes, contrastMatrix)
   PhosPrepCovFit <- eBayes(fit2)
   
-  #################### GelPrep as a covariate!! ---------
   
-#   RIGHT NOW THIS IS DONE INCORRECTLY! HOW TO FIT WITH GELPREP AS A COVARIATE AND WITH A DIFFERENT BLOCKING STRUCTURE?
+
+  ### GELPREP AS COVARIATE ####################################
+  ### DIFFERENTIAL PHOSPHORYLATION ANALYSIS
+  ### using culture replicate as a random effect
   
-  #if the phosprep above with the values removed is the same then just fit with protein estimate regressed and not more design issues!
-  #create data matrix with replicated phospho data and single point estimate protein data
-  PhosProt2 <- merge(phosdata, GelPrep, by = "row.names")
-  row.names(PhosProt2) <- PhosProt2$Row.names
-  PhosProt2 <- PhosProt2[,2:16]
-  PhosProt2 <- as.matrix(PhosProt2)
-
-#   #The design matrix
-#   individual <- as.factor(c(rep("18486", times = 4), rep("18862", times = 4), rep("19160", times = 4), "18862", "18486", "19160"))  
-#   Protein <- as.factor(c(rep(0,times = 12), rep(1, times = 3)))
-#   SingleCaseGel <- data.frame(individual = individual, Protein = Protein)
-#   row.names(SingleCaseGel) <- colnames(PhosProt2)
-#   design_GelPrep <- model.matrix(~0 + individual + Protein, data = SingleCaseGel)
-# 
-#   #Blocking and Fitting 
-#   block = c(1,1,2,2,3,3,4,4,5,5,6,6,0,0,0)
-#   dupcor <- duplicateCorrelation(PhosProt3, design_GelPrep, block=block)
-#   dupcor$consensus.correlation
-#   fit <- lmFit(PhosProt2,design_GelPrep,block=block,correlation=dupcor$consensus)
-#   contrast.matrix <- makeContrasts(individual18862-individual18486, individual19160-individual18862, 
-#                                    individual19160-individual18486, levels = design_GelPrep)
-#   fit2 <- contrasts.fit(fit, contrast.matrix)
-#   GelPrepCovFit <- eBayes(fit2)
-
-  #An alternative fitting approach with gelprep estimates subtracted away
+  ### PREPARE DATA 
+  colnames(GelPrep) <- c("HL18862", "HL18486", "HL19160")
+  PhosProtGel <- merge(phosdata, GelPrep, by = "row.names", 
+                    suffixes = c("_peptide", "_GelPrep") ) #3257 observations
+  rownames(PhosProtGel) <- PhosProtGel$Row.names
+  PhosProtGel <- PhosProtGel[ , -1]
+  PhosProtGel <- as.matrix(PhosProtGel)
   
-  #normalize each line (using mapply and apply here for each set of replicates to return dataframe of four columns)
-  PhosProt2 <- as.data.frame(PhosProt2)
-  ind18486Norm <- PhosProt2[,1:4] - PhosProt2$LH18862
-  ind18862Norm <- PhosProt2[,5:8] - PhosProt2$LH18486
-  ind19160Norm <- PhosProt2[,9:12] - PhosProt2$LH19160
-  PhosGelnorm <- cbind(ind18486Norm, ind18862Norm, ind19160Norm)
-  PhosGelnorm <- as.matrix(PhosGelnorm)
 
-#calculate the correlation between technical replicates from a series of arrays.
-block = rep(seq(1:6), each = 2)
-dupcor <- duplicateCorrelation(PhosGelnorm,design_base,block=block)
-all.correlations <- tanh(dupcor$atanh.correlations)
-boxplot(all.correlations)
-fit <- lmFit(PhosGelnorm,design_base,block=block,correlation=dupcor$consensus)#consensus here is .393
-
-#construct the contrast matrix
-contrast.matrix <- makeContrasts(individual18862-individual18486, individual19160-individual18862, 
-                                 individual19160-individual18486, levels = design_base)
-fit2 <- contrasts.fit(fit, contrast.matrix)
-
-#eBayes
-GelPrepNormFit <- eBayes(fit2)
+  # Make meta data matrix
+  sampleLabels <- strsplit( colnames(PhosProtGel)[1:12], split = "_", fixed = FALSE)
+  metaData <- data.frame(individual = as.factor(sapply(sampleLabels, "[[", 1)),
+                         biorep = as.factor(sapply(sampleLabels, "[[", 2)),
+                         techrep = as.factor(sapply(sampleLabels, "[[", 3)) )
+  metaData <- rbind(metaData,
+                    data.frame(individual = colnames(PhosProtGel)[13:15],
+                               biorep = "NA",
+                               techrep = "NA") )
+  metaData$dataType <- c(rep("peptide", 12), rep("GelPrep", 3) )
+  metaData$label <- with(metaData, paste(individual, biorep, techrep, sep = "_"))
   
+
+  ### FIT A LINEAR MODEL FOR ONE PEPTIDE AT A TIME
+
+  # First, add random perturbation to the covariate matrix
+  ii_phosprotgel <- metaData$dataType == "GelPrep"
+  randomPhosProtGel <- PhosProtGel[ , ii_phosprotgel] + 
+                        matrix( runif(NROW(PhosProtGel[ , ii_phosprotgel])*NCOL(PhosProtGel[ , ii_phosprotgel]), 
+                                0, 10^(-6)), 
+                                nrow(PhosProtGel[ , ii_phosprotgel]) )
+  ii_peptide <- metaData$dataType == "peptide"
+  metaData_peptide <- metaData[ ii_peptide, ]
+  order_phosgel <- match(metaData_peptide$individual, colnames(randomPhosProtGel) )
+  randomPhosProtGel <- randomPhosProtGel[, order_phosgel]
+  
+  # Compute correlation due to the random effect of
+  # biological replicate
+  corrsPhosProtGel <- sapply(1:nrow(PhosProtGel), function(per_peptide) {
+      
+      # Make a data matrix for peptide i information
+      per_phenoData <- cbind(metaData[ metaData$dataType == "peptide", ],
+                             peptide = PhosProtGel[per_peptide, metaData$dataType == "peptide"],
+                             phosgel = randomPhosProtGel[per_peptide, ])
+
+      designMatrix <- model.matrix(~ 0 + individual + phosgel, 
+                                   data = per_phenoData)
+      block <- per_phenoData$biorep
+      yy <- per_phenoData$peptide
+      
+      mixedModel2Fit_multiple_design(design = designMatrix, block = block, yy = yy)
+      })
+  corrsPhosProtGel_mean <- mean(corrsPhosProtGel)
+  
+  # Per gene limma mixed model 
+  designMatrix <- model.matrix(~ 0 + individual, data = metaData_peptide )
+  glsRes <- gls.series_multiple_designs(M = PhosProtGel[ ,ii_peptide ], 
+                                        cov_matrix = randomPhosProtGel, 
+                                        design = designMatrix, 
+                                        ndups = 1, 
+                                        spacing = 1, 
+                                        block = metaData[ ii_peptide, ]$biorep, 
+                                        correlation = corrsPhosProtGel_mean)
+  
+
+  # Contrast test
+  designMatrixCov <- model.matrix(~ 0 + individual + pseudoCov, 
+                                  data = data.frame(metaData_peptide, pseudoCov = runif(12) ) )
+  contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
+                                  individualHL19160 - individualHL18486, 
+                                  levels = designMatrixCov)
+  
+  fit2 <- contrasts.fit(glsRes, contrastMatrix)
+  GelPrepCovFit <- eBayes(fit2)
+
+    
   ############# Collect the sig hits and annotate ME df --------------
 
 ProcessFit <- function(fit2, header, FitData, multExpanded1){
-  #this function accepts the ebays moderated fit data from a given processing choice, returns charts and annotates the ME dataframe.
-#   It requires the ebays modifed contrast fits, a header string (such as "confounded") and the matrix passed to limma.
-  
-  
-#Look at pairwise DE using toptable and the coef parameter to id which genes you are interested in 
-sig1 <- topTable(fit2, coef = 1, adjust = "BH", n=Inf, sort="p", p=.05)#sorts by adjusted p up to the threshold of .05, which is the default FDR chosen for differential expression ("results" function). This actually seems a conservative way to sort.
-sig2 <- topTable(fit2, coef = 2, adjust = "BH", n=Inf, sort="p", p=.05)
-sig3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf, sort="p", p=.05)
+    # This function accepts the ebays moderated fit data from a given processing choice, 
+    # returns charts and annotates the ME dataframe.
+    # It requires the ebays modifed contrast fits, a header string (such as "confounded") 
+    # and the matrix passed to limma.
+    
+    # For convert fit2 to a limma object
+    fit2 <- new("MArrayLM", fit2)
 
-# sig1 - 18862-18486
-# sig2 - 19160-18862
-# sig3 - 19160-18486
+    # Extract contrasts tests
+    contrastFits <- colnames(contrastAsCoef(fit2))
+    
+    topLists <- lapply(1:3, function(i) {
+        topTable(fit2, coef = i, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
+    })
+    
+    for (i in 1:3) {
+        hist(topLists[[i]]$P.Value, nc=40, xlab="P values", main = contrastFits[i])
+    }
 
-c1up  <- sig1[sig1$logFC > 0,]
-c1down <- sig1[sig1$logFC < 0,]
-c2up <- sig2[sig2$logFC > 0,]
-c2down <- sig2[sig2$logFC < 0,]
-c3up <- sig3[sig3$logFC > 0,]
-c3down <- sig3[sig3$logFC < 0,]
+    for (i in 1:3) {
+        plot(topLists[[i]]$logFC, -log10(topLists[[i]]$P.Value), 
+             xlab = contrastFits[i], 
+             pch = 20, ylab = "-log10(P)",xlim = c(-5, 5))
+        #sites with sig difference in comparison 1
+        index <- which(topLists[[i]]$adj.P.Val < .05)
+        points(topLists[[i]]$logFC[index], -log10(topLists[[i]]$P.Value)[index], 
+               col="red3", pch = 20)
+    }
 
+    ## Summarize 
+    results <- decideTests(fit2, adjust.method = "BH", method = "separate")#results is a 'TestResults' matrix
+    #separate compares each sample individually and is the default approach
+    colnames(results) <- c("18862 - 18486", "19160 - 18862", "19160 - 18486")
+    summary(results)
+    vennDiagram(results, cex=c(1.2,1,0.7)) #good DE across conditions
+    vennDiagram(results, cex=c(1.2,1,0.7), include = "up") #good DE across conditions
+    vennDiagram(results, cex=c(1.2,1,0.7), include = "down") #good DE across conditions
+    vennDiagram(results, cex=c(1.2,1,0.7), include = c("up", "down")) #good DE across conditions
 
-tt1 <- topTable(fit2, coef = 1, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
-tt2 <- topTable(fit2, coef = 2, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
-tt3 <- topTable(fit2, coef = 3, adjust = "BH", n=Inf)#sorts by adjusted p up to the threshold of .
-
-hist(tt1$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[1])
-hist(tt2$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[2])
-hist(tt3$P.Value, nc=40, xlab="P values", main = colnames(contrast.matrix)[3])
-
-plot(tt1$logFC,-log10(tt1$P.Value), xlab = colnames(contrast.matrix)[1], pch = 20, ylab = "-log10(P)",xlim = c(-5, 5))
-#sites with sig difference in comparison 1
-names <- row.names(sig1)
-names2 <- row.names(tt1)
-index <- which(names2 %in% names)
-points(tt1$logFC[index],-log10(tt1$P.Value)[index], col="red3", pch = 20)
-
-
-plot(tt2$logFC,-log10(tt2$P.Value), xlab = colnames(contrast.matrix)[2], pch = 20, ylab = "-log10(P)",xlim = c(-5, 5))
-#sites with sig difference in comparison 1
-names <- row.names(sig2)
-names2 <- row.names(tt2)
-index <- which(names2 %in% names)
-points(tt2$logFC[index],-log10(tt2$P.Value)[index], col="red3", pch = 20)
+    table("18862-18486" =results[,1],"19160-18862"=results[,2])
 
 
-plot(tt3$logFC,-log10(tt3$P.Value), xlab = colnames(contrast.matrix)[3], pch = 20, ylab = "-log10(P)",xlim = c(-5, 5))
-#sites with sig difference in comparison 1
-names <- row.names(sig3)
-names2 <- row.names(tt3)
-index <- which(names2 %in% names)
-points(tt3$logFC[index],-log10(tt3$P.Value)[index], col="red3", pch = 20)
+    #DE sites by contrast type
+    #DE sites using 'separate' contrasts
+    DE <- results[results[,1] != 0 | results[,2] != 0 | results[,3] != 0,]
+    #sites only DE in exactly one contrast
+    absDE <- abs(DE)
+    DE1 <- absDE[rowSums(absDE)==1,]
+    #sites DE in exactly two contrast
+    DE2 <- absDE[rowSums(absDE)==2,]
+    #site DE in all 3 contrasts
+    DE3 <- results[results[,1] != 0 & results[,2] != 0 & results[,3] != 0,]
 
+    #F stats by contrast type
+    
+    # #Sorting F Values
+    # test <- topTable(fit2, coef = c(1,2,3), adjust = "BH", n=Inf, sort.by="F", p=.05)#equivalent to below
+    # test2 <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)
+    
+    Fvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F")#all F values
+    sigFvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)#gives 1355 compared to 1549 DE total for separate comparisons
+    
+    #subsets by contrast specific DE
+    FDE1 <- Fvals[which(row.names(DE1)%in%row.names(Fvals)),5:6]
+    FDE2 <- Fvals[which(row.names(DE2)%in%row.names(Fvals)),5:6]
+    FDE3 <- Fvals[which(row.names(DE3)%in%row.names(Fvals)),5:6]
+    
+    #below gives adjusted pvalue
+    FDE1 <- Fvals[match(row.names(DE1), row.names(Fvals), nomatch = F),5:7]
+    FDE2 <- Fvals[match(row.names(DE2), row.names(Fvals), nomatch = F),5:7]
+    FDE3 <- Fvals[match(row.names(DE3), row.names(Fvals), nomatch = F),5:7]
+    
+    #boxplot(FDE1$F,FDE2$F,FDE3$F)
+    boxplot(log10(FDE1$F),log10(FDE2$F),log10(FDE3$F))
+    summary(FDE1$F)
+    summary(FDE2$F)
+    summary(FDE3$F)
+    
+    plot(density(log10(FDE1$F)),xlim = c(0,3), main = "Sig F Stats Cut by Number of DiffPhos Contrasts")
+    lines(density(log10(FDE2$F)), col = 2)
+    lines(density(log10(FDE3$F)), col = 3)
+    
+    #add annotation to multexpanded DF
+    multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(FitData),"+","-")
+    
+    #add F test values to the table
+    multExpanded1$globalFsig = ifelse(multExpanded1$idmult %in% row.names(sigFvals),"+","-")
+    
+    multExpanded1$globalFstat  <-  sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "F"], "-")
+    })
+    multExpanded1$globalFPval  <-  sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "P.Value"], "-")
+    })
+    multExpanded1$globalFAdjPval  <- sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "adj.P.Val"], "-")
+    })
+    
+    #add DE to table
+    multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
+    multExpanded1$DEcont2 = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
+    multExpanded1$DEcont3 = ifelse(multExpanded1$idmult %in% row.names(sig3),"+","-")
+    
+    #add DE direction to table
+    multExpanded1$cont1up = ifelse(multExpanded1$idmult %in% row.names(c1up),"+","-")
+    multExpanded1$cont1down = ifelse(multExpanded1$idmult %in% row.names(c1down),"+","-")
+    multExpanded1$cont2up = ifelse(multExpanded1$idmult %in% row.names(c2up),"+","-")
+    multExpanded1$cont2down = ifelse(multExpanded1$idmult %in% row.names(c2down),"+","-")
+    multExpanded1$cont3up = ifelse(multExpanded1$idmult %in% row.names(c3up),"+","-")
+    multExpanded1$cont3down = ifelse(multExpanded1$idmult %in% row.names(c3down),"+","-")
+    
+    #replace the names
+    propernames <- c(paste(header, "SubtoDE", sep = ""), paste(header, "globalFsig", sep = ""), paste(header, "Fstat", sep = ""),
+                     paste(header, "FPval", sep = ""), paste(header, "FAdjPval", sep = ""), paste(header, "DEcont1", sep = ""),
+                     paste(header, "DEcont2", sep = ""), paste(header, "DEcont3", sep = ""), paste(header, "cont1up", sep = ""),
+                     paste(header, "cont1down", sep = ""), paste(header, "cont2up", sep = ""), paste(header, "cont2down", sep = ""),
+                     paste(header, "cont3up", sep = ""), paste(header, "cont3down", sep = ""))
+    names(multExpanded1)[(length(names(multExpanded1))-(length(propernames) - 1)):length(names(multExpanded1))] <- propernames
+    return(multExpanded1)
+    }
 
-results <- decideTests(fit2, adjust.method = "BH", method = "separate")#results is a 'TestResults' matrix
-#separate compares each sample individually and is the default approach
-colnames(results) <- c("18862 - 18486", "19160 - 18862", "19160 - 18486")
-summary(results)
-vennDiagram(results, cex=c(1.2,1,0.7)) #good DE across conditions
-vennDiagram(results, cex=c(1.2,1,0.7), include = "up") #good DE across conditions
-vennDiagram(results, cex=c(1.2,1,0.7), include = "down") #good DE across conditions
-vennDiagram(results, cex=c(1.2,1,0.7), include = c("up", "down")) #good DE across conditions
+    #process fits
+    multExpanded1 <- ProcessFit(fit2 = ConfoundedFit, header = "Confounded", 
+                                FitData = phosdata, multExpanded1)
+    multExpanded1 <- ProcessFit(fit2 = PhosPrepCovFit, header = "PhosPrepCov", 
+                                FitData = PhosProt, multExpanded1)
+    multExpanded1 <- ProcessFit(fit2 = GelPrepCovFit, header = "GelPrepCov", 
+                                FitData = PhosPropGel, multExpanded1)
 
-
-table("18862-18486" =results[,1],"19160-18862"=results[,2])
-
-
-#DE sites by contrast type
-#DE sites using 'separate' contrasts
-DE <- results[results[,1] != 0 | results[,2] != 0 | results[,3] != 0,]
-#sites only DE in exactly one contrast
-absDE <- abs(DE)
-DE1 <- absDE[rowSums(absDE)==1,]
-#sites DE in exactly two contrast
-DE2 <- absDE[rowSums(absDE)==2,]
-#site DE in all 3 contrasts
-DE3 <- results[results[,1] != 0 & results[,2] != 0 & results[,3] != 0,]
-
-#F stats by contrast type
-
-# #Sorting F Values
-# test <- topTable(fit2, coef = c(1,2,3), adjust = "BH", n=Inf, sort.by="F", p=.05)#equivalent to below
-# test2 <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)
-
-Fvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F")#all F values
-sigFvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)#gives 1355 compared to 1549 DE total for separate comparisons
-
-#subsets by contrast specific DE
-FDE1 <- Fvals[which(row.names(DE1)%in%row.names(Fvals)),5:6]
-FDE2 <- Fvals[which(row.names(DE2)%in%row.names(Fvals)),5:6]
-FDE3 <- Fvals[which(row.names(DE3)%in%row.names(Fvals)),5:6]
-
-#below gives adjusted pvalue
-FDE1 <- Fvals[match(row.names(DE1), row.names(Fvals), nomatch = F),5:7]
-FDE2 <- Fvals[match(row.names(DE2), row.names(Fvals), nomatch = F),5:7]
-FDE3 <- Fvals[match(row.names(DE3), row.names(Fvals), nomatch = F),5:7]
-
-#boxplot(FDE1$F,FDE2$F,FDE3$F)
-boxplot(log10(FDE1$F),log10(FDE2$F),log10(FDE3$F))
-summary(FDE1$F)
-summary(FDE2$F)
-summary(FDE3$F)
-
-plot(density(log10(FDE1$F)),xlim = c(0,3), main = "Sig F Stats Cut by Number of DiffPhos Contrasts")
-lines(density(log10(FDE2$F)), col = 2)
-lines(density(log10(FDE3$F)), col = 3)
-
-#add annotation to multexpanded DF
-multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(FitData),"+","-")
-
-#add F test values to the table
-multExpanded1$globalFsig = ifelse(multExpanded1$idmult %in% row.names(sigFvals),"+","-")
-
-multExpanded1$globalFstat  <-  sapply(as.character(multExpanded1$idmult), function(x){
-  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "F"], "-")
-})
-multExpanded1$globalFPval  <-  sapply(as.character(multExpanded1$idmult), function(x){
-  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "P.Value"], "-")
-})
-multExpanded1$globalFAdjPval  <- sapply(as.character(multExpanded1$idmult), function(x){
-  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "adj.P.Val"], "-")
-})
-
-#add DE to table
-multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
-multExpanded1$DEcont2 = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
-multExpanded1$DEcont3 = ifelse(multExpanded1$idmult %in% row.names(sig3),"+","-")
-
-#add DE direction to table
-multExpanded1$cont1up = ifelse(multExpanded1$idmult %in% row.names(c1up),"+","-")
-multExpanded1$cont1down = ifelse(multExpanded1$idmult %in% row.names(c1down),"+","-")
-multExpanded1$cont2up = ifelse(multExpanded1$idmult %in% row.names(c2up),"+","-")
-multExpanded1$cont2down = ifelse(multExpanded1$idmult %in% row.names(c2down),"+","-")
-multExpanded1$cont3up = ifelse(multExpanded1$idmult %in% row.names(c3up),"+","-")
-multExpanded1$cont3down = ifelse(multExpanded1$idmult %in% row.names(c3down),"+","-")
-
-#replace the names
-propernames <- c(paste(header, "SubtoDE", sep = ""), paste(header, "globalFsig", sep = ""), paste(header, "Fstat", sep = ""),
-                 paste(header, "FPval", sep = ""), paste(header, "FAdjPval", sep = ""), paste(header, "DEcont1", sep = ""),
-                 paste(header, "DEcont2", sep = ""), paste(header, "DEcont3", sep = ""), paste(header, "cont1up", sep = ""),
-                 paste(header, "cont1down", sep = ""), paste(header, "cont2up", sep = ""), paste(header, "cont2down", sep = ""),
-                 paste(header, "cont3up", sep = ""), paste(header, "cont3down", sep = ""))
-names(multExpanded1)[(length(names(multExpanded1))-(length(propernames) - 1)):length(names(multExpanded1))] <- propernames
-return(multExpanded1)
-}
-
-#process fits
-multExpanded1 <- ProcessFit(fit2 = ConfoundedFit, header = "Confounded", FitData = phosdata, multExpanded1)
-multExpanded1 <- ProcessFit(fit2 = PhosPrepCovFit, header = "PhosPrepCov", FitData = PhosProt, multExpanded1)
-multExpanded1 <- ProcessFit(fit2 = GelPrepNormFit, header = "GelPrepNorm", FitData = PhosGelnorm, multExpanded1)
-
-  ############# Annotate the ME dataframe --------------
+    ############# Annotate the ME dataframe --------------
   
   #
   # NOTE THE FOLLOWING WHEN COMPARING ALL THE CONTRASTS AT ONCE PG 62 IN LIMMA USER GUIDE - decideTests method global should be used here.
