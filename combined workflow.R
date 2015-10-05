@@ -161,23 +161,25 @@ multExpanded1_withDE <- DiffPhos(phosdata = adata, PhosPrep = PhosPrepCombatBio,
 
 # Nested Random Effects modeling ------------------------------------------
 
-# 'NestedVar' performs analysis and I would like this to also return an annotated ME DF with each phosphosites annotated for downstream enrichment analysis. One example of a category might be high biological var/low tech and individual. I think a combinatorial categorization would work well here.
+# 'NestedVar' performs analysis and I would like this to also return an annotated ME DF 
+# with each phosphosites annotated for downstream enrichment analysis. One example of 
+# a category might be high biological var/low tech and individual. I think a combinatorial categorization would work well here.
 
 # remove exp obs if not observed at least two times in each sample
 com3 <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]
 
-#send unbalanced data to NestedVar. Here a nested random effect model is fitted for each phosphopeptide. The peptide model variance components are returned. 
+# send unbalanced data to NestedVar. Here a nested random effect model is fitted for each phosphopeptide. The peptide model variance components are returned. 
 varcomp <- NestedVar(ratios=com3, balanced = F)
 varcomp <- as.data.frame(varcomp)
 
-#assign flag to varcomp file according to four categories. high ind/high biological. high ind/low bio. low ind/high bio and low ind/low bio
-#cutoff for high/low individual is log10 = -5. cutoff for high/low biological variance is log10 = -6.
+# assign flag to varcomp file according to four categories. high ind/high biological. high ind/low bio. low ind/high bio and low ind/low bio
+# cutoff for high/low individual is log10 = -5. cutoff for high/low biological variance is log10 = -6.
 varcomp$high_ind_var <- ifelse(log10(varcomp$individual) >= -5, "+", "-")
 varcomp$low_ind_var <- ifelse(log10(varcomp$individual) < -5, "+", "-")
 varcomp$high_bio_var <- ifelse(log10(varcomp$biorep) >= -6, "+", "-")
 varcomp$low_bio_var <- ifelse(log10(varcomp$biorep) < -6, "+", "-")
 
-#send to VarComp. Note this is the same dataframe as ProtNormalized. Com2 used next!!
+# Send to VarComp. Note this is the same dataframe as ProtNormalized. Com2 used next!!
 ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 & rowSums(is.na(ProtNormalized[ , 5:8])) <= 2 
                                     & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]#3488
  

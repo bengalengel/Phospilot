@@ -305,73 +305,73 @@ ProcessFit <- function(fit2, header, FitData, multExpanded1){
     #site DE in all 3 contrasts
     DE3 <- results[results[,1] != 0 & results[,2] != 0 & results[,3] != 0,]
 
-#F stats by contrast type
-
-# #Sorting F Values
-# test <- topTable(fit2, coef = c(1,2,3), adjust = "BH", n=Inf, sort.by="F", p=.05)#equivalent to below
-# test2 <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)
-
-Fvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F")#all F values
-sigFvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)#gives 1355 compared to 1549 DE total for separate comparisons
-
-#subsets by contrast specific DE
-FDE1 <- Fvals[which(row.names(DE1)%in%row.names(Fvals)),5:6]
-FDE2 <- Fvals[which(row.names(DE2)%in%row.names(Fvals)),5:6]
-FDE3 <- Fvals[which(row.names(DE3)%in%row.names(Fvals)),5:6]
-
-#below gives adjusted pvalue
-FDE1 <- Fvals[match(row.names(DE1), row.names(Fvals), nomatch = F),5:7]
-FDE2 <- Fvals[match(row.names(DE2), row.names(Fvals), nomatch = F),5:7]
-FDE3 <- Fvals[match(row.names(DE3), row.names(Fvals), nomatch = F),5:7]
-
-#boxplot(FDE1$F,FDE2$F,FDE3$F)
-boxplot(log10(FDE1$F),log10(FDE2$F),log10(FDE3$F))
-summary(FDE1$F)
-summary(FDE2$F)
-summary(FDE3$F)
-
-plot(density(log10(FDE1$F)),xlim = c(0,3), main = "Sig F Stats Cut by Number of DiffPhos Contrasts")
-lines(density(log10(FDE2$F)), col = 2)
-lines(density(log10(FDE3$F)), col = 3)
-
-#add annotation to multexpanded DF
-multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(FitData),"+","-")
-
-#add F test values to the table
-multExpanded1$globalFsig = ifelse(multExpanded1$idmult %in% row.names(sigFvals),"+","-")
-
-multExpanded1$globalFstat  <-  sapply(as.character(multExpanded1$idmult), function(x){
-  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "F"], "-")
-})
-multExpanded1$globalFPval  <-  sapply(as.character(multExpanded1$idmult), function(x){
-  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "P.Value"], "-")
-})
-multExpanded1$globalFAdjPval  <- sapply(as.character(multExpanded1$idmult), function(x){
-  ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "adj.P.Val"], "-")
-})
-
-#add DE to table
-multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
-multExpanded1$DEcont2 = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
-multExpanded1$DEcont3 = ifelse(multExpanded1$idmult %in% row.names(sig3),"+","-")
-
-#add DE direction to table
-multExpanded1$cont1up = ifelse(multExpanded1$idmult %in% row.names(c1up),"+","-")
-multExpanded1$cont1down = ifelse(multExpanded1$idmult %in% row.names(c1down),"+","-")
-multExpanded1$cont2up = ifelse(multExpanded1$idmult %in% row.names(c2up),"+","-")
-multExpanded1$cont2down = ifelse(multExpanded1$idmult %in% row.names(c2down),"+","-")
-multExpanded1$cont3up = ifelse(multExpanded1$idmult %in% row.names(c3up),"+","-")
-multExpanded1$cont3down = ifelse(multExpanded1$idmult %in% row.names(c3down),"+","-")
-
-#replace the names
-propernames <- c(paste(header, "SubtoDE", sep = ""), paste(header, "globalFsig", sep = ""), paste(header, "Fstat", sep = ""),
-                 paste(header, "FPval", sep = ""), paste(header, "FAdjPval", sep = ""), paste(header, "DEcont1", sep = ""),
-                 paste(header, "DEcont2", sep = ""), paste(header, "DEcont3", sep = ""), paste(header, "cont1up", sep = ""),
-                 paste(header, "cont1down", sep = ""), paste(header, "cont2up", sep = ""), paste(header, "cont2down", sep = ""),
-                 paste(header, "cont3up", sep = ""), paste(header, "cont3down", sep = ""))
-names(multExpanded1)[(length(names(multExpanded1))-(length(propernames) - 1)):length(names(multExpanded1))] <- propernames
-return(multExpanded1)
-}
+    #F stats by contrast type
+    
+    # #Sorting F Values
+    # test <- topTable(fit2, coef = c(1,2,3), adjust = "BH", n=Inf, sort.by="F", p=.05)#equivalent to below
+    # test2 <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)
+    
+    Fvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F")#all F values
+    sigFvals <- topTableF(fit2, adjust = "BH", n=Inf, sort.by="F", p=.05)#gives 1355 compared to 1549 DE total for separate comparisons
+    
+    #subsets by contrast specific DE
+    FDE1 <- Fvals[which(row.names(DE1)%in%row.names(Fvals)),5:6]
+    FDE2 <- Fvals[which(row.names(DE2)%in%row.names(Fvals)),5:6]
+    FDE3 <- Fvals[which(row.names(DE3)%in%row.names(Fvals)),5:6]
+    
+    #below gives adjusted pvalue
+    FDE1 <- Fvals[match(row.names(DE1), row.names(Fvals), nomatch = F),5:7]
+    FDE2 <- Fvals[match(row.names(DE2), row.names(Fvals), nomatch = F),5:7]
+    FDE3 <- Fvals[match(row.names(DE3), row.names(Fvals), nomatch = F),5:7]
+    
+    #boxplot(FDE1$F,FDE2$F,FDE3$F)
+    boxplot(log10(FDE1$F),log10(FDE2$F),log10(FDE3$F))
+    summary(FDE1$F)
+    summary(FDE2$F)
+    summary(FDE3$F)
+    
+    plot(density(log10(FDE1$F)),xlim = c(0,3), main = "Sig F Stats Cut by Number of DiffPhos Contrasts")
+    lines(density(log10(FDE2$F)), col = 2)
+    lines(density(log10(FDE3$F)), col = 3)
+    
+    #add annotation to multexpanded DF
+    multExpanded1$SubtoDE = ifelse(multExpanded1$idmult %in% row.names(FitData),"+","-")
+    
+    #add F test values to the table
+    multExpanded1$globalFsig = ifelse(multExpanded1$idmult %in% row.names(sigFvals),"+","-")
+    
+    multExpanded1$globalFstat  <-  sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "F"], "-")
+    })
+    multExpanded1$globalFPval  <-  sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "P.Value"], "-")
+    })
+    multExpanded1$globalFAdjPval  <- sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "adj.P.Val"], "-")
+    })
+    
+    #add DE to table
+    multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
+    multExpanded1$DEcont2 = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
+    multExpanded1$DEcont3 = ifelse(multExpanded1$idmult %in% row.names(sig3),"+","-")
+    
+    #add DE direction to table
+    multExpanded1$cont1up = ifelse(multExpanded1$idmult %in% row.names(c1up),"+","-")
+    multExpanded1$cont1down = ifelse(multExpanded1$idmult %in% row.names(c1down),"+","-")
+    multExpanded1$cont2up = ifelse(multExpanded1$idmult %in% row.names(c2up),"+","-")
+    multExpanded1$cont2down = ifelse(multExpanded1$idmult %in% row.names(c2down),"+","-")
+    multExpanded1$cont3up = ifelse(multExpanded1$idmult %in% row.names(c3up),"+","-")
+    multExpanded1$cont3down = ifelse(multExpanded1$idmult %in% row.names(c3down),"+","-")
+    
+    #replace the names
+    propernames <- c(paste(header, "SubtoDE", sep = ""), paste(header, "globalFsig", sep = ""), paste(header, "Fstat", sep = ""),
+                     paste(header, "FPval", sep = ""), paste(header, "FAdjPval", sep = ""), paste(header, "DEcont1", sep = ""),
+                     paste(header, "DEcont2", sep = ""), paste(header, "DEcont3", sep = ""), paste(header, "cont1up", sep = ""),
+                     paste(header, "cont1down", sep = ""), paste(header, "cont2up", sep = ""), paste(header, "cont2down", sep = ""),
+                     paste(header, "cont3up", sep = ""), paste(header, "cont3down", sep = ""))
+    names(multExpanded1)[(length(names(multExpanded1))-(length(propernames) - 1)):length(names(multExpanded1))] <- propernames
+    return(multExpanded1)
+    }
 
     #process fits
     multExpanded1 <- ProcessFit(fit2 = ConfoundedFit, header = "Confounded", 
