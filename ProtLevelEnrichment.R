@@ -55,6 +55,18 @@ for(i in 1:length(enrichment_tables)){
 
 ## output for cytoscape ----
 
+
+#alter output of each enrichment table for cytoscape
+for(i in 1:length(enrichment_tables)){
+  enrich.table <- enrichment_tables[[i]]
+  enrich.table <- enrich.table[, c(1, 6, 3, 4)]
+  names(enrich.table) <- c("ID", "DESCRIPTION", "P-VALUE", "FDR")
+  write.table(enrich.table, file.path(getwd(), paste0("Enrichments/modified/", names(enrichment_tables)[i], "modified", ".txt")),
+              sep = "\t", row.names = F, qmethod = "d")
+}
+
+
+
 # Require that I create my own 'gmt' file..
 
 require(biomaRt)
