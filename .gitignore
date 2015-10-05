@@ -32,6 +32,9 @@ src/*
 Disorder/IUPred
 Disorder/Rapid
 
+# Example data for Joyce testing DiffPhos.R
+diffphos-data/
+
 # Compiled source #
 ###################
 *.com
