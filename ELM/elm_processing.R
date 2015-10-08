@@ -7,6 +7,7 @@ require(foreach)
 require(iterators)
 require(biomaRt)
 require(stringr)
+require(doParallel)
 
 #download all annotated motif instances from human with true positive logic instance
 if(!file.exists("./ELM")){
@@ -77,51 +78,59 @@ elm$ENSPID <- foreach(i = 1:length(elm[[1]]), .combine = c) %do% {
 all.proteins <- unlist(strsplit(multExpanded1_withDE_annotated$ppMajorityProteinIDs, ";"))
 all.elm <- unlist(strsplit(elm$ENSPID, ";"))
 length(intersect(all.proteins, all.elm))
-#426 overlapping unique ENSPIDs. This is going to be close and there likely will not be many sites within elm instances
+#426 overlapping unique ENSPIDs. This is going to be close and there likely will not be many sites within elm instances.snps may be a different story
 
 #now I want to align the uniprot sequences over the ensembl peptide sequences so that I can map the positions of the motif within the uniprot sequence onto the positions within the ensembl peptide id sequence
 
-test <- foreach(i = 1:100, .combine = rbind) %do% {
+cl <- makeCluster(5)
+registerDoParallel(cl)
+multExpanded1_withDE_annotated$ppSiteInMotif <- foreach(i = 1:length(multExpanded1_withDE_annotated[[1]]), 
+                                                        .combine = c, .packages = c("seqinr", "stringr")) %dopar% {
   proteins <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
   proteins <- unlist(strsplit(proteins, ";"))
   proteins <- proteins[!grepl("REV", proteins)]#these are omitted when finding the phosphoposition
   sites <- multExpanded1_withDE_annotated$ppPositionInProteins[i]
   sites <- strsplit(as.character(sites), ";")
   sites <- as.character(unlist(sites))
-  #find matches in the elm data frame
-  #for each protein
-#   elm.dataframes <- vector(mode = "list", length = length(proteins))
+  #find matches in the elm data frame for each protein
   position.overlap <- vector(mode = "logical", length = length(proteins))
-for(j in seq_along(proteins)){
-  #indentify an index to subset the elm data frame when ANY enspid matches 
-  index <- sapply(elm$ENSPID, function(x){
-    elm.proteins <- unlist(strsplit(x, ";"))
-    proteins[j] %in% elm.proteins    
-  })
-  #subset to get elm.dataframe[j] of motifs
-#   elm.dataframes[[j]] <- elm[index,]
-  match.elm <- elm[index, c("ENSPID", "motif")]
-  motif.hits <- match.elm$motif
-  #where do these motifs reside within the matching enspid protein?
-  proteome.index <- grep(proteins[j], names(proteome))
-  hit.sequence <- unlist(getSequence(proteome[[proteome.index]], as.string = T))
-  #a matrix of start and stop positions
-  motif.indices <- do.call(rbind, str_locate_all(hit.sequence, motif.hits))
-# start end
-# [1,]   103 107
-# [2,]   106 110
-  #do these positions overlap with the paired phosphosite position?
-  position.overlap[j] <- any(apply(motif.indices, 1, function(x) {
-    sites[j] >= x[1] && sites[j] <= x[2]
-  }))
+  for(j in seq_along(proteins)){
+    #indentify an index to subset the elm data frame when ANY ENSPID matches 
+    index <- sapply(elm$ENSPID, function(x){
+      elm.proteins <- unlist(strsplit(x, ";"))
+      proteins[j] %in% elm.proteins    
+    })
+    #subset elm dataframe to return matching motifs
+    match.elm <- elm[index, c("ENSPID", "motif")]
+    # Identify if phosphosite overlaps with matched motif
+    if(dim(match.elm)[1] > 0){
+      motif.hits <- match.elm$motif
+      #where do these motifs reside within the matching enspid protein?
+      proteome.index <- grep(proteins[j], names(proteome))
+      hit.sequence <- unlist(getSequence(proteome[[proteome.index]], as.string = T))
+      #a matrix of start and stop positions for the motifs
+      motif.indices <- do.call(rbind, str_locate_all(hit.sequence, motif.hits))
+      # start end
+      # [1,]   103 107
+      # [2,]   106 110
+      #do these positions overlap with the paired phosphosite position?
+      position.overlap[j] <- any(apply(motif.indices, 1, function(x) {
+        sites[j] >= x[1] && sites[j] <= x[2]
+      }))
+    }
+  }
+  return(any(position.overlap))
 }
-return(any(position.overlap))
-}
-  
-  
-  
-  
-  
+stopCluster(cl)
+# 135 sites. how many of these sites are subjected to diffphos?
+
+table(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", "ppSiteInMotif"])
+#42 sites
+
+#42 sites on 21 unique proteins groups. This is enough for an enrichment analysis!
+diffphosinfo <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", c("ppSiteInMotif", "ppMajorityProteinIDs")]
+length(unique(diffphosinfo[diffphosinfo$ppSiteInMotif == TRUE, 2]))  
+
   
   
   
