@@ -642,6 +642,11 @@ multExpanded1_withDE$PhosPrep.Pos.Disorder <- mapply(disorder.assignment, as.cha
 #gelprep. NAs because some sites do not have matching protein quant estimates and therefore were not matched
 multExpanded1_withDE$GelPrep.Pos.Disorder <- mapply(disorder.assignment, as.character(multExpanded1_withDE$ppMajorityProteinIDs), as.character(multExpanded1_withDE$ppPositionInProteins))
 
+
+# ELM motif instances ----
+source("./ELM/elm_processing.R")
+
+
 ## Phosphosite annotations. on hold ---- 
 
 # # Is residue annotated on phosphosite? Using Hugo nomenclature ids. this is really slow. need to import phosphosite with human already subsetted away.

@@ -88,7 +88,7 @@ length(intersect(all.proteins, all.elm))
 
 cl <- makeCluster(5)
 registerDoParallel(cl)
-multExpanded1_withDE_annotated$ppSiteInMotif <- foreach(i = 1:length(multExpanded1_withDE_annotated[[1]]), 
+multExpanded1_withDE_annotated$GelPrepSiteInMotif <- foreach(i = 1:length(multExpanded1_withDE_annotated[[1]]), 
                                                         .combine = c, .packages = c("seqinr", "stringr")) %dopar% {
   proteins <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
   proteins <- unlist(strsplit(proteins, ";"))
@@ -168,69 +168,6 @@ stopCluster(cl)
 
 multExpanded1_withDE_annotated$GelPrepMotifCount <- gelprep.motif.counts
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#confounded
-HGNCsymbol <- as.character(multExpanded1_withDE$confoundedHGNCSymbol)
-cl <- makeCluster(5)
-registerDoParallel(cl)
-confounded.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
-  hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
-  hgnc.symbol <- as.character(unlist(hgnc.symbol))
-  matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
-  matches <- matches[,2:9]
-  if(length(matches) > 1){
-    matches <- apply(matches, 2, max)
-    matches <- as.data.frame(t(matches))
-  }
-}
-#PhosPrep
-HGNCsymbol <- as.character(multExpanded1_withDE$PhosPrepHGNCSymbol)
-phosprep.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
-  hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
-  hgnc.symbol <- as.character(unlist(hgnc.symbol))
-  matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
-  matches <- matches[,2:9]
-  if(length(matches) > 1){
-    matches <- apply(matches, 2, max)
-    matches <- as.data.frame(t(matches))
-  }
-}
-#GelPrep
-HGNCsymbol <- as.character(multExpanded1_withDE$GelPrepHGNCSymbol)
-gelprep.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
-  hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
-  hgnc.symbol <- as.character(unlist(hgnc.symbol))
-  matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
-  matches <- matches[,2:9]
-  if(length(matches) > 1){
-    matches <- apply(matches, 2, max)
-    matches <- as.data.frame(t(matches))
-  }
-}
-stopCluster(cl)
-
-#fix names and append to MEDF
-names(confounded.mod.counts) <- paste(names(confounded.mod.counts), ".confounded", sep = "")
-names(phosprep.mod.counts) <- paste(names(phosprep.mod.counts), ".PhosPrep", sep = "")
-names(gelprep.mod.counts) <- paste(names(gelprep.mod.counts), ".GelPrep", sep = "")
-
-
-multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded.mod.counts, phosprep.mod.counts, gelprep.mod.counts)
 
   
   
