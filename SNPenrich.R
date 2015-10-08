@@ -389,7 +389,7 @@ snp.domain.boundary <- foreach(i = 1:length(SNPeffFinal$peptide), .combine = "rb
   protein <- gsub("(?<![0-9])0+", "", protein, perl = TRUE)
   #extract site information. Use the first number within the chacter string for insertions etc.
   site <- SNPeffFinal$aa[i]
-  site <- str_extract(site, "[0-9]+")
+  site <- as.numeric(str_extract(site, "[0-9]+"))
   #identify all domains matching the protein
   domains <- pfam.boundary[pfam.boundary$ENSPID == protein, c(5,7,8)]
   if(dim(domains)[1] != 0){
@@ -457,6 +457,84 @@ multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, GelPrep.
 table(multExpanded1_withDE_annotated$GelPrepNsSnpPositive)
   -     + 
 13189  4585 
+
+
+#snps within a motif ----
+
+#load the elm table with matching ENSPIDs (written out when adding annotations)
+elm <- readRDS("./ELM/elmtable.rds")
+
+
+cl <- makeCluster(5)
+registerDoParallel(cl)
+SNPeffFinal$snpInMotif <- foreach(i = 1:length(SNPeffFinal[[1]]), .combine = c, .packages = c("stringr", "seqinr") ) %dopar% {
+  #retrieve protein and site
+  protein <- SNPeffFinal$peptide[i]
+  #extract site information. Use the first number within the chacter string for insertions etc.
+  site <- SNPeffFinal$aa[i]
+  site <- as.numeric(str_extract(site, "[0-9]+"))
+  #protein match in the elm dataframe?
+  index <- sapply(elm$ENSPID, function(x){
+    elm.proteins <- unlist(strsplit(x, ";"))
+    protein %in% elm.proteins    
+  })
+  match.elm <- elm[index, c("ENSPID", "motif")]
+  if(dim(match.elm)[1] > 0){
+    #retrieve the protein sequence and motif positions
+    motif.hits <- match.elm$motif
+    #where do these motifs reside within the matching enspid protein?
+    proteome.index <- grep(protein, names(proteome))
+    hit.sequence <- unlist(getSequence(proteome[[proteome.index]], as.string = T))
+    #a matrix of start and stop positions for the motifs
+    motif.indices <- do.call(rbind, str_locate_all(hit.sequence, motif.hits))
+    # start end
+    # [1,]   103 107
+    # [2,]   106 110
+    #Do these positions overlap with the SNP position?
+    any(apply(motif.indices, 1, function(x) {
+      site >= x[1] && site <= x[2]
+    }))
+  } else {
+    FALSE
+  }
+}
+stopCluster(cl)
+
+#hardly any snps that disrupt a motif!
+table(SNPeffFinal$snpInMotif)
+FALSE  TRUE 
+29412    32 
+
+#add this info to the ME DF
+cl <- makeCluster(5)
+registerDoParallel(cl)
+multExpanded1_withDE_annotated$GelPrepSNPInmotif <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajorityProteinIDs), 
+                                                            .combine = c) %dopar% {
+  protein.group <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
+  if(multExpanded1_withDE_annotated$GelPrepNsSnpPositive[i] == "+"){
+    if(protein.group != ""){
+      protein.group <- strsplit(protein.group, ";")
+      protein.group <- as.character(unlist(protein.group))
+      protein.group <- protein.group[!grepl("REV", protein.group)]#remove reverse entries
+      #for each member of the group, does it contain a snp in a motif?
+      snp.in.motif <- vector(mode = 'logical', length = length(protein.group))
+      for(protein in seq_along(protein.group)){
+        snp.in.motif[protein] <- any(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "snpInMotif"])
+      }
+      snp.in.motif = any(snp.in.motif, na.rm = T)
+    }
+  } else {
+    snp.in.motif = FALSE
+  }
+}
+stopCluster(cl)
+
+#only 21 phosphosites belong to a protein with a snp in an elm validated motif
+table(multExpanded1_withDE_annotated$GelPrepSNPInmotif)
+
+#from 5 unique proteins
+length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepSNPInmotif == T, "ppMajorityProteinIDs"]))
+
 
 
 

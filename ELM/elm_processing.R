@@ -73,7 +73,11 @@ elm$ENSPID <- foreach(i = 1:length(elm[[1]]), .combine = c) %do% {
   paste0(ENSPID.match, collapse = ";")
 }
 
-#add indicator of phosphosite overlap with ELM annotated motif instance
+#write out table
+saveRDS(elm, file = "./ELM/elmtable.rds")
+
+
+#add indicator of phosphosite overlap with ELM annotated motif instance ----
 
 all.proteins <- unlist(strsplit(multExpanded1_withDE_annotated$ppMajorityProteinIDs, ";"))
 all.elm <- unlist(strsplit(elm$ENSPID, ";"))
