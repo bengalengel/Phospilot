@@ -122,7 +122,8 @@ multExpanded1_withDE_annotated$ppSiteInMotif <- foreach(i = 1:length(multExpande
   return(any(position.overlap))
 }
 stopCluster(cl)
-# 135 sites. how many of these sites are subjected to diffphos?
+
+# 135 sites are within an annotated elm motif. how many of these sites are subjected to diffphos?
 
 table(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", "ppSiteInMotif"])
 #42 sites
@@ -133,34 +134,102 @@ length(unique(diffphosinfo[diffphosinfo$ppSiteInMotif == TRUE, 2]))
 
   
   
+#number of motifs/protein ----
   
   
-  
-  
-  
-  
-  
-  
+#each ENSPID entry is counted only once/motif instance. I can count the number times each ENSPID is found within the elm dataframe
+# This information can be used to match with the protein group information in the phosphosite table. The max of the protein group ids will be taken for the 'number of motifs/protein'.
+
+#create the enspid motif count table
+ids <- unlist(sapply(elm$ENSPID, function(x){
+  unlist(strsplit(x, ";"))
+}))
+motif.frequency <- as.data.frame(table(ids))
+
+#for each phosphosite, assign the protein level motif count using the 'motif.frequency' table
+ProteinIDs <- as.character(multExpanded1_withDE_annotated$ppMajorityProteinIDs)
+cl <- makeCluster(5)
+registerDoParallel(cl)
+gelprep.motif.counts <- foreach(i = 1:length(ProteinIDs), .combine = c) %dopar% {
+  proteins <- strsplit(ProteinIDs[i], ";")
+  proteins <- as.character(unlist(proteins))
+  matches <- motif.frequency[motif.frequency$ids %in% proteins,]
+  if(dim(matches)[1] > 1){
+    matches[which.max(matches$Freq), 2]
+  } else {
+    0
   }
-  motif.match <- sum(sapply(elm.dataframes, dim)[1,]) > 0
+}
+stopCluster(cl)
+
+multExpanded1_withDE_annotated$GelPrepMotifCount <- gelprep.motif.counts
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#confounded
+HGNCsymbol <- as.character(multExpanded1_withDE$confoundedHGNCSymbol)
+cl <- makeCluster(5)
+registerDoParallel(cl)
+confounded.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
+  hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
+  hgnc.symbol <- as.character(unlist(hgnc.symbol))
+  matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
+  matches <- matches[,2:9]
+  if(length(matches) > 1){
+    matches <- apply(matches, 2, max)
+    matches <- as.data.frame(t(matches))
+  }
+}
+#PhosPrep
+HGNCsymbol <- as.character(multExpanded1_withDE$PhosPrepHGNCSymbol)
+phosprep.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
+  hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
+  hgnc.symbol <- as.character(unlist(hgnc.symbol))
+  matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
+  matches <- matches[,2:9]
+  if(length(matches) > 1){
+    matches <- apply(matches, 2, max)
+    matches <- as.data.frame(t(matches))
+  }
+}
+#GelPrep
+HGNCsymbol <- as.character(multExpanded1_withDE$GelPrepHGNCSymbol)
+gelprep.mod.counts <- foreach(i = 1:length(HGNCsymbol), .combine = "rbind") %dopar% {
+  hgnc.symbol <- strsplit(HGNCsymbol[i], ";")
+  hgnc.symbol <- as.character(unlist(hgnc.symbol))
+  matches <- merged.counts[merged.counts$HGNCSymbol %in% hgnc.symbol,]
+  matches <- matches[,2:9]
+  if(length(matches) > 1){
+    matches <- apply(matches, 2, max)
+    matches <- as.data.frame(t(matches))
+  }
+}
+stopCluster(cl)
+
+#fix names and append to MEDF
+names(confounded.mod.counts) <- paste(names(confounded.mod.counts), ".confounded", sep = "")
+names(phosprep.mod.counts) <- paste(names(phosprep.mod.counts), ".PhosPrep", sep = "")
+names(gelprep.mod.counts) <- paste(names(gelprep.mod.counts), ".GelPrep", sep = "")
+
+
+multExpanded1_withDE <- cbind(multExpanded1_withDE, confounded.mod.counts, phosprep.mod.counts, gelprep.mod.counts)
+
   
-    
-  elm.proteins <- elm[any(unlist(strsplit(elm$ENSPID, ";")) %in% proteins),]
   
-  elm.proteins <- unlist(strsplit(elm.proteins, ";"))
-  if(any(proteins %in% elm.proteins)
-
-
-for each peptide
-do any **gelprot** proteins match elm table (match key will be ENSP id)
-for the matches find the region within the protein that matches the motif (start/stop)
-Do any of the ENSPID linked phosphosite positions fall within the motif regions of the protein?
-return answer to "any matches" as binary TRUE or FALSE
-return matching elm accession number
-
-test.match  <- "ENSP00000260731"
-doublematch "two matches"
-i <- 17 for multiple proteins
-
+  
 
 
