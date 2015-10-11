@@ -12,7 +12,7 @@ load.MQZ <- function(directory) {
     filepath <- file.path(directory,"proteinGroups.txt")
     
     ## open the file
-    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "")
+    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "", stringsAsFactors = F)
     
     #select the columns of interest 
     vars <- c("id", "Protein.IDs", "Majority.protein.IDs", "Number.of.proteins", "Peptides", 

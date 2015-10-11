@@ -17,7 +17,7 @@ load.MQ2 <- function(type, directory) {
     filepath <- file.path(directory,"Phospho (STY)sites.txt")
     
     ## open the file
-    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "")
+    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "", stringsAsFactors = F)
     
     #select the columns of interest     
     vars <- c("id","Amino.acid","Charge","Reverse","Potential.contaminant","Proteins","Positions.within.proteins","Leading.proteins",
@@ -41,7 +41,7 @@ load.MQ2 <- function(type, directory) {
     filepath <- file.path(directory,"ProteinGroups.txt")
     
     ## open the file
-    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "")
+    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "", stringsAsFactors = F)
     
     #select the columns of interest 
     #select the columns of interest 

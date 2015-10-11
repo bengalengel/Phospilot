@@ -17,7 +17,7 @@ load.MQ <- function(type = c("phospho","protein"), directory) {
     filepath <- file.path(directory,"Phospho (STY)sites.txt")
     
     ## open the file
-    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "")
+    data <- read.table(file=filepath, sep = "\t", header=T, fill = T, quote = "", stringsAsFactors = F)
     
     #select the columns of interest     
     vars1 <- c("id","Amino.acid","Charge","Reverse","Potential.contaminant","Proteins","Positions.within.proteins","Leading.proteins",
