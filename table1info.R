@@ -18,3 +18,11 @@ me.all.bio <- me1[rowSums(is.na(me1[ , 1:2])) < 2 & rowSums(is.na(me1[ , 3:4])) 
 length(unique(me.all.bio$Proteins))
 #2073
 
+# how many unique proteins are in the merged phosprotgel dataframe?
+
+phospho.gelprot <- row.names(PhosProtGel)
+
+GelProtProtein.list <- multExpanded1[multExpanded1$idmult %in% phospho.gelprot , "ppMajorityProteinIDs"]
+
+length(unique(GelProtProtein.list))
+#1181 unique protiens

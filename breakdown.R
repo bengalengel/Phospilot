@@ -125,7 +125,7 @@ breakdown <- function(protein, phospho, multExpanded, cls=TRUE){
     #     or I can use the protein groups file.
     #Must go from the sites file so that each site is used only once as opposed to each group used only once with the same site assigned multiple times
     
-    hist(table(phospho$Protein), breaks = max(table(phospho$Protein)), xlim = c(0,20), xlab = "Number of phosphosites", ylab = "Number of Proteins", main = "number of C1 sites per protein")
+    hist(table(phospho$Protein), breaks = max(table(phospho$Protein)), col = "grey", xlim = c(0,20), xlab = "Number of phosphosites", ylab = "Number of Proteins", main = "number of C1 sites per protein")
     
     ##pie chart of AAs with percentages of total IDd CLASS 1 (but not necessarily quantified!)
     mytable <- table(phospho$Amino.acid)
@@ -134,7 +134,7 @@ breakdown <- function(protein, phospho, multExpanded, cls=TRUE){
     pct <- paste0(pct,"%") ##adds % sign
     pct <- paste("(",pct,")",sep="") ##adds parentheses
     lbls <- paste(lbls, pct,sep=" ") ##combines
-    pie(mytable, labels = lbls,
+    pie(mytable, labels = lbls, col = rev(gray.colors(3, gamma = 3)), edges = 200,
         main="Class 1 Amino Acid breakdown")
     
     ##pie chart of multiplicity with percentages
@@ -144,7 +144,7 @@ breakdown <- function(protein, phospho, multExpanded, cls=TRUE){
     pct <- paste0(pct,"%") ##adds % sign
     pct <- paste("(",pct,")",sep="") ##adds parentheses
     lbls <- paste(lbls, pct,sep=" ") ##combines
-    pie(mytable, labels = lbls,
+    pie(mytable, labels = lbls, col = rev(gray.colors(3, gamma = 3)),
         main="Multiplicity states of class 1 quantifications")
     
     # Class 1 phospho breakdowns by multiplicity;can be used later to subset analyses by confidence of quantification.
@@ -195,17 +195,30 @@ breakdown <- function(protein, phospho, multExpanded, cls=TRUE){
       n23 = nrow(id23)+nrow(id123),
       n13 = nrow(id13)+nrow(id123),
       n123 = nrow(id123),
-      category = c("Singly", "Doubly", "Triply"),
-      fill = c("orange", "green", "blue"),
-      lty = "blank",
+      category = c("Single", "Double", "Triple"),
+      fill = gray.colors(3, gamma = 1.5, alpha = .8),
+      lty = c(rep(1,3)),
       cex = 2,
       cat.cex = 2,
-      cat.col = c("orange", "green", "blue"), 
+      cat.col = gray(.3), 
       margin = .1,
       main="test"
     )
     plot.new()
     grid.arrange(gTree(children=venn.plot), main="Class 1 phosphopeptide multiplicity")
+    
+    plot.new()
+    
+    #mass error by intensity scatterplot
+    plot(phospho$Mass.error..ppm., log10(phospho$Intensity))
+    pdf("masserror_density.pdf", 6, 5.8)
+    smoothScatter(phospho$Mass.error..ppm., log10(phospho$Intensity), pch = 19, nrpoints = .15*nrow(phospho),
+                  colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")), cex = .25,
+                  xlab = "Mass error (ppm)",
+                  ylab = expression(-log[10](Phosphopeptide~intensity)), lwd = 10)
+    dev.off()
+  
+    
   }
   
   
