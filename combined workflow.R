@@ -42,16 +42,26 @@ protein <- load.MQ(directory = "E:/My Documents/Pilot/EnsemblDBPhospho/iBAQ quan
 
 # remove contaminants and reverse database hits
 phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]
+
+#write out phospho for publication
+phospho.table <- phospho[, 49:71]
+drop <- c("Reverse", "Potential.contaminant", "Positions.within.proteins")
+phospho.table <- phospho.table[ , !names(phospho.table) %in% drop]
+write.table(phospho.table, file = "./phospho.table.txt", sep = "\t", row.names = F)
+rm(phospho.table)
+
 protein <- protein[(protein$Potential.contaminant != "+" & protein$Reverse != "+"),]
 
 # subset phospho to class 1
-phospho1 <- phospho[(phospho$Localization.prob >= .75),]
+phospho1 <- phospho[(phospho$Localization.prob >= .75), ]
+
+
 
 # subset protein to remove those identifications observed solely by modification site
 # "only identified by site" hits CAN BE removed because they tend to have lower PEPs (wouldn't pass the FDR TH anyway) and can't be quantified since they are not idd by non-modified peptides. 
 # Note there are some high probability proteins here given some proteins are idd by 20+ phosphopeptides.
 # eg is A6NKT7 (PEP = 2.23E-70)
-protein1 <- protein[(protein$Only.identified.by.site != "+"),]
+protein1 <- protein[(protein$Only.identified.by.site != "+"), ]
 
 #expand phosphorylation data for observation (multiplicity based analysis). 
 # All observations quantified in >=1 experiment.

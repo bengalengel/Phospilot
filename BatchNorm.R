@@ -7,6 +7,7 @@ BatchNorm <- function(multExpanded1){
   require(swamp)
   require(limma)
   library(gplots)
+  require(RColorBrewer)
   
   #make the sparse matrix from real data (all quants of class 1 here) 
   expCol <- grep("HL(.*)", colnames(multExpanded1))
@@ -80,8 +81,12 @@ BatchNorm <- function(multExpanded1){
   str(res1)
   a <- res1$linp#plot p values
   b <- res1$linpperm#plot p values for permuted data
-  prince.plot(prince=res1, key = F, note = T)
-  
+  pdf("PC_batch_correlation.pdf", 11.5, 8)
+  prince.plot(prince=res1, key = T, note = T, breaks = 16, 
+              col =  rev(colorRampPalette(c("white", "light gray", "dark gray", "red"))(15)),
+#               col =  heat.colors(15)
+              )
+  dev.off()
   #There is a batch effect associated with the process date.
   # I must combat this
   ##batch adjustment using quantiled4
@@ -156,10 +161,6 @@ BatchNorm <- function(multExpanded1){
   
   # sample scaled
   c <- scale(cdata)
-  
-  
-  # install heatmap.2 package
-  # install.packages("gplots")
  
   # Create dendrogram using the data without NAs
   feature.dend<- as.dendrogram(hclust(dist(r),method="ward"))
@@ -186,16 +187,17 @@ BatchNorm <- function(multExpanded1){
   
   # plot.new()
   
-  #PCA analysis 
+  #PCA analysis  - cdata = combat corrected confounded phospho data. 
   x <- t(cdata)#samples are the rows of the column matrix
-  pc <- prcomp(x)#scale = T, center = T) as of now I am not scaling
+  pc <- prcomp(x, scale = T, center = T) #I am now scaling and centering x
   
   names(pc)
   
   cols <- as.factor(substr(colnames(cdata), 3, 7))##check me out. use 5 digit exp name.
-  plot(pc$x[, 1], pc$x[, 2], col=as.numeric(cols), main = "Batch Effect Corrected PCA", xlab = "PC1", ylab = "PC2")
-  legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1)
-  
+  pdf("PCA_BEcorrect_confounded.pdf")
+  plot(pc$x[, 1], pc$x[, 2], col = as.numeric(cols), main = "Batch Effect Corrected PCA", xlab = "PC1", ylab = "PC2", pch = 1, cex = 1.5)
+  legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1, cex = 1.25)
+  dev.off()
   
   summary(pc)
   

@@ -1,8 +1,15 @@
 
 #Table 1 info
 
-# the number of unique proteins is currently being reported as 'proteins' column but I may want to change this to protein ids. 
+#number of phosphosites and proteins identified
+phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]
+length(unlist(strsplit(phospho$Number.of.Phospho..STY., ";")))#blanks omitted
+22766
+length(unique(unlist(strsplit(phospho$Proteins, ";"))))
+9400
 
+
+# the number of unique proteins is currently being reported as 'proteins' column but I may want to change this to protein ids. 
 expcol <- grep("HL.*_", names(multExpanded1))
 me1 <- multExpanded1[, c(expcol, 18)] 
 
