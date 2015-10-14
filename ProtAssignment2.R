@@ -291,6 +291,7 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
   
   
   ##produce the heatmap. 
+  pdf("Prot_Normalized_Heatmap.pdf", 11.5, 8)
   heatmap.2(
     r,#row Z scores
     Colv=sample.dend,
@@ -303,8 +304,10 @@ ProtAssignment2 <- function(proteinfull, proteinnorm, multExpanded1_withDE, phos
     srtCol=45,  ,adjCol = c(1,1),
     margins = c(7,6),
     cexCol=1,
-    labRow = NA#remove row labels
+    labRow = NA, #remove row labels
+    family = "serif"
   )
+  dev.off()
   # plot.new()
   
   #PCA analysis 

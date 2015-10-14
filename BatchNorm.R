@@ -195,7 +195,8 @@ BatchNorm <- function(multExpanded1){
   
   cols <- as.factor(substr(colnames(cdata), 3, 7))##check me out. use 5 digit exp name.
   pdf("PCA_BEcorrect_confounded.pdf")
-  plot(pc$x[, 1], pc$x[, 2], col = as.numeric(cols), main = "Batch Effect Corrected PCA", xlab = "PC1", ylab = "PC2", pch = 1, cex = 1.5)
+  plot(pc$x[, 1], pc$x[, 2], col = as.numeric(cols), main = "Batch Effect Corrected PCA", xlab = "PC1", ylab = "PC2", pch = 1, 
+       cex = 1.5, family = "serif")
   legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1, cex = 1.25)
   dev.off()
   

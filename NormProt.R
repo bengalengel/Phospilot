@@ -84,10 +84,13 @@ NormProt <- function(directory){
     pQTL <- c(pQTL, nrow(combined))
   }
   #plot results.
-  plot(0:30, pQTL, xlab = "# PCs regressed from protein data", ylab = "pQTLs at .10 threshold")
+  pdf("pQTL_optimization.pdf", 11.5, 8)
+  plot(0:30, pQTL, xlab = "PCs regressed from protein data", ylab = "pQTLs at 10% FDR", pch = 16, 
+       las = 1, family = "serif", cex.lab = 1.25)
+  dev.off()
+
   #which is the max?
   numPCs <- which.max(pQTL) - 1
-  
   
   # define load.pro function
   load.pro <- function(numPCs, keep.NAs=TRUE, standardize=TRUE) {
