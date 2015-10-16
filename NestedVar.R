@@ -38,7 +38,7 @@ NestedVar <- function(ratios, noMissing = TRUE){
     melted <- melt(ratios, measure.vars = names(ratios))
     
     # Make meta data matrix
-    sampleLabels <- strsplit( colnames(melted$Var2), split = "_")
+    sampleLabels <- strsplit(as.character(unique(melted$Var2)), split = "_")
     metaData <- data.frame(individual = as.factor(sapply(sampleLabels, "[[", 1)),
                            biorep = as.factor(sapply(sampleLabels, "[[", 2)),
                            techrep = as.factor(sapply(sampleLabels, "[[", 3)) )

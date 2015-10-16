@@ -190,7 +190,8 @@ if(!file.exists("./multExpanded1_withDE.rds")){
 com3 <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]
 
 # send unbalanced data to NestedVar. Here a nested random effect model is fitted for each phosphopeptide. The peptide model variance components are returned. 
-varcomp <- NestedVar(ratios=com3, balanced = F)
+
+varcomp <- NestedVar(ratios = ProtNormalized, noMissing = F)
 varcomp <- as.data.frame(varcomp)
 
 # assign flag to varcomp file according to four categories. high ind/high biological. high ind/low bio. low ind/high bio and low ind/low bio
