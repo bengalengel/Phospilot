@@ -58,6 +58,10 @@ elm$motif <- foreach(i = 1:length(elm[[1]]), .combine = c) %do% {
 
 ## a spot check confirms the accuracy of the specific motif assignments
 
+
+#archive hsapiens mart
+ensembl_75 = useMart(biomart="ENSEMBL_MART_ENSEMBL", host="feb2014.archive.ensembl.org", path="/biomart/martservice", dataset="hsapiens_gene_ensembl")
+
 ##Match the ENSP ids to uniprot ids and add these to the elm table. Note that there are no hyphenated entries in this table
 ensembl_75_CCDS_uniprot <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcript_id', 'ensembl_peptide_id',"uniprot_swissprot_accession"), 
                               filters = 'with_ccds', values = T, mart = ensembl_75)
@@ -79,7 +83,7 @@ saveRDS(elm, file = "./ELM/elmtable.rds")
 
 #add indicator of phosphosite overlap with ELM annotated motif instance ----
 
-all.proteins <- unlist(strsplit(multExpanded1_withDE_annotated$ppMajorityProteinIDs, ";"))
+all.proteins <- unlist(strsplit(multExpanded1_withDE$ppMajorityProteinIDs, ";"))
 all.elm <- unlist(strsplit(elm$ENSPID, ";"))
 length(intersect(all.proteins, all.elm))
 #426 overlapping unique ENSPIDs. This is going to be close and there likely will not be many sites within elm instances.snps may be a different story
@@ -88,12 +92,12 @@ length(intersect(all.proteins, all.elm))
 
 cl <- makeCluster(5)
 registerDoParallel(cl)
-multExpanded1_withDE_annotated$GelPrepSiteInMotif <- foreach(i = 1:length(multExpanded1_withDE_annotated[[1]]), 
+multExpanded1_withDE$GelPrepSiteInMotif <- foreach(i = 1:length(multExpanded1_withDE[[1]]), 
                                                         .combine = c, .packages = c("seqinr", "stringr")) %dopar% {
-  proteins <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
+  proteins <- multExpanded1_withDE$ppMajorityProteinIDs[i]
   proteins <- unlist(strsplit(proteins, ";"))
   proteins <- proteins[!grepl("REV", proteins)]#these are omitted when finding the phosphoposition
-  sites <- multExpanded1_withDE_annotated$ppPositionInProteins[i]
+  sites <- multExpanded1_withDE$ppPositionInProteins[i]
   sites <- strsplit(as.character(sites), ";")
   sites <- as.character(unlist(sites))
   #find matches in the elm data frame for each protein
@@ -129,12 +133,12 @@ stopCluster(cl)
 
 # 135 sites are within an annotated elm motif. how many of these sites are subjected to diffphos?
 
-table(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", "ppSiteInMotif"])
+table(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepSiteInMotif"])
 #42 sites
 
 #42 sites on 21 unique proteins groups. This is enough for an enrichment analysis!
-diffphosinfo <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", c("ppSiteInMotif", "ppMajorityProteinIDs")]
-length(unique(diffphosinfo[diffphosinfo$ppSiteInMotif == TRUE, 2]))  
+diffphosinfo <- multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", c("GelPrepSiteInMotif", "ppMajorityProteinIDs")]
+length(unique(diffphosinfo[diffphosinfo$GelPrepSiteInMotif == TRUE, 2]))  
 
   
   
@@ -151,7 +155,7 @@ ids <- unlist(sapply(elm$ENSPID, function(x){
 motif.frequency <- as.data.frame(table(ids))
 
 #for each phosphosite, assign the protein level motif count using the 'motif.frequency' table
-ProteinIDs <- as.character(multExpanded1_withDE_annotated$ppMajorityProteinIDs)
+ProteinIDs <- as.character(multExpanded1_withDE$ppMajorityProteinIDs)
 cl <- makeCluster(5)
 registerDoParallel(cl)
 gelprep.motif.counts <- foreach(i = 1:length(ProteinIDs), .combine = c) %dopar% {
@@ -166,7 +170,7 @@ gelprep.motif.counts <- foreach(i = 1:length(ProteinIDs), .combine = c) %dopar% 
 }
 stopCluster(cl)
 
-multExpanded1_withDE_annotated$GelPrepMotifCount <- gelprep.motif.counts
+multExpanded1_withDE$GelPrepMotifCount <- gelprep.motif.counts
 
 
   
