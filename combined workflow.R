@@ -6,6 +6,7 @@ library(reshape2)
 library(stringr)
 library(plyr)
 library(seqinr)
+library(vioplot)
 source("loadMQ.R")
 source("ExpandPhos.R")
 source("ExpandPhos2.R") #for expanding the non-normalized data
@@ -149,6 +150,24 @@ CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
 RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed.
+
+#violin plots of number of peptides/protein and sequence coverage for the proteins present in all three lines (for SF4 A)
+GelProtSummary <- ProteinZia[ProteinZia$id %in% row.names(RegressedCommon), c("Razor...unique.peptides", "Sequence.coverage....")]
+
+pdf("peptides_per_prot.pdf", 6, 5)
+plot(1, 1, ylim = c(0,300), type = 'n', xaxt = 'n', ylab = "Peptides assigned to protien group", xlab = "Protein Groups \n (n = 3885)", 
+     family = "serif")
+vioplot(GelProtSummary$Razor...unique.peptides, rectCol="gray", wex = .5, col = "cornflowerblue", add = T)
+dev.off()
+
+pdf("sequence_coverage_per_prot.pdf", 6, 5)
+plot(1, 1, ylim = c(0,100), type = 'n', xaxt = 'n', ylab = "Protein sequence coverage (%)", xlab = "Protein Groups \n (n = 3885)", 
+     family = "serif")
+vioplot(GelProtSummary$Sequence.coverage...., rectCol="gray", wex = .5, col = "firebrick3", add = T)
+dev.off()
+median(GelProtSummary$Razor...unique.peptides)#18
+median(GelProtSummary$Sequence.coverage....)#43.8
+rm(GelProtSummary)
 
 ###!!! Ensure RegressedCommon contains row.names = proteingroup ids. If not delete "./PCregression/PRO_raw.RData" and call NormProt again.
 
