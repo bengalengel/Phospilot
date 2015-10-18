@@ -643,10 +643,6 @@ multExpanded1_withDE$PhosPrep.Pos.Disorder <- mapply(disorder.assignment, as.cha
 multExpanded1_withDE$GelPrep.Pos.Disorder <- mapply(disorder.assignment, as.character(multExpanded1_withDE$ppMajorityProteinIDs), as.character(multExpanded1_withDE$ppPositionInProteins))
 
 
-# ELM motif instances ----
-source("./ELM/elm_processing.R")
-
-
 ## Phosphosite annotations. on hold ---- 
 
 # # Is residue annotated on phosphosite? Using Hugo nomenclature ids. this is really slow. need to import phosphosite with human already subsetted away.

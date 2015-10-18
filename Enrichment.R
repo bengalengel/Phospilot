@@ -84,10 +84,10 @@ Enrichment <- function(multExpanded1_withDE){
   PhosPrep.DERO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$PhosPrepCovglobalFsig == "+", "PhosPrepReactIDs"]))  
   
   #phosprep protein covariate
-  GelPrep.BGGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepGOID"]))
-  GelPrep.DEGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormglobalFsig == "+", "GelPrepGOID"]))  
-  GelPrep.BGRO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepReactIDs"]))
-  GelPrep.DERO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormglobalFsig == "+", "GelPrepReactIDs"]))  
+  GelPrep.BGGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovSubtoDE == "+", "GelPrepGOID"]))
+  GelPrep.DEGO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovglobalFsig == "+", "GelPrepGOID"]))  
+  GelPrep.BGRO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovSubtoDE == "+", "GelPrepReactIDs"]))
+  GelPrep.DERO <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovglobalFsig == "+", "GelPrepReactIDs"]))  
   
   
   #run the enrich function for GO data. 10 enrichments total
@@ -107,20 +107,20 @@ Enrichment <- function(multExpanded1_withDE){
 
 
 #phosprep protein covariate
-GelPrep.BGGO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepGOID"]))
-GelPrep.DEGO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont1 == "+", "GelPrepGOID"]))  
-GelPrep.BGRO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepReactIDs"]))
-GelPrep.DERO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont1 == "+", "GelPrepReactIDs"]))  
+GelPrep.BGGO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovSubtoDE == "+", "GelPrepGOID"]))
+GelPrep.DEGO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovDEcont1 == "+", "GelPrepGOID"]))  
+GelPrep.BGRO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovSubtoDE == "+", "GelPrepReactIDs"]))
+GelPrep.DERO.cont1 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovDEcont1 == "+", "GelPrepReactIDs"]))  
 
-GelPrep.BGGO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepGOID"]))
-GelPrep.DEGO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont2 == "+", "GelPrepGOID"]))  
-GelPrep.BGRO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepReactIDs"]))
-GelPrep.DERO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont2 == "+", "GelPrepReactIDs"]))  
+GelPrep.BGGO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovSubtoDE == "+", "GelPrepGOID"]))
+GelPrep.DEGO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovDEcont2 == "+", "GelPrepGOID"]))  
+GelPrep.BGRO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovSubtoDE == "+", "GelPrepReactIDs"]))
+GelPrep.DERO.cont2 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovDEcont2 == "+", "GelPrepReactIDs"]))  
 
-GelPrep.BGGO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepGOID"]))
-GelPrep.DEGO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont3 == "+", "GelPrepGOID"]))  
-GelPrep.BGRO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormSubtoDE == "+", "GelPrepReactIDs"]))
-GelPrep.DERO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepNormDEcont3 == "+", "GelPrepReactIDs"]))  
+GelPrep.BGGO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovSubtoDE == "+", "GelPrepGOID"]))
+GelPrep.DEGO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovDEcont3 == "+", "GelPrepGOID"]))  
+GelPrep.BGRO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovSubtoDE == "+", "GelPrepReactIDs"]))
+GelPrep.DERO.cont3 <- SplitNClean(as.character(multExpanded1_withDE[multExpanded1_withDE$GelPrepCovDEcont3 == "+", "GelPrepReactIDs"]))  
 
 #GelPrep normalized contrast enrichments
 Enrich.GO.1 <- Enrich(GelPrep.BGGO.cont1, GelPrep.DEGO.cont1, ontology = "GO")

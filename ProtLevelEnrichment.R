@@ -14,29 +14,31 @@ library(gplots)
 ##ibaq v p.value density scatter with regression line + significance overlay
 
 #get median ibaq and median rank, calculate relative rank.
-ibaq <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",
-                                       c("ppiBAQ.L.18486", "ppiBAQ.L.18862", "ppiBAQ.L.19160", "GelPrepNormFPval")] #note the NAs
+ibaq <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",
+                                       c("ppiBAQ.L.18486", "ppiBAQ.L.18862", "ppiBAQ.L.19160", "GelPrepCovFPval")] #note the NAs
 ibaq$ibaq.median <- apply(as.matrix(ibaq[,1:3]), 1, median)
 ibaq <- lapply(ibaq, as.numeric)
 
-y <- -log10(ibaq$GelPrepNormFPval)
+y <- -log10(ibaq$GelPrepCovFPval)
 x <- log10(ibaq$ibaq.median)
 
 R <- cor(x,y, use = "complete.obs")
 R
-cor.test(x,y)$p.value
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
 
 #make and save plot
 pdf("ibaq_pvalue_density.pdf", 7, 5)
 smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
               cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
               xlab = expression(log[10](iBAQ~abundance~estimate)),
               ylab = expression(-log[10](P~value)), lwd = 10
               )
 reg.line <- lm(y~x, na.action = "na.omit")
-abline(reg.line, lwd = 1.5, lty = 2)
-text(8.8, 10.2, expression(R == -.03), col = "darkred", cex = 1) # rsquared and pvalue
-text(8.8, 9.4, expression(p == .1), col = "darkred", cex = 1)
+abline(reg.line, lwd = 2, lty = 2)
+text(8.8, 10.2, expression(R == .053), col = "darkred", cex = 1) # rsquared and pvalue
+text(8.8, 9.4, expression(p == .003), col = "darkred", cex = 1)
 dev.off()
 
 
@@ -242,7 +244,7 @@ lapply(goid.list, write, "GO.gmt", append = TRUE, ncolumns = 500, sep = "\t")
 
 #### Gelprot normalized bars ----
 
-GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepNormSubtoDE", "GelPrepNormglobalFsig", "GelPrepNormFAdjPval",
+GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval",
                                                       "GelPrepPFamIDs", "GelPrepPFamIDPhospho",
                                                       "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep")]
 #note the factors. Revert. remember a dataframe is a list of vectors.
@@ -251,9 +253,9 @@ i <- sapply(GelPrep.data, is.factor)
 GelPrep.data[i] <- lapply(GelPrep.data[i], as.character)
 
 #subset to those phosphopeptides subjected to diffphos analysis (n = 3257)
-GelPrep.data <- GelPrep.data[GelPrep.data$GelPrepNormSubtoDE == "+",]
+GelPrep.data <- GelPrep.data[GelPrep.data$GelPrepCovSubtoDE == "+",]
 
-sig.index <- GelPrep.data$GelPrepNormglobalFsig == "+"
+sig.index <- GelPrep.data$GelPrepCovglobalFsig == "+"
 
 #function for mean and se calculations
 mean.se.calc <- function(pos.set, neg.set){
@@ -331,11 +333,11 @@ GelPrep.data$pfam.pos <- sapply(GelPrep.data$GelPrepPFamIDs, function(x){
 #row 1 diffphos/withpfam AND diffphos/withoutpfam
 #row 2 !diffphos/withpfam AND !diffphos/withoutpfam
 
-row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$pfam.pos == T, ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$pfam.pos == F, ])
+row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$pfam.pos == T, ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$pfam.pos == F, ])
 )
-row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$pfam.pos == T, ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$pfam.pos == F, ])
+row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$pfam.pos == T, ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$pfam.pos == F, ])
 )
 
 #FEtest. A significant *depletion* of domain containing proteins in the diffphos list
@@ -345,11 +347,11 @@ result$p.value
 [1] 0.002440458
 
 #second is enrichment for proteins containing phospho relevant domains
-row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$GelPrepPFamIDPhospho == "yes", ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$GelPrepPFamIDPhospho == "no", ])
+row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$GelPrepPFamIDPhospho == "yes", ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$GelPrepPFamIDPhospho == "no", ])
 )
-row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$GelPrepPFamIDPhospho == "yes", ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$GelPrepPFamIDPhospho == "no", ])
+row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$GelPrepPFamIDPhospho == "yes", ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$GelPrepPFamIDPhospho == "no", ])
 )
 
 #FEtest. Here there is a *slightly* significant enrichment of phospho relevant domains in the diffphos dataset!

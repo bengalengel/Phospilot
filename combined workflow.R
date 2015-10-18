@@ -259,11 +259,14 @@ multExpanded1_withDE_annotated <- AddAnnotation(multExpanded1_withDE)
   multExpanded1_withDE_annotated <- readRDS("multExpanded1_withDE_annotated.rds")
 }
 
+# add ELM motif instances ----
+source("./ELM/elm_processing.R")
 
 #combine with hprd motifs. processed using perseus on 9.19.15
 motifs <- read.table("./Perseus/motif_annotations.txt", sep = "\t", header = T, stringsAsFactors = F)
 motifs <- motifs[[1]]
 multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, motifs)
+saveRDS(multExpanded1_withDE_annotated, file = "./multExpanded1_withDE_annotated.rds")
 
 
 #protein level enrichments
