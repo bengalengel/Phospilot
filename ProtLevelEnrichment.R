@@ -245,7 +245,7 @@ lapply(goid.list, write, "GO.gmt", append = TRUE, ncolumns = 500, sep = "\t")
 #### Gelprot normalized bars ----
 
 GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval",
-                                                      "GelPrepPFamIDs", "GelPrepPFamIDPhospho",
+                                                      "GelPrepPFamIDs", "GelPrepPFamIDPhospho", "GelPrepCovFPval",
                                                       "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep")]
 #note the factors. Revert. remember a dataframe is a list of vectors.
 str(GelPrep.data)
@@ -278,6 +278,8 @@ interactions.neg <- as.numeric(GelPrep.data[!sig.index, "GelPrepInteractCount"])
 #this difference is significant. proteins with less interactions (according to biogrid) are slightly de-enriched.
 wilcox.test(interactions.pos, interactions.neg, alternative="two.sided")$p.value#performs mann-whitney test
 # ks.test(interactions.pos, interactions.neg, alternative="two.sided")
+[1] 8.337766e-06
+
 
 data <- unlist(mean.se.calc(interactions.pos, interactions.neg))
 pdf("GelPrepInteractions.pdf", 5, 7)
@@ -297,6 +299,7 @@ GelPrep.data$FinalPercentDisorder <- sapply(GelPrep.data$GelPrepPercentDisorder,
 disorder.pos <- as.numeric(GelPrep.data[sig.index, "FinalPercentDisorder"])
 disorder.neg <- as.numeric(GelPrep.data[!sig.index, "FinalPercentDisorder"])
 wilcox.test(disorder.pos, disorder.neg, alternative="two.sided")$p.value#performs mann-whitney test
+[1] 0.09880896
 
 
 data <- unlist(mean.se.calc(disorder.pos,disorder.neg))
@@ -311,6 +314,7 @@ dev.off()
 modcount.pos <- as.numeric(GelPrep.data[sig.index, "total.mod.count.GelPrep"])
 modcount.neg <- as.numeric(GelPrep.data[!sig.index, "total.mod.count.GelPrep"])
 wilcox.test(modcount.pos[is.finite(modcount.pos)], modcount.neg[is.finite(modcount.neg)], alternative="two.sided")$p.value#performs mann-whitney test
+[1] 3.187623e-05
 
 
 data <- unlist(mean.se.calc(modcount.pos, modcount.neg))
@@ -344,7 +348,37 @@ row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.d
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix)
 result$p.value
-[1] 0.002440458
+# [1] 0.09047412
+# p-value = 0.04572 (when alternative is "l")
+
+
+
+# Threshold independent rho test
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+domain.matrix <- GelPrep.data[ , c("GelPrepPFamIDs", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+domain.matrix$GelPrepPFamIDs <- ifelse(domain.matrix$GelPrepPFamIDs != "NA", 1, 0)
+
+domain.matrix[] <- lapply(domain.matrix, as.numeric)
+
+plot(domain.matrix[[1]], -log10(domain.matrix[[2]]))
+plot(-log10(domain.matrix[[2]]), domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
+cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
+[1] -0.03411577
+
+#the correlation IS significant.
+cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.05155744
+
+
+
+
+
 
 #second is enrichment for proteins containing phospho relevant domains
 row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$GelPrepPFamIDPhospho == "yes", ]),
@@ -358,13 +392,53 @@ row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.d
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
-row1 
-0.03180943 
+# row1 
+# 0.2740768 
 
 
+# Threshold independent rho test
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+domain.matrix <- GelPrep.data[ , c("GelPrepPFamIDPhospho", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+domain.matrix$GelPrepPFamIDPhospho <- ifelse(domain.matrix$GelPrepPFamIDPhospho == "yes", 1, 0)
+
+domain.matrix[] <- lapply(domain.matrix, as.numeric)
+
+plot(domain.matrix[[1]], -log10(domain.matrix[[2]]))
+plot(-log10(domain.matrix[[2]]), domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
+cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
+[1] 0.007596505
+
+#the correlation IS significant.
+cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.6647436
 
 
+# Threshold independent rho test on proteins with a domain as background
 
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+domain.matrix <- GelPrep.data[GelPrep.data$GelPrepPFamIDs != "NA", c("GelPrepPFamIDPhospho", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+domain.matrix$GelPrepPFamIDPhospho <- ifelse(domain.matrix$GelPrepPFamIDPhospho == "yes", 1, 0)
+
+domain.matrix[] <- lapply(domain.matrix, as.numeric)
+
+plot(domain.matrix[[1]], -log10(domain.matrix[[2]]))
+plot(-log10(domain.matrix[[2]]), domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
+cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
+[1] 0.01275158
+
+#the correlation IS significant.
+cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.4987089
 
 
 

@@ -9,7 +9,7 @@
 # 
 
 # Load Data ----
-GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepNormSubtoDE", "GelPrepNormglobalFsig", "GelPrepNormFAdjPval", "GelPrepNormFPval",
+GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "GelPrepCovFPval",
                                                    "GelPrep.Pos.Disorder", "site.in.domain.GelPrep", "phospho.relevant.GelPrep")]
 
 
@@ -19,15 +19,15 @@ i <- sapply(GelPrep.data, is.factor)
 GelPrep.data[i] <- lapply(GelPrep.data[i], as.character)
 
 #subset to those phosphopeptides subjected to diffphos analysis (n = 3257)
-GelPrep.data <- GelPrep.data[GelPrep.data$GelPrepNormSubtoDE == "+",]
+GelPrep.data <- GelPrep.data[GelPrep.data$GelPrepCovSubtoDE == "+",]
 
 
 # Diffphos Enrichement in Disordered Regions ----
-row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$GelPrep.Pos.Disorder == T, ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$GelPrep.Pos.Disorder == F, ])
+row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$GelPrep.Pos.Disorder == T, ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$GelPrep.Pos.Disorder == F, ])
 )
-row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$GelPrep.Pos.Disorder == T, ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$GelPrep.Pos.Disorder == F, ])
+row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$GelPrep.Pos.Disorder == T, ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$GelPrep.Pos.Disorder == F, ])
 )
 
 
@@ -35,12 +35,12 @@ row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix)
 result$p.value
-0.3882814
+0.02103861
 
 # Threshold independent rho test
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
-disorder.matrix <- GelPrep.data[, c("GelPrep.Pos.Disorder", "GelPrepNormFPval")]
+disorder.matrix <- GelPrep.data[, c("GelPrep.Pos.Disorder", "GelPrepCovFPval")]
 
 #switch to 0/1 designation
 disorder.matrix$GelPrep.Pos.Disorder <- ifelse(disorder.matrix$GelPrep.Pos.Disorder == TRUE, 1, 0)
@@ -53,12 +53,11 @@ plot(-log10(disorder.matrix[[2]]), disorder.matrix[[1]])
 disorder.matrix <- na.omit(disorder.matrix)#omit 6 NA values...why am I getting NA values?...
 cor(disorder.matrix[[1]], -log10(disorder.matrix[[2]]), method = "spearman")
 cor(-log10(disorder.matrix[[2]]), disorder.matrix[[1]], method = "spearman")
--0.01276385 
+-0.04761224 
 
-
-#the correlation is not significant
+#the correlation is significant
 cor.test(disorder.matrix[[1]], -log10(disorder.matrix[[2]]), method = "spearman", exact = F)$p.value
-[1] 0.4669117
+[1] 0.006623004
 
 
 
@@ -67,26 +66,26 @@ cor.test(disorder.matrix[[1]], -log10(disorder.matrix[[2]]), method = "spearman"
 
 #issues with background. It should be only those sites
 
-row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$site.in.domain.GelPrep == T, ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$site.in.domain.GelPrep == F, ])
+row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$site.in.domain.GelPrep == T, ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$site.in.domain.GelPrep == F, ])
 )
-row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$site.in.domain.GelPrep == T, ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$site.in.domain.GelPrep == F, ])
+row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$site.in.domain.GelPrep == T, ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$site.in.domain.GelPrep == F, ])
 )
 
 
-#FEtest. No enrichment
+#FEtest. Enrichment
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix)
 result$p.value
-0.2770237
+0.02972399
 
 
 
 # Threshold independent rho test
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
-domain.matrix <- GelPrep.data[, c("site.in.domain.GelPrep", "GelPrepNormFPval")]
+domain.matrix <- GelPrep.data[, c("site.in.domain.GelPrep", "GelPrepCovFPval")]
 
 #switch to 0/1 designation
 domain.matrix$site.in.domain.GelPrep <- ifelse(domain.matrix$site.in.domain.GelPrep == TRUE, 1, 0)
@@ -99,20 +98,21 @@ plot(-log10(domain.matrix[[2]]), domain.matrix[[1]])
 domain.matrix <- na.omit(domain.matrix)#omit NA values
 cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
 cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
-[1] 0.008545924
+[1] 0.06167596
 
 #the correlation is not significant
 cor.test(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman", exact = F)$p.value
-[1] 0.6371396
+[1] 0.0006557162
+
 
 
 # Diffphos Enrichment for sites within a phospho relevant domain ----
 
-row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$phospho.relevant.GelPrep == T, ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "+" & GelPrep.data$phospho.relevant.GelPrep == F, ])
+row1 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$phospho.relevant.GelPrep == T, ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "+" & GelPrep.data$phospho.relevant.GelPrep == F, ])
 )
-row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$phospho.relevant.GelPrep == T, ]),
-          nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.data$phospho.relevant.GelPrep == F, ])
+row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$phospho.relevant.GelPrep == T, ]),
+          nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$phospho.relevant.GelPrep == F, ])
 )
 
 
@@ -120,11 +120,11 @@ row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepNormglobalFsig == "-" & GelPrep.
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix)
 result$p.value
-+[1] 0.64664
+[1] 0.7033173
 
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
-phospho.domain.matrix <- GelPrep.data[, c("phospho.relevant.GelPrep", "GelPrepNormFPval")]
+phospho.domain.matrix <- GelPrep.data[, c("phospho.relevant.GelPrep", "GelPrepCovFPval")]
 
 #switch to 0/1 designation
 phospho.domain.matrix$phospho.relevant.GelPrep <- ifelse(phospho.domain.matrix$phospho.relevant.GelPrep == TRUE, 1, 0)
@@ -137,11 +137,45 @@ plot(-log10(phospho.domain.matrix[[2]]), phospho.domain.matrix[[1]])
 phospho.domain.matrix <- na.omit(phospho.domain.matrix)#omit NA values
 cor(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method = "spearman")
 cor(-log10(phospho.domain.matrix[[2]]), phospho.domain.matrix[[1]], method = "spearman")
-[1] 0.002691815
+[1] -0.008525573
 
 #the correlation is not significant
 cor.test(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method = "spearman", exact = F)$p.value
-[1] 0.8821199
+[1] 0.6386046
+
+
+# Threshold independent rho test on proteins with a domain as background
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+phospho.domain.matrix <- GelPrep.data[GelPrep.data$site.in.domain.GelPrep == TRUE, c("phospho.relevant.GelPrep", "GelPrepCovFPval")]
+
+#switch to 0/1 designation
+phospho.domain.matrix$phospho.relevant.GelPrep <- ifelse(phospho.domain.matrix$phospho.relevant.GelPrep == TRUE, 1, 0)
+phospho.domain.matrix[] <- lapply(phospho.domain.matrix, as.numeric)
+
+plot(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]))
+plot(-log10(phospho.domain.matrix[[2]]), phospho.domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Here rho is negative
+phospho.domain.matrix <- na.omit(phospho.domain.matrix)#omit NA values
+cor(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method = "spearman")
+cor(-log10(phospho.domain.matrix[[2]]), phospho.domain.matrix[[1]], method = "spearman")
+[1] -0.0389816
+
+#the correlation is not significant
+cor.test(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method = "spearman", exact = F)$p.value
+[1] 0.2759511
+
+
+
+
+
+
+
+
+
+
+
 
 
 # HPRD motif enrichment analysis ----
@@ -203,30 +237,30 @@ SplitNClean <- function(x){
 
 
 #Gelprep normalized analysis
-GelPrep.BGmotifs <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",
+GelPrep.BGmotifs <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",
                                                                                   "motifs"]))
-GelPrep.DEmotifs.omnibus <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormglobalFsig == "+",
+GelPrep.DEmotifs.omnibus <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovglobalFsig == "+",
                                                                                   "motifs"]))  
-GelPrep.DEmotifs.cont1 <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormDEcont1 == "+",
+GelPrep.DEmotifs.cont1 <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovDEcont1 == "+",
                                                                                   "motifs"]))  
-GelPrep.DEmotifs.cont2 <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormDEcont2 == "+",
+GelPrep.DEmotifs.cont2 <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovDEcont2 == "+",
                                                                                   "motifs"]))  
-GelPrep.DEmotifs.cont3 <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormDEcont3 == "+",
+GelPrep.DEmotifs.cont3 <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovDEcont3 == "+",
                                                                                   "motifs"]))  
 #directional
-GelPrep.DEmotifs.cont1up <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormcont1up == "+",
+GelPrep.DEmotifs.cont1up <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovcont1up == "+",
                                                                                   "motifs"]))  
-GelPrep.DEmotifs.cont1down <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormcont1down == "+",
+GelPrep.DEmotifs.cont1down <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovcont1down == "+",
                                                                                     "motifs"]))  
 
-GelPrep.DEmotifs.cont2up <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormcont2up == "+",
+GelPrep.DEmotifs.cont2up <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovcont2up == "+",
                                                                                     "motifs"]))  
-GelPrep.DEmotifs.cont2down <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormcont2down == "+",
+GelPrep.DEmotifs.cont2down <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovcont2down == "+",
                                                                                       "motifs"]))  
 
-GelPrep.DEmotifs.cont3up <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormcont3up == "+",
+GelPrep.DEmotifs.cont3up <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovcont3up == "+",
                                                                                     "motifs"]))  
-GelPrep.DEmotifs.cont3down <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormcont3down == "+",
+GelPrep.DEmotifs.cont3down <- SplitNClean(as.character(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovcont3down == "+",
                                                                                       "motifs"]))  
 
 
