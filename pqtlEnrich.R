@@ -104,11 +104,11 @@ length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelP
 
 #38 proteins
 length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPreppQTLPositive == "+" &
-                                               multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", 
+                                               multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+", 
                                              "ppMajorityProteinIDs"]))
 #100 sites
 nrow(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPreppQTLPositive == "+" &
-                                               multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+", ])
+                                               multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+", ])
 
 
 
@@ -144,22 +144,23 @@ nrow(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPreppQTLPo
 # 'in' category is any majority/leading protein(s) assigned to this phosphosite has a pQTL.  
 
 
-SubtoDEGelProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",] #3257
+SubtoDEGelProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",] #3257
 SubtoDEConfounded <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$ConfoundedSubtoDE == "+",] #4738
 SubtoDEPhosProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$PhosPrepCovSubtoDE == "+",] #1308
 
 #GelPrep analysis using Zia's data
-row1 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "+" & SubtoDEGelProt$GelPreppQTLPositive == "+",]), 
-          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "+" & SubtoDEGelProt$GelPreppQTLPositive == "-",]))
+row1 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepCovglobalFsig == "+" & SubtoDEGelProt$GelPreppQTLPositive == "+",]), 
+          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepCovglobalFsig == "+" & SubtoDEGelProt$GelPreppQTLPositive == "-",]))
 
-row2 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "-" & SubtoDEGelProt$GelPreppQTLPositive == "+",]), 
-          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "-" & SubtoDEGelProt$GelPreppQTLPositive == "-",]))
+row2 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepCovglobalFsig == "-" & SubtoDEGelProt$GelPreppQTLPositive == "+",]), 
+          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepCovglobalFsig == "-" & SubtoDEGelProt$GelPreppQTLPositive == "-",]))
 
 #FEtest
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
-0.08152954 (9/18/2015)
+# 0.08152954 (9/18/2015)
+.00384 (10/18/2015)
 
 
 # Threshold independent test of association ----
@@ -167,7 +168,7 @@ result$p.value
 # Regress p-values against binary assignment of sites. Assess if significant spearman rank based correlation.
 
 # Subset to those phosphosites sub to diffphos with a pqtl containing protein where the alleles differ
-pqtl.matrix <- SubtoDEGelProt[, c("GelPreppQTLPositive", "GelPrepNormFPval")]
+pqtl.matrix <- SubtoDEGelProt[, c("GelPreppQTLPositive", "GelPrepCovFPval")]
 
 #switch to 0/1 designation
 pqtl.matrix$GelPreppQTLPositive <- ifelse(pqtl.matrix$GelPreppQTLPositive == "+", 1, 0)
@@ -178,24 +179,25 @@ cor(pqtl.matrix, method = "spearman")
 # OK lots of duplicated pvalues...This is OK using spearman rank correlation and test of significance is the way to go. enrichment p values calcultated using t distribution approximation due to sample size. the number of duplicated p-values does not have an effect.
 cor.test(pqtl.matrix[[1]], pqtl.matrix[[2]], method = "spearman", exact = F)$p.value
 [1] 0.002176044
+[1] 0.02667636 (10/18/2015)
 
 
 ##test glm (later)
-pqtl.glm <- glm(GelPreppQTLPositive ~ GelPrepNormFPval, data = pqtl.matrix, family = binomial)
-pqtl.glm.log <- glm(GelPreppQTLPositive ~ log10(GelPrepNormFPval), data = pqtl.matrix, family = binomial)
+pqtl.glm <- glm(GelPreppQTLPositive ~ GelPrepCovFPval, data = pqtl.matrix, family = binomial)
+pqtl.glm.log <- glm(GelPreppQTLPositive ~ log10(GelPrepCovFPval), data = pqtl.matrix, family = binomial)
 
-pqtl.glm.qb <- glm(GelPreppQTLPositive ~ GelPrepNormFPval, data = pqtl.matrix, family = quasibinomial)
-pqtl.glm.log.qb <- glm(GelPreppQTLPositive ~ log10(GelPrepNormFPval), data = pqtl.matrix, family = quasibinomial)
-pqtl.glm.log2.qb <- glm(GelPreppQTLPositive ~ log10(1-log10(GelPrepNormFPval)), data = pqtl.matrix, family = quasibinomial)
+pqtl.glm.qb <- glm(GelPreppQTLPositive ~ GelPrepCovFPval, data = pqtl.matrix, family = quasibinomial)
+pqtl.glm.log.qb <- glm(GelPreppQTLPositive ~ log10(GelPrepCovFPval), data = pqtl.matrix, family = quasibinomial)
+pqtl.glm.log2.qb <- glm(GelPreppQTLPositive ~ log10(1-log10(GelPrepCovFPval)), data = pqtl.matrix, family = quasibinomial)
 
 #this seems to make them normal
-qqnorm(log10(1-log10(pqtl.matrix$GelPrepNormFPval)))
+qqnorm(log10(1-log10(pqtl.matrix$GelPrepCovFPval)))
 
 
 # a qq plot using the unadjusted/ NOMINAL p values. Here the expectation (null) is a uniform distribution of p-values.
 # This is only useful for visualization purposes and is not a test without bootstrapping.
 
-observed <- sort(pqtl.matrix$GelPrepNormFPval)
+observed <- sort(pqtl.matrix$GelPrepCovFPval)
 lobs <- -(log10(observed))
 
 #create the -log10 of the null/expected distribution of p-values. Here this is the uniform distribution:

@@ -210,9 +210,9 @@ multExpanded1_withDE_annotated$ClosestSNPtoSiteMinGelPrep <- sapply(multExpanded
 # The minimal distance to the phosphorylation site does NOT significantly impact variation in phosphorylation for that proximal site
 
 
-GelPrep.distances <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",
-                                                    c("GelPrepNormglobalFsig", "GelPrepNormFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
-y <- -log10(as.numeric(GelPrep.distances$GelPrepNormFAdjPval))
+GelPrep.distances <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",
+                                                    c("GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
+y <- -log10(as.numeric(GelPrep.distances$GelPrepCovFAdjPval))
 x <- log10(GelPrep.distances$ClosestSNPtoSiteMinGelPrep + 1)#
 
 plot(x,y)
@@ -224,13 +224,15 @@ cor.test(x,y)$p.value
 pdf("distance_pvalue_density.pdf", 7, 5)
 smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
               cex = .3,
+              pch = 19, nrpoints = .15*length(x),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
               xlab = expression(log[10](AA~distance~between~SNP~and~phosphosite)),
               ylab = expression(-log[10](P~value)), lwd = 10
 )
 reg.line <- lm(y~x, na.action = "na.omit")
-abline(reg.line, lwd = 1.5, lty = 2)
-text(3.2, 7.5, expression(R == -.02), col = "darkred", cex = 1) # rsquared and pvalue
-text(3.2, 7.0, expression(p == .5), col = "darkred", cex = 1)
+abline(reg.line, lwd = 2, lty = 2)
+text(3, 7.25, expression(R == -.12), col = "darkred", cex = 1) # rsquared and pvalue
+text(3, 6.85, expression(p == 9.9~E~-6), col = "darkred", cex = 1)
 dev.off()
 
 # 
@@ -546,25 +548,26 @@ length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelP
 #                    NotDErow
 # 'in' category is any majority/leading protein(s) assigned to this phosphosite has a snp.  
 
-SubtoDEGelProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepNormSubtoDE == "+",] #3257
+SubtoDEGelProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",] #3257
 SubtoDEConfounded <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$ConfoundedSubtoDE == "+",] #4738
 SubtoDEPhosProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$PhosPrepCovSubtoDE == "+",] #1308
 
 #GelPrep analysis using Zia's data
-row1 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "+" & SubtoDEGelProt$GelPrepNsSnpPositive == "+",]), 
-          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "+" & SubtoDEGelProt$GelPrepNsSnpPositive == "-",]))
+row1 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepCovglobalFsig == "+" & SubtoDEGelProt$GelPrepNsSnpPositive == "+",]), 
+          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepCovglobalFsig == "+" & SubtoDEGelProt$GelPrepNsSnpPositive == "-",]))
 
-row2 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "-" & SubtoDEGelProt$GelPrepNsSnpPositive == "+",]), 
-          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepNormglobalFsig == "-" & SubtoDEGelProt$GelPrepNsSnpPositive == "-",]))
+row2 <- c(nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepCovglobalFsig == "-" & SubtoDEGelProt$GelPrepNsSnpPositive == "+",]), 
+          nrow(SubtoDEGelProt[SubtoDEGelProt$GelPrepCovglobalFsig == "-" & SubtoDEGelProt$GelPrepNsSnpPositive == "-",]))
 
 #FEtest
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
-0.04566358
+row1 
+1.399411e-06 
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
-NSsnp.matrix <- SubtoDEGelProt[, c("GelPrepNsSnpPositive", "GelPrepNormFPval")]
+NSsnp.matrix <- SubtoDEGelProt[, c("GelPrepNsSnpPositive", "GelPrepCovFPval")]
 
 #switch to 0/1 designation
 NSsnp.matrix$GelPrepNsSnpPositive <- ifelse(NSsnp.matrix$GelPrepNsSnpPositive == "+", 1, 0)
@@ -576,11 +579,11 @@ plot(-log10(NSsnp.matrix[[2]]), NSsnp.matrix[[1]])
 # Working with negative transform where a positive association indicates enrichment.
 cor(NSsnp.matrix[[1]], -log10(NSsnp.matrix[[2]]), method = "spearman")
 cor(-log10(NSsnp.matrix[[2]]), NSsnp.matrix[[1]], method = "spearman")
-0.08343157
+0.09222988
 
 #the correlation is significant.
 cor.test(NSsnp.matrix[[1]], NSsnp.matrix[[2]], method = "spearman", exact = F)$p.value
-[1] 1.861217e-06
+[1] 1.343636e-07
 
 
 #bootstrap based estimate (http://content.csbs.utah.edu/~rogers/datanal/labprj/bootstrap/index.html)
@@ -601,7 +604,7 @@ tail.prob <- tail.prob / nreps
 
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
-NSsnp.domain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+", c("snp.in.domain", "GelPrepNormFPval")]
+NSsnp.domain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+", c("snp.in.domain", "GelPrepCovFPval")]
 
 #switch to 0/1 designation. for now the NAs are a bug
 NSsnp.domain.matrix$snp.in.domain <- ifelse(NSsnp.domain.matrix$snp.in.domain == T, 1, 0)
@@ -612,46 +615,44 @@ NSsnp.domain.matrix[] <- lapply(NSsnp.domain.matrix, as.numeric)
 plot(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]))
 plot(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]])
 
-# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here depletion
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
 cor(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]), method = "spearman")
 cor(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]], method = "spearman")
--0.03875624 
+[1] 0.1158094 
 
-#the correlation is NOT significant.
+#the correlation IS significant.
 cor.test(NSsnp.domain.matrix[[1]], NSsnp.domain.matrix[[2]], method = "spearman", exact = F)$p.value
-0.1473777
+[1] 1.409406e-05
 
 
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
-NSsnp.domain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+", c("snp.domain.phospho.relevant", "GelPrepNormFPval")]
+NSsnp.phosphodomain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" & SubtoDEGelProt$snp.in.domain == TRUE,
+                                      c("snp.domain.phospho.relevant", "GelPrepCovFPval")]
 
 #switch to 0/1 designation. for now the NAs are a bug
-NSsnp.domain.matrix$snp.domain.phospho.relevant<- ifelse(NSsnp.domain.matrix$snp.domain.phospho.relevant == T, 1, 0)
-NSsnp.domain.matrix$snp.domain.phospho.relevant[is.na(NSsnp.domain.matrix$snp.domain.phospho.relevant)] <- 0
+NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant<- ifelse(NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant == T, 1, 0)
+NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant[is.na(NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant)] <- 0
 
-NSsnp.domain.matrix[] <- lapply(NSsnp.domain.matrix, as.numeric)
+NSsnp.phosphodomain.matrix[] <- lapply(NSsnp.phosphodomain.matrix, as.numeric)
 
-plot(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]))
-plot(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]])
+plot(NSsnp.phosphodomain.matrix[[1]], -log10(NSsnp.phosphodomain.matrix[[2]]))
+plot(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]])
 
 # Working with negative transform where a positive association indicates enrichment. Negative depletion. Here depletion
-cor(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]), method = "spearman")
-cor(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]], method = "spearman")
--0.05853319 
+cor(NSsnp.phosphodomain.matrix[[1]], -log10(NSsnp.phosphodomain.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]], method = "spearman")
+-0.02818142 
 
 #the negative correlation is significant at alpha  = .05; 
-cor.test(NSsnp.domain.matrix[[1]], NSsnp.domain.matrix[[2]], method = "spearman", exact = F)$p.value
-0.02857873
-
-# What does it mean to have a depletion on top of an enrichment?...within the population of proteins that have a nonsyn snp,
-those with a snp in a phosphodomain are less likely to be differentially phosphorylated than those with a snp somewhere else. 
-The move away from variation makes no sense, and likely has something to do with domain containin proteins being more tightly regulated
-than proteins without domains. I would in fact expect an enrichment when controlling for this. Simpson's paradox
+cor.test(NSsnp.phosphodomain.matrix[[1]], NSsnp.phosphodomain.matrix[[2]], method = "spearman", exact = F)$p.value
+0.6338825
 
 
-
-
+#motifs.....Not a significant sampling
+table(SubtoDEGelProt$GelPrepSNPInmotif)
+FALSE  TRUE 
+3252     5
 
 
 
