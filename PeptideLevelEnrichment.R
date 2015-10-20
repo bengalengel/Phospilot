@@ -10,7 +10,8 @@
 
 # Load Data ----
 GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "GelPrepCovFPval",
-                                                   "GelPrep.Pos.Disorder", "site.in.domain.GelPrep", "phospho.relevant.GelPrep")]
+                                                   "GelPrep.Pos.Disorder", "GelPrepSiteInMotif", 
+                                                   "site.in.domain.GelPrep", "phospho.relevant.GelPrep")]
 
 
 #note their may be factors. Revert. remember a dataframe is a list of vectors.
@@ -166,13 +167,35 @@ cor(-log10(phospho.domain.matrix[[2]]), phospho.domain.matrix[[1]], method = "sp
 cor.test(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method = "spearman", exact = F)$p.value
 [1] 0.2759511
 
+##phosphopeptides within motif enrichment
 
+motif.matrix <- GelPrep.data[, c("GelPrepSiteInMotif", "GelPrepCovFPval")]
 
+motif.matrix$phospho.relevant.GelPrep <- ifelse(motif.matrix$GelPrepSiteInMotif == TRUE, 1, 0)
+motif.matrix[] <- lapply(motif.matrix, as.numeric)
 
+plot(motif.matrix[[1]], -log10(motif.matrix[[2]]))
+plot(-log10(motif.matrix[[2]]), motif.matrix[[1]])
 
+# Working with negative transform where a positive association indicates enrichment. Here rho is positive
+motif.matrix <- na.omit(motif.matrix)#omit NA values
+cor(motif.matrix[[1]], -log10(motif.matrix[[2]]), method = "spearman")
+cor(-log10(motif.matrix[[2]]), motif.matrix[[1]], method = "spearman")
+[1] 0.09085794
 
+#the correlation is not significant
+cor.test(motif.matrix[[1]], -log10(motif.matrix[[2]]), method = "spearman", exact = F)$p.value
+[1] 2.057898e-07
 
+# 42 phosphopeptides reside in motifs
+table(motif.matrix[[1]])
+0    1 
+3215   42 
 
+#on 21 unique proteins
+length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepSiteInMotif == T &
+                                            multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+", "ppMajorityProteinIDs"]))
+[1] 21
 
 
 
@@ -180,7 +203,8 @@ cor.test(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method 
 
 # HPRD motif enrichment analysis ----
 
-#no significant motif enrichments
+# Very little enrichment
+
 
 Enrich <- function(x,y){
   # This function accepts character vectors of a selected subset and background and returns a DF of adjusted pvalues for categorical enrichment using a one sided fisher's exact test.
@@ -272,7 +296,7 @@ Enrich.motifs.2 <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont2)
 Enrich.motifs.3 <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont3)
 
 # Directional enrichments. Very weak enrichments and nothing is popping in terms of motifs
-Enrich.motifs.1up <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont1up) # 1 enrichment
+Enrich.motifs.1up <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont1up)
 Enrich.motifs.1down <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont1down)
 Enrich.motifs.2up <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont2up) # 1 enrichment
 Enrich.motifs.2down <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont2down)
