@@ -227,12 +227,13 @@ smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
               pch = 19, nrpoints = .15*length(x),
               colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
               xlab = expression(log[10](AA~distance~between~SNP~and~phosphosite)),
-              ylab = expression(-log[10](P~value)), lwd = 10
+              ylab = expression(-log[10](P~value)), lwd = 10,
+              family = "serif"
 )
 reg.line <- lm(y~x, na.action = "na.omit")
 abline(reg.line, lwd = 2, lty = 2)
-text(3, 7.25, expression(R == -.12), col = "darkred", cex = 1) # rsquared and pvalue
-text(3, 6.85, expression(p == 9.9~E~-6), col = "darkred", cex = 1)
+text(3, 7.25, expression(R == -.12), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+text(3, 6.85, expression(p == 9.90e-06), col = "darkred", cex = 1, family = "serif")
 dev.off()
 
 # 

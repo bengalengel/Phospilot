@@ -22,10 +22,10 @@ ibaq <- lapply(ibaq, as.numeric)
 
 y <- -log10(ibaq$GelPrepCovFPval)
 x <- log10(ibaq$ibaq.median)
-
-R <- cor(x,y, use = "complete.obs")
-R
+cor(x,y, use = "complete.obs")
+# [1] 0.05184077
 cor.test(x,y, alternative = "two", method = "pearson")$p.value
+# [1] 0.003082246
 
 #make and save plot
 pdf("ibaq_pvalue_density.pdf", 7, 5)
@@ -34,12 +34,13 @@ smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
               pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
               colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
               xlab = expression(log[10](iBAQ~abundance~estimate)),
-              ylab = expression(-log[10](P~value)), lwd = 10
+              ylab = expression(-log[10](P~value)), lwd = 10,
+              family = "serif"
               )
 reg.line <- lm(y~x, na.action = "na.omit")
 abline(reg.line, lwd = 2, lty = 2)
-text(8.8, 10.2, expression(R == .053), col = "darkred", cex = 1) # rsquared and pvalue
-text(8.8, 9.4, expression(p == .003), col = "darkred", cex = 1)
+text(8.8, 10.2, expression(R == .053), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+text(8.8, 9.4, expression(p == .003), col = "darkred", cex = 1, family = "serif")
 dev.off()
 
 
@@ -55,34 +56,46 @@ ibaq.sites$ibaq.median <- apply(as.matrix(ibaq.sites[,1:3]), 1, median)
 
 ProtID.sites.expression <- ibaq.sites %>% group_by(ppProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
 
+
+
+y <- log2(ProtID.sites.expression$sites)
+x <- log10(ProtID.sites.expression$expression.level)
+cor(x,y, use = "comp")
+# -0.1277885
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+# [1] 1.337768e-09
+
+pdf("ibaq_sitecount_density.pdf", 7, 5)
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+              xlab = expression(log[10](iBAQ~abundance~estimate)),
+              ylab = expression(log[2](sites~per~protein)), lwd = 10,
+              family = "serif"
+)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+text(8.6, 7, expression(R == -0.13), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+text(8.7, 6.5, expression(p == 1.34e-09), col = "darkred", cex = 1, family = "serif")
+dev.off()
+
+
+
+
+#majority protein ids produce the same plot
 #remove those identifications that have a ppProteinID assignment but not a ppMajProteinID assignment
 index <- which(ibaq.sites$ppMajorityProteinIDs != "")
 ibaq.sites <- ibaq.sites[index,]
 
-MajProtID.sites.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
-
-
-x <- log10(ProtID.sites.expression$sites)
-y <- log10(ProtID.sites.expression$expression.level)
-plot(x,y)
-reg.line <- lm(y~x, na.action = "na.omit")
-abline(reg.line, lwd = 2, lty = 2)
-cor.test(x,y, alternative = "two", method = "pearson")$p.value
-
-y <- log2(ProtID.sites.expression$sites)
-x <- log10(ProtID.sites.expression$expression.level)
-plot(x,y)
-reg.line <- lm(y~x, na.action = "na.omit")
-abline(reg.line, lwd = 2, lty = 2)
-cor.test(x,y, alternative = "two", method = "pearson")$p.value
-
-#specific to majority protein ids.
-x <- log10(MajProtID.sites.expression$sites)
-y <- log10(MajProtID.sites.expression$expression.level)
-plot(x,y)
-reg.line <- lm(y~x, na.action = "na.omit")
-abline(reg.line, lwd = 2, lty = 2)
-cor.test(x,y, alternative = "two", method = "pearson")$p.value
+# MajProtID.sites.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
+# 
+# x <- log2(MajProtID.sites.expression$sites)
+# y <- log10(MajProtID.sites.expression$expression.level)
+# plot(x,y)
+# reg.line <- lm(y~x, na.action = "na.omit")
+# abline(reg.line, lwd = 2, lty = 2)
+# cor.test(x,y, alternative = "two", method = "pearson")$p.value
 
 
 #number of sites identified strongly correlated with protein length 
@@ -90,17 +103,30 @@ MajProtID.sites.length <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summ
 
 x <- log2(MajProtID.sites.length$length)
 y <- log2(MajProtID.sites.length$sites)
-
-plot(x,y)
-reg.line <- lm(y~x, na.action = "na.omit")
-abline(reg.line, lwd = 2, lty = 2)
 cor.test(x,y, alternative = "two", method = "pearson")$p.value
 cor(x,y, use = "complete.obs")
+# [1] 0.3397038
+
+pdf("length_sites_density.pdf", 7, 5)
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+              xlab = expression(log[2](protein~length)),
+              ylab = expression(log[2](sites~per~protein)), lwd = 10,
+              family = "serif"
+)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+text(6.3, 7, expression(R == 0.34), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+# text(8.7, 6.5, expression(p == 1.34e-09), col = "darkred", cex = 1, family = "serif")
+dev.off()
+
 
 
 #number of phosphosites is negatively correlated with phosphopeptide variability?
 
-note there is a splicing factor protein (Serine/arginine repetitive matrix protein 2) with over 200 identified phosphorylation sites!
+# note there is a splicing factor protein (Serine/arginine repetitive matrix protein 2) with over 200 identified phosphorylation sites!
 
 #add a column with the number of phosphosites (repeated for each protein using Majority Protein ID)
 ibaq.sites <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% mutate(sites = length(unique(id)))
@@ -108,26 +134,55 @@ ibaq.sites.subtoDE <- ibaq.sites[ibaq.sites$GelPrepCovSubtoDE == "+",]
 ibaq.sites.subtoDE["GelPrepCovFPval"] <- as.numeric(ibaq.sites.subtoDE$GelPrepCovFPval)
 
 y <- -log10(ibaq.sites.subtoDE$GelPrepCovFPval)
-x <- log10(ibaq.sites.subtoDE$sites)
+x <- log2(ibaq.sites.subtoDE$sites)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+# [1] 6.969347e-07
+cor(x,y, use = "complete.obs")
+# [1] -0.08689839
 
-plot(x,y)
+
+pdf("sites_pval_density.pdf", 7, 5)
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+              xlab = expression(log[2](sites~per~protein)),
+              ylab = expression(-log[10](P~value)), lwd = 10,
+              family = "serif"
+)
 reg.line <- lm(y~x, na.action = "na.omit")
 abline(reg.line, lwd = 2, lty = 2)
-cor.test(x,y, alternative = "two", method = "pearson")$p.value
-cor(x,y, use = "complete.obs")
+text(6.3, 10, expression(R == -0.09), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+text(6.5, 9.25, expression(p == 6.97e-07), col = "darkred", cex = 1, family = "serif")
+dev.off()
 
 
 
 #Sequence length is negatively correlated with variability
-
 y <- -log10(ibaq.sites.subtoDE$GelPrepCovFPval)
 x <- log10(ibaq.sites.subtoDE$ppSequence.length)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+# [1] 0.007607161
+cor(x,y, use = "complete.obs")
+# [1] -0.04680295
 
-plot(x,y)
+pdf("length_pval_density.pdf", 7, 5)
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+              xlab = expression(log[10](protein~length)),
+              ylab = expression(-log[10](P~value)), lwd = 10,
+              family = "serif"
+)
 reg.line <- lm(y~x, na.action = "na.omit")
 abline(reg.line, lwd = 2, lty = 2)
-cor.test(x,y, alternative = "two", method = "pearson")$p.value
-cor(x,y, use = "complete.obs")
+text(3.7, 10.75, expression(R == -0.05), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+text(3.7, 10, expression(p == 7.6e-03), col = "darkred", cex = 1, family = "serif")
+dev.off()
+
+
+
 
 #Sequence length is negatively correlated with expression, which explains why number of identifications per protein is negatively correlated with expression
 ibaq.sites["ibaq.median"] <- as.numeric(ibaq.sites$ibaq.median)
@@ -141,8 +196,27 @@ MajProtID.length.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>%
 
 x <- log10(MajProtID.length.expression$length)
 y <- log10(MajProtID.length.expression$expression)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+[1] 2.818012e-183
+cor(x,y, use = "complete.obs")
+[1] -0.5620399
 
-plot(x,y)
+pdf("length_expression_density.pdf", 7, 5)
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+              xlab = expression(log[10](protein~length)),
+              ylab = expression(log[10](iBAQ~abundance~estimate)), lwd = 10,
+              family = "serif"
+)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+text(3.7, 8.5, expression(R == -0.56), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+# text(3.7, 10, expression(p == 7.6e-03), col = "darkred", cex = 1, family = "serif")
+dev.off()
+
+
 
 
 ##reactome and GO enrichments ----
