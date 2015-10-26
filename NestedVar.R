@@ -52,7 +52,7 @@ NestedVar <- function(ratios, noMissing = TRUE){
 
         
     ##------ MCMCglmm for variance estimation ------#
-    mcmcVarcomp <- lapply( levels(melted$Var1), function(id) {
+    mcmcVarcomp <- lapply( levels(melted$Var1)[1:1000], function(id) {
         test <- melted[melted$Var1 %in% id,]
         test1 <- test[,3:6]
         fit_try <- tryCatch( MCMCglmm(value ~ 1, 
@@ -60,20 +60,19 @@ NestedVar <- function(ratios, noMissing = TRUE){
                                       data = test1, verbose = FALSE),
                              condition = function(c) c)
         
-        mcmc_varest <- c(c(summary(fit_try)$Gcovariances[,1], 
-                           summary(fit_try)$Rcovariances[,1]) )
-        
         if(inherits(fit_try, "condition")){
             varFoo <- rep(NA, 3)
             return(var_foo)
         }
         if(!inherits(fit_try, "condition")){
-            var_foo <- mcmc_varest
-            var_foo
+            mcmc_varest <- c(summary(fit_try)$Gcovariances[,1], 
+                             summary(fit_try)$Rcovariances[,1])
+            mcmc_varest            
         }
+        
     })
     mcmcVarcomp <- do.call(rbind, mcmcVarcomp)
-    rownames(mcmcVarcomp) <- levels(melted$Var1)
+    rownames(mcmcVarcomp) <- levels(melted$Var1)[1:1000]
     colnames(mcmcVarcomp) <- c("individual","biorep","residual")
     
 
@@ -82,8 +81,8 @@ NestedVar <- function(ratios, noMissing = TRUE){
     # Plot the variance component distributions
     colnames(mcmcVarcomp) <- c("individual","biorep","residual")
     boxplot(log10(mcmcVarcomp), ylab = "log10 variance component")
-    summary(Varcomp)
-    head(Varcomp)
+    summary(mcmcVarcomp)
+    head(mcmcVarcomp)
     
     # Histograms of log10 variance 
     for (i in 1:ncol(mcmcVarcomp) ) {

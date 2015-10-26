@@ -7,6 +7,7 @@
 
 #packages
 require(plyr)
+require(dplyr)
 library(gplots)
 
 ##########Enrichment of highly expressed proteins in diffphos? ----
@@ -42,7 +43,106 @@ text(8.8, 9.4, expression(p == .003), col = "darkred", cex = 1)
 dev.off()
 
 
+#protein expression level is negatively correlated with the number of sites identified and quantified!
+ibaq.sites <- multExpanded1_withDE_annotated[ , c("ppiBAQ.L.18486", "ppiBAQ.L.18862", "ppiBAQ.L.19160", "GelPrepCovFPval", "GelPrepCovSubtoDE", 
+                                         "ppMajorityProteinIDs", "ppProteinIDs", "ppSequence.length", "id")] #note the NAs
+ibaq.sites$ibaq.median <- apply(as.matrix(ibaq.sites[,1:3]), 1, median)
 
+#x = # of sites per protein
+#y = expression level
+
+#each element of x is the number of unique 'id'/unique ppMajorityProteinID (x)
+
+ProtID.sites.expression <- ibaq.sites %>% group_by(ppProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
+
+#remove those identifications that have a ppProteinID assignment but not a ppMajProteinID assignment
+index <- which(ibaq.sites$ppMajorityProteinIDs != "")
+ibaq.sites <- ibaq.sites[index,]
+
+MajProtID.sites.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
+
+
+x <- log10(ProtID.sites.expression$sites)
+y <- log10(ProtID.sites.expression$expression.level)
+plot(x,y)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+
+y <- log2(ProtID.sites.expression$sites)
+x <- log10(ProtID.sites.expression$expression.level)
+plot(x,y)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+
+#specific to majority protein ids.
+x <- log10(MajProtID.sites.expression$sites)
+y <- log10(MajProtID.sites.expression$expression.level)
+plot(x,y)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+
+
+#number of sites identified strongly correlated with protein length 
+MajProtID.sites.length <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(sites = length(unique(id)), length = unique(ppSequence.length))
+
+x <- log2(MajProtID.sites.length$length)
+y <- log2(MajProtID.sites.length$sites)
+
+plot(x,y)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+cor(x,y, use = "complete.obs")
+
+
+#number of phosphosites is negatively correlated with phosphopeptide variability?
+
+note there is a splicing factor protein (Serine/arginine repetitive matrix protein 2) with over 200 identified phosphorylation sites!
+
+#add a column with the number of phosphosites (repeated for each protein using Majority Protein ID)
+ibaq.sites <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% mutate(sites = length(unique(id)))
+ibaq.sites.subtoDE <- ibaq.sites[ibaq.sites$GelPrepCovSubtoDE == "+",]
+ibaq.sites.subtoDE["GelPrepCovFPval"] <- as.numeric(ibaq.sites.subtoDE$GelPrepCovFPval)
+
+y <- -log10(ibaq.sites.subtoDE$GelPrepCovFPval)
+x <- log10(ibaq.sites.subtoDE$sites)
+
+plot(x,y)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+cor(x,y, use = "complete.obs")
+
+
+
+#Sequence length is negatively correlated with variability
+
+y <- -log10(ibaq.sites.subtoDE$GelPrepCovFPval)
+x <- log10(ibaq.sites.subtoDE$ppSequence.length)
+
+plot(x,y)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+cor(x,y, use = "complete.obs")
+
+#Sequence length is negatively correlated with expression, which explains why number of identifications per protein is negatively correlated with expression
+ibaq.sites["ibaq.median"] <- as.numeric(ibaq.sites$ibaq.median)
+
+#phosphosite level plot
+x <- log10(ibaq.sites$ppSequence.length)
+y <- log10(ibaq.sites$ibaq.median)
+
+#protein level plot
+MajProtID.length.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(length = unique(ppSequence.length), expression = unique(ibaq.median))
+
+x <- log10(MajProtID.length.expression$length)
+y <- log10(MajProtID.length.expression$expression)
+
+plot(x,y)
 
 
 ##reactome and GO enrichments ----

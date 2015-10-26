@@ -3,14 +3,19 @@
 #   2) enriched within protein domains
 #   3) enriched within phospho relevant domains
 #   4) enriched with specific kinase motifs (HPRD binary assignment)
-# 
+#   5) contrasts produce specific motifs (motif-x and plogo)
+#   6) networKin with FE test ENRICHMENT AND DEPLETION. wordcloud for each contrast
 # Future: Enriched within motifs, enriched within motifs relevant to phosphorylation
 # 
 # 
 
 # Load Data ----
 GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "GelPrepCovFPval",
-                                                   "GelPrep.Pos.Disorder", "GelPrepSiteInMotif", 
+                                                   "GelPrep.Pos.Disorder", "GelPrepSiteInMotif", "GelPrepCovDEcont1", "GelPrepCovDEcont2", 
+                                                   "GelPrepCovDEcont3", "GelPrepCovcont1up", "GelPrepCovcont1down",
+                                                   "GelPrepCovcont2up", "GelPrepCovcont2down",
+                                                   "GelPrepCovcont3up", "GelPrepCovcont3down",
+                                                   "Sequence.window", "ppMajorityProteinIDs", "ppPositionInProteins", "Amino.acid",
                                                    "site.in.domain.GelPrep", "phospho.relevant.GelPrep")]
 
 
@@ -304,9 +309,74 @@ Enrich.motifs.3up <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont3up) # 1 enri
 Enrich.motifs.3down <- Enrich(GelPrep.BGmotifs, GelPrep.DEmotifs.cont3down)
 
 
-# motif-x heatmap ----
+# motif-x output and heatmap ----
 
-# why? does the enrichment of certain motifs buttress our function claim? shows that something non-random is happening
+# motif-x creates an exact background using user supplied sequences and assigns probabilities to recurring sequences using the binomial/multinomial distribution.
+# pLogo does a similar thing but returns sequence logos
+
+#Here the background is the set of all peptides (doubly and triply phosphorylated peptides ARE considered here) containing AAs +/- 7 (peptides from N or C terminal regions of the protein are omitted) from central S/T residue (too few Ys for a meaningful enrichment). The foreground is the same.
+
+
+#Function to tuncate sequence to window of choice and remove N and C terminal sequences. Here I assume that the first sequence is the "correct" sequence (ignores potential isoform sequences) since it belongs to the protein with the most identifications.
+
+sequence.truncate <- function(peptide) {
+  peptide <- sub(";.*", "", peptide)
+  peptide <- substr(peptide, 9, 23)
+  peptide <- ifelse(grepl("_", peptide), NA, peptide)
+  return(peptide)
+}
+
+background.s <- GelPrep.data[GelPrep.data$Amino.acid == "S", "Sequence.window"]
+
+
+DE1.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovDEcont1 == "+", "Sequence.window"]
+DE2.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovDEcont2 == "+", "Sequence.window"]
+DE3.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovDEcont3 == "+", "Sequence.window"]
+
+DE1up.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovcont1up == "+", "Sequence.window"]
+DE1down.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovcont1down == "+", "Sequence.window"]
+DE2up.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovcont2up == "+", "Sequence.window"]
+DE2down.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovcont2down == "+", "Sequence.window"]
+DE3up.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovcont3up == "+", "Sequence.window"]
+DE3down.s <- GelPrep.data[GelPrep.data$Amino.acid == "S" & GelPrep.data$GelPrepCovcont3down == "+", "Sequence.window"]
+
+
+serine.diff.phos <- list(background = background.s, cont1 = DE1.s, cont2 = DE2.s, cont3 = DE3.s,
+                         cont1up = DE1up.s, cont1down = DE1down.s, cont2up = DE2up.s, cont2down = DE2down.s,
+                         cont3up = DE3up.s, cont3down = DE3down.s)
+
+# serine.diff.phos <- lapply(lapply(serine.diff.phos, sequence.truncate), function(x) x[!is.na(x)])
+
+serine.diff.phos <- lapply(lapply(lapply(serine.diff.phos, sequence.truncate), function(x) x[!is.na(x)]), function(x) x[x != ""])
+
+#write to motifx folder
+if(!file.exists("./MotifX")) dir.create("./MotifX")
+lapply(names(serine.diff.phos), function(x) {
+         write.table(serine.diff.phos[x], file = paste("./MotifX/", x, ".txt", sep = ""), col.names = F, row.names = F, sep = '\t') }
+)
+
+
+
+
+
+
+
+
+##### NetKin output and wordcloud generation -------------
+
+#Here the background is the set of all UNIQUE peptides (doubly and triply phosphorylated peptides ARE NOT considered here) containing AAs +/- 7 (peptides from N or C terminal regions of the protein are omitted) from central S/T residue (too few Ys for a meaningful enrichment). The foreground is the same.
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
