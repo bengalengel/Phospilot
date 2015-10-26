@@ -1,12 +1,20 @@
 
 #Table 1 info
 
-#number of phosphosites and proteins identified
+#number of phosphopeptides and proteins identified
 phospho <- phospho[(phospho$Potential.contaminant != "+" & phospho$Reverse != "+"),]
 length(unlist(strsplit(phospho$Number.of.Phospho..STY., ";")))#blanks omitted
 22766
-length(unique(unlist(strsplit(phospho$Proteins, ";"))))
-9400
+length(unique(phospho$Proteins))
+5143
+
+#number of phosphopeptides and proteins identified and quantified
+index <- !is.na(phospho$Ratio.H.L)
+phospho.quantified <- phospho[index,]
+length(unlist(strsplit(phospho.quantified$Number.of.Phospho..STY., ";")))#blanks omitted
+21944
+length(unique(phospho.quantified$Proteins))
+4845
 
 
 # the number of unique proteins is currently being reported as 'proteins' column but I may want to change this to protein ids. 

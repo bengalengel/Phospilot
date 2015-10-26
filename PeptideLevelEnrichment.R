@@ -172,7 +172,7 @@ cor(-log10(phospho.domain.matrix[[2]]), phospho.domain.matrix[[1]], method = "sp
 cor.test(phospho.domain.matrix[[1]], -log10(phospho.domain.matrix[[2]]), method = "spearman", exact = F)$p.value
 [1] 0.2759511
 
-##phosphopeptides within motif enrichment
+##phosphopeptides within motif enrichment ----
 
 motif.matrix <- GelPrep.data[, c("GelPrepSiteInMotif", "GelPrepCovFPval")]
 
