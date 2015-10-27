@@ -182,10 +182,6 @@ multExpanded1_withDE_annotated$ClosestSNPtoSite <- mapply(DistToPhos, multExpand
 #apply closest snp to phosphorylation site function GelPrep assignments. UPDATED TO USE ONLY MISSENSE VARIANTS
 multExpanded1_withDE_annotated$ClosestSNPtoSiteGelPrep <- mapply(DistToPhos, multExpanded1_withDE$ppProteinIDs, multExpanded1_withDE$ppPositionInProteins)
 
-#apply closest snp to phosphorylation site function PhosPrep assignments. ON HOLD
-
-
-
 
 # calculate minimum of all the distances for each protein group
 multExpanded1_withDE_annotated$ClosestSNPtoSiteMin <- sapply(multExpanded1_withDE_annotated$ClosestSNPtoSite, function(x){
@@ -204,12 +200,7 @@ multExpanded1_withDE_annotated$ClosestSNPtoSiteMinGelPrep <- sapply(multExpanded
   {NA}
 })  
 
-
-#Hypothesis: omnibus pvalues correlate with the distance to observed phosphorylation site. Gives an indication of how stongly phosphomotif changes are driving global differential phosphorylation patterns.
-
-# The minimal distance to the phosphorylation site does NOT significantly impact variation in phosphorylation for that proximal site
-
-
+# The minimal distance to the phosphorylation site significantly impacts variation in phosphorylation for that proximal site
 GelPrep.distances <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",
                                                     c("GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
 y <- -log10(as.numeric(GelPrep.distances$GelPrepCovFAdjPval))
@@ -382,7 +373,6 @@ stopCluster(cl)
 
 #quite a few with snps in domains
 table(GelPrep.SNP.domain[,1])
-
 FALSE  TRUE 
 3204  1381  
 
@@ -478,6 +468,52 @@ table(multExpanded1_withDE_annotated$GelPrepSNPInmotif)
 length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepSNPInmotif == T, "ppMajorityProteinIDs"]))
 
 
+###SNP assignment relative to disordered regions -----
+
+#Iupred amino acid level disorder 
+source("./Disorder/iupredProcessing.R")#creates "Iupred" list of ENSPID dataframes with primary sequence disorder annotation. DisProb >.5 is considered disordered.
+
+
+#two seconds faster to perform this with parallel processing
+cl <- makeCluster(5)
+registerDoParallel(cl)
+system.time(SNPeffFinal$variant.in.disordered.region <- foreach(i = 1:length(SNPeffFinal[[1]]), .combine = c, .packages = "stringr") %dopar% {
+  #retrieve protein and site
+  protein <- SNPeffFinal$peptide[i]
+  #extract site information. Use the first number within the chacter string for insertions etc.
+  site <- SNPeffFinal$aa[i]
+  site <- as.numeric(str_extract(site, "[0-9]+"))
+  #find matching protein dataframe within the iupred list
+  diso.pred <- Iupred[[which(names(Iupred)==protein)]]
+  #find matching site and return ordered/disordered categorization. Note for stops etc the length will be 0.
+  ifelse(length(diso.pred[diso.pred$Position == site, 3]) > 0, diso.pred[diso.pred$Position == site, 3] >= .5, NA)
+})
+stopCluster(cl)
+  
+
+#Add presence/absence of ANY SNP within a disordered region to the ME dataframe.
+cl <- makeCluster(5)
+registerDoParallel(cl)
+multExpanded1_withDE_annotated$GelPrepAnySNPInDisorderedRegion  <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajorityProteinIDs), .combine = c) %dopar% {
+  protein.group <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
+  if(multExpanded1_withDE_annotated$GelPrepNsSnpPositive[i] == "+"){
+    if(protein.group != ""){
+      protein.group <- strsplit(protein.group, ";")
+      protein.group <- as.character(unlist(protein.group))
+      protein.group <- protein.group[!grepl("REV", protein.group)]#remove reverse entries
+      #for each member of the group, does it contain a snp in a disordered region?
+      snp.in.disorder <- vector(mode = 'logical', length = length(protein.group))
+      for(protein in seq_along(protein.group)){
+        snp.in.disorder[protein] <- any(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "variant.in.disordered.region"])
+      }
+      snp.in.disorder = any(snp.in.disorder, na.rm = T)
+    }
+  } else {
+    snp.in.disorder = FALSE
+  }
+}
+stopCluster(cl)
+
 
 
 ##############Enrichment tests ------
@@ -564,6 +600,10 @@ cor(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]], method = "spearm
 cor.test(NSsnp.domain.matrix[[1]], NSsnp.domain.matrix[[2]], method = "spearman", exact = F)$p.value
 [1] 1.409406e-05
 
+#Few proteins have at least one snp within a domain
+table(NSsnp.domain.matrix$snp.in.domain)
+FALSE  TRUE 
+1111   288 
 
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
@@ -595,8 +635,31 @@ FALSE  TRUE
 3252     5
 
 
+#Test of ANY snp within a disordered region affecting variability
+NSsnp.disorder.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" , c("GelPrepAnySNPInDisorderedRegion", "GelPrepCovFPval")]
 
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion <- ifelse(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion == T, 1, 0)
+NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion[is.na(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion)] <- 0
 
+NSsnp.disorder.matrix[] <- lapply(NSsnp.disorder.matrix, as.numeric)
+
+plot(NSsnp.disorder.matrix[[1]], -log10(NSsnp.disorder.matrix[[2]]))
+plot(-log10(NSsnp.disorder.matrix[[2]]), NSsnp.disorder.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(NSsnp.disorder.matrix[[1]], -log10(NSsnp.disorder.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.disorder.matrix[[2]]), NSsnp.disorder.matrix[[1]], method = "spearman")
+[1] -0.002778683
+
+#the correlation IS NOT significant.
+cor.test(NSsnp.disorder.matrix[[1]], NSsnp.disorder.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.9172971
+
+#most genes have at least one snp within a disordered region
+table(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion)
+0    1 
+297 1102 
 
 
 
