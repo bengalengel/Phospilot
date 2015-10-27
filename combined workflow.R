@@ -151,6 +151,15 @@ ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
 RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed.
 
+
+
+
+#protein table output. Keep columns 244:length and remove unwanted manually. Only keep proteingroups that were PC corrected.
+ProteinZia.out <- ProteinZia[ProteinZia$id %in% row.names(RegressedCommon), 244:length(ProteinZia)]
+write.table(ProteinZia.out, file = "./GelPrep.table.txt", sep = "\t", row.names = F)
+rm(ProteinZia.out)
+
+
 #violin plots of number of peptides/protein and sequence coverage for the proteins present in all three lines (for SF4 A)
 GelProtSummary <- ProteinZia[ProteinZia$id %in% row.names(RegressedCommon), c("Razor...unique.peptides", "Sequence.coverage....")]
 
