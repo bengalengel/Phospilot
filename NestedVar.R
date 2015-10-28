@@ -52,7 +52,7 @@ NestedVar <- function(ratios, noMissing = TRUE){
 
         
     ##------ MCMCglmm for variance estimation ------#
-    mcmcVarcomp <- lapply( levels(melted$Var1)[1:1000], function(id) {
+    mcmcVarcomp <- lapply( levels(melted$Var1), function(id) {
         test <- melted[melted$Var1 %in% id,]
         test1 <- test[,3:6]
         fit_try <- tryCatch( MCMCglmm(value ~ 1, 
@@ -62,7 +62,7 @@ NestedVar <- function(ratios, noMissing = TRUE){
         
         if(inherits(fit_try, "condition")){
             varFoo <- rep(NA, 3)
-            return(var_foo)
+            return(varFoo)
         }
         if(!inherits(fit_try, "condition")){
             mcmc_varest <- c(summary(fit_try)$Gcovariances[,1], 
@@ -72,7 +72,7 @@ NestedVar <- function(ratios, noMissing = TRUE){
         
     })
     mcmcVarcomp <- do.call(rbind, mcmcVarcomp)
-    rownames(mcmcVarcomp) <- levels(melted$Var1)[1:1000]
+    rownames(mcmcVarcomp) <- levels(melted$Var1)
     colnames(mcmcVarcomp) <- c("individual","biorep","residual")
     
 

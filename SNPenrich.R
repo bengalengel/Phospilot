@@ -5,6 +5,7 @@ require(seqinr)
 require(iterators)
 require(foreach)
 require(doParallel)
+require(stringr)
 
 ####create variant data frame and subset to those present in any of the three samples including the standard --------
 #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
@@ -59,6 +60,9 @@ length(unique(SNPeffFinal$peptide))#25705
 # Just for the phosphosites observed; Are there snps in the vicinity of the phosphosite? The background for enrichmentwill be subtodiffphos + all snps.
 
 #for each ENSPID find the squence contained within the FASTA file. Executed with an sapply call. 
+
+proteome <- read.fasta( file = "./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)
+
 
 cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
 registerDoParallel(cl)
@@ -295,25 +299,23 @@ SNPeffFinal <- SNPeffFinal[SNPeffFinal$ProteomeIndex != "no match", ]
 # col2: T/F in any phospho relevant domain
 
 #not easy to download so manually curated from pfam as of 8-24-15
-# pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
-#                   "PF00017", "PF08416", "PF00168",#Y
-#                   "PF00782", "PF00102", "PF13350", "PF06602", "PF04273", "PF03162", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
-#                   "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
-#                   "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
-
-
-#trimmed to only pS/pT relevant. Removed Y binding and Y kinase. phosphatases include dual specificity members.
 pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
+                  "PF00017", "PF08416", "PF00168",#Y
                   "PF00782", "PF00102", "PF13350", "PF06602", "PF04273", "PF03162", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
                   "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
                   "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
 
 
-require(stringr)
-require(doParallel)
+
+#trimmed to only pS/pT relevant. Removed Y binding and Y kinase. phosphatases include dual specificity members.
+pfam.phospho.ST <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
+                     "PF00782", "PF06602", "PF04273", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
+                     "PF00069", "PF01636", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
+                     "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
+
+
 cl <- makeCluster(cl)
 registerDoParallel(cl)
-
 snp.domain.boundary <- foreach(i = 1:length(SNPeffFinal$peptide), .combine = "rbind", .packages = "stringr") %dopar% {
   #retrieve protein and site
   protein <- SNPeffFinal$peptide[i]
@@ -330,11 +332,13 @@ snp.domain.boundary <- foreach(i = 1:length(SNPeffFinal$peptide), .combine = "rb
     hits <- domains[site >= domains$Start & site <= domains$Stop, "PFamID"]
     in.domain <- length(hits) > 0
     phospho.relevant <- any(hits %in% pfam.phospho)
+    phospho.relevant.ST <- any(hits %in% pfam.phospho.ST)
   }else{
     in.domain <- FALSE
     phospho.relevant <- FALSE
+    phospho.relevant.ST <- FALSE
   }
-  data.frame(variant.in.domain = in.domain, domain.phospho.relevant = phospho.relevant)
+  data.frame(variant.in.domain = in.domain, domain.phospho.relevant = phospho.relevant, domain.phospho.relevant.ST = phospho.relevant.ST)
 }
 stopCluster(cl)
 
@@ -345,7 +349,6 @@ SNPeffFinal <- cbind(SNPeffFinal, snp.domain.boundary)
 
 cl <- makeCluster(5)
 registerDoParallel(cl)
-
 GelPrep.SNP.domain <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajorityProteinIDs), .combine = "rbind") %dopar% {
   protein.group <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
   if(multExpanded1_withDE_annotated$GelPrepNsSnpPositive[i] == "+"){
@@ -356,32 +359,42 @@ GelPrep.SNP.domain <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajo
       #for each member of the group, does it contain a snp in a domain/phospho.domain?
       in.domain <- vector(mode = 'logical', length = length(protein.group))
       phospho.relevant <- vector(mode = 'logical', length = length(protein.group))
+      phospho.relevant.ST <- vector(mode = 'logical', length = length(protein.group))
       for(protein in seq_along(protein.group)){
         in.domain[protein] <- ifelse(length(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "variant.in.domain"]) > 0, 
                                      SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "variant.in.domain"], NA)
         
         phospho.relevant[protein] <- ifelse(length(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "domain.phospho.relevant"]) > 0,
                                             SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "domain.phospho.relevant"], NA)
+        
+        phospho.relevant.ST[protein] <- ifelse(length(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein],
+                                                                  "domain.phospho.relevant.ST"]) > 0,
+                                               SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "domain.phospho.relevant.ST"], NA)
       }
-      data.frame(snp.in.domain = any(in.domain, na.rm = T), snp.domain.phospho.relevant = any(phospho.relevant, na.rm = T))
+      data.frame(snp.in.domain = any(in.domain, na.rm = T), snp.domain.phospho.relevant = any(phospho.relevant, na.rm = T),
+                 snp.domain.phospho.relevant.ST = any(phospho.relevant.ST, na.rm = T))
     }
   } else {
-    data.frame(snp.in.domain = NA, snp.domain.phospho.relevant = NA)
+    data.frame(snp.in.domain = NA, snp.domain.phospho.relevant = NA, snp.domain.phospho.relevant.ST = NA)
   }
 }
 stopCluster(cl)
 
 #quite a few with snps in domains
-table(GelPrep.SNP.domain[,1])
+table(GelPrep.SNP.domain$snp.in.domain)
 FALSE  TRUE 
-3204  1381  
+3637   948 
 
-#enough
-table(GelPrep.SNP.domain[,2])
+#A large enough sample to perform enrichment analysis
+table(GelPrep.SNP.domain$snp.domain.phospho.relevant)
 FALSE  TRUE 
-4467   118 
+4522    63 
 
-#add back to parent table
+table(GelPrep.SNP.domain$snp.domain.phospho.relevant.ST)
+FALSE  TRUE 
+4544    41 
+
+#add snp information back to mE_annotated table
 multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, GelPrep.SNP.domain)
 
 

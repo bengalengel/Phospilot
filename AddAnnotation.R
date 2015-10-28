@@ -142,7 +142,7 @@ ensembl_75_CCDS_pfam <- getBM(attributes = c('ensembl_gene_id', 'ensembl_transcr
 
 ### Define function for assigning annotation to protein group (protein level) ----------
 
-annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho){
+annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho, pfam.phospho.ST){
 # This function accepts a LIST of unique protein groups and assigns annotation using passed annotation DF  
   
   
@@ -155,6 +155,7 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   ReactIDs <- vector(mode = 'list', length = length(proteins))
   pfamIDs <- vector(mode = 'list', length = length(proteins))
   pfamIDphospho <- vector(mode = 'list', length = length(proteins))
+  pfamIDphosphoST <- vector(mode = 'list', length = length(proteins))
   IntCount <- vector(mode = 'list', length = length(proteins))
   Disorder <- vector(mode = 'list', length = length(proteins))
   
@@ -256,6 +257,19 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   }
   stopCluster(cl)
   
+  #binary assignment of pfam id as phospho.ST 'relevant'
+  cl <- makeCluster(5)
+  registerDoParallel(cl)
+  pfamIDphosphoST <- foreach(i=1:length(pfamIDs)) %dopar% {
+    if(any(pfamIDs[[i]] %in% pfam.phospho.ST)){
+      pfamIDphosphoST[[i]] <- "yes"
+    } else {
+      pfamIDphosphoST[[i]] <- "no"
+    }
+  }
+  stopCluster(cl)
+  
+  
   #assign max interaction count among all genes within a protein group using the entrez gene id
   cl <- makeCluster(5)
   registerDoParallel(cl)
@@ -293,12 +307,14 @@ annotate <- function(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_C
   names(ReactIDs) <- proteins
   names(pfamIDs) <- proteins
   names(pfamIDphospho) <- proteins
+  names(pfamIDphosphoST) <- proteins
   names(IntCount) <- proteins
   names(Disorder) <- proteins
   
-  annotation.results <- list(GOIDs, description, hgncid, hgncsymbol, entrezgene, ReactIDs, pfamIDs, pfamIDphospho, IntCount, Disorder)
+  annotation.results <- list(GOIDs, description, hgncid, hgncsymbol, entrezgene, ReactIDs, pfamIDs, pfamIDphospho, pfamIDphosphoST, 
+                             IntCount, Disorder)
   names(annotation.results) <-  c("GOID", "Description", "HGNCID", "HGNCSymbol", "EntrezGene", "ReactIDs", "PFamIDs", 
-                                  "PFamIDPhospho", "InteractCount", "PercentDisorder")
+                                  "PFamIDPhospho", "PFamIDPhosphoST", "InteractCount", "PercentDisorder")
   
   return(annotation.results)
 }
@@ -312,6 +328,13 @@ pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF0053
                   "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
                   "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
 
+#trimmed to only pS/pT relevant. Removed Y binding and Y kinase. phosphatases include dual specificity members.
+pfam.phospho.ST <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
+                  "PF00782", "PF06602", "PF04273", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
+                  "PF00069", "PF01636", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
+                  "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
+
+
 
 #confounded analysis
 #'leading proteins' are used for the phospho alone annotated data. Leading proteins are the FIRST ENTRY from each matching protein group assigned to the peptide. Within a protein group ties are ignored. 'proteins' is all identified (potentially only by a modified site) proteins the peptide is associated with. 
@@ -320,7 +343,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]
 proteins <- as.list(proteins)
 
-confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho)
+confounded.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho, pfam.phospho.ST)
 
 
 ###phosprep annotation
@@ -331,7 +354,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho)
+PhosPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho, pfam.phospho.ST)
 
 ###gelprep annotation
 #Using protein ids containing the phosphopeptide from the protein group with the most razor and unique peptides
@@ -340,7 +363,7 @@ proteins <- as.character(proteins)
 proteins <- proteins[proteins != ""]#some phosphosites are not assigned to a quantified protein
 proteins <- as.list(proteins)
 
-GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho)
+GelPrep.annotation <- annotate(proteins, ensembl_75_CCDS, ensembl_75_CCDS_EG, ensembl_75_CCDS_pfam, Biogrid, Rapid, pfam.phospho, pfam.phospho.ST)
 
 
 #Add these annotation IDs to the original ME dataframe. 
