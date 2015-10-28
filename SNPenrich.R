@@ -78,77 +78,78 @@ SNPeffFinal$ProteomeIndex <- foreach(i = 1:length(SNPeffFinal$peptide), .combine
 stopCluster(cl)
 
 
-#   To be used for motif proximity enrichment analysis, that is for each protein/hit, is the variant within 7 residues of a S/T/Y? 
+
+# Annotation: Distance to nearest phosphorylatable residue (on hold) ----------------
+
+#Can be used for motif proximity enrichment analysis, that is for each protein/hit, is the variant within 7 residues of a S/T/Y? This can provide insight into potential longer range interactions, in cis.
 
 #getsequence from 'hits' index and position from snpeff table. Return distance to nearest S/T/Y residue. 'NA' results from either no Tyr in sequence or protein mapped to snp is not searched in database. 
 
-# Annotation: Distance to nearest phosphorylatable residue ----------------
-
-
-#for this work only missense variants are considered
-SNPeffFinalMSonly <- SNPeffFinal[SNPeffFinal$effect == "missense_variant" | SNPeffFinal$effect == "missense_variant&splice_region_variant",]#41,388 nonsynonymous snps
-
-#Dist to closest Tyrosine  
-TyrDist <- function(ProtSeq, VariantPosition){
-  #if ProtSeq index is valid 
-  if(ProtSeq != "no match"){
-    #retrieve sequence and Tyr index
-    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
-    Tyr <- grep("Y", seq)
-    #if sequence contains tyrosines
-    if(length(Tyr) > 0){
-      #retrive variant position
-      Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
-      #return minimum distance
-      min(abs(Variant - Tyr))}else{
-        NA
-      }
-  }else
-  {NA}
-}
-
-#Dist to closest Serine  
-SerDist <- function(ProtSeq, VariantPosition){
-  #if ProtSeq index is valid 
-  if(ProtSeq != "no match"){
-    #retrieve sequence and Syr index
-    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
-    Ser <- grep("S", seq)
-    #if sequence contains Serines
-    if(length(Ser) > 0){
-      #retrive variant position
-      Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
-      #return minimum distance
-      min(abs(Variant - Ser))}else{
-        NA
-      }
-  }else
-  {NA}
-}
-
-#Dist to closest Threonine  
-ThrDist <- function(ProtSeq, VariantPosition){
-  #if ProtSeq index is valid 
-  if(ProtSeq != "no match"){
-    #retrieve sequence and Thr index
-    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
-    Thr <- grep("T", seq)
-    #if sequence contains Serines
-    if(length(Thr) > 0){
-      #retrive variant position
-      Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
-      #return minimum distance
-      min(abs(Variant - Thr))}else{
-        NA
-      }
-  }else
-  {NA}
-}
-
-#apply minimum distance functions
-SNPeffFinalMSonly$NearestTyrDist <- mapply(TyrDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
-SNPeffFinalMSonly$NearestSerDist <- mapply(SerDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
-SNPeffFinalMSonly$NearestThrDist <- mapply(ThrDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
+# 
+# #for this work only missense variants are considered
+# SNPeffFinalMSonly <- SNPeffFinal[SNPeffFinal$effect == "missense_variant" | SNPeffFinal$effect == "missense_variant&splice_region_variant",]#41,388 nonsynonymous snps
+# 
+# #Dist to closest Tyrosine  
+# TyrDist <- function(ProtSeq, VariantPosition){
+#   #if ProtSeq index is valid 
+#   if(ProtSeq != "no match"){
+#     #retrieve sequence and Tyr index
+#     seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
+#     Tyr <- grep("Y", seq)
+#     #if sequence contains tyrosines
+#     if(length(Tyr) > 0){
+#       #retrive variant position
+#       Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+#       #return minimum distance
+#       min(abs(Variant - Tyr))}else{
+#         NA
+#       }
+#   }else
+#   {NA}
+# }
+# 
+# #Dist to closest Serine  
+# SerDist <- function(ProtSeq, VariantPosition){
+#   #if ProtSeq index is valid 
+#   if(ProtSeq != "no match"){
+#     #retrieve sequence and Syr index
+#     seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
+#     Ser <- grep("S", seq)
+#     #if sequence contains Serines
+#     if(length(Ser) > 0){
+#       #retrive variant position
+#       Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+#       #return minimum distance
+#       min(abs(Variant - Ser))}else{
+#         NA
+#       }
+#   }else
+#   {NA}
+# }
+# 
+# #Dist to closest Threonine  
+# ThrDist <- function(ProtSeq, VariantPosition){
+#   #if ProtSeq index is valid 
+#   if(ProtSeq != "no match"){
+#     #retrieve sequence and Thr index
+#     seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
+#     Thr <- grep("T", seq)
+#     #if sequence contains Serines
+#     if(length(Thr) > 0){
+#       #retrive variant position
+#       Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+#       #return minimum distance
+#       min(abs(Variant - Thr))}else{
+#         NA
+#       }
+#   }else
+#   {NA}
+# }
+# 
+# #apply minimum distance functions
+# SNPeffFinalMSonly$NearestTyrDist <- mapply(TyrDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
+# SNPeffFinalMSonly$NearestSerDist <- mapply(SerDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
+# SNPeffFinalMSonly$NearestThrDist <- mapply(ThrDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
 
 #####################min distance to nearest observed phosphorylation site ------
 
@@ -640,6 +641,37 @@ cor(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]], me
 #the negative correlation is significant at alpha  = .05; 
 cor.test(NSsnp.phosphodomain.matrix[[1]], NSsnp.phosphodomain.matrix[[2]], method = "spearman", exact = F)$p.value
 0.6338825
+
+
+
+
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+NSsnp.phosphodomain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" & SubtoDEGelProt$snp.in.domain == TRUE,
+                                             c("snp.domain.phospho.relevant.ST", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant.ST<- ifelse(NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant.ST == T, 1, 0)
+NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant.ST[is.na(NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant.ST)] <- 0
+
+NSsnp.phosphodomain.matrix[] <- lapply(NSsnp.phosphodomain.matrix, as.numeric)
+
+plot(NSsnp.phosphodomain.matrix[[1]], -log10(NSsnp.phosphodomain.matrix[[2]]))
+plot(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. 
+cor(NSsnp.phosphodomain.matrix[[1]], -log10(NSsnp.phosphodomain.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]], method = "spearman")
+[1] 0.03691468
+
+
+#the negative correlation is significant at alpha  = .05; 
+cor.test(NSsnp.phosphodomain.matrix[[1]], NSsnp.phosphodomain.matrix[[2]], method = "spearman", exact = F)$p.value
+0.5326597
+
+
+
+
 
 
 #motifs.....Not a significant sampling
