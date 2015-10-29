@@ -5,6 +5,7 @@ require(seqinr)
 require(iterators)
 require(foreach)
 require(doParallel)
+require(stringr)
 
 ####create variant data frame and subset to those present in any of the three samples including the standard --------
 #load snpeff_final dataset dataset (see snpeff folder readme file for construction).
@@ -60,6 +61,9 @@ length(unique(SNPeffFinal$peptide))#25705
 
 #for each ENSPID find the squence contained within the FASTA file. Executed with an sapply call. 
 
+proteome <- read.fasta( file = "./FASTA/Homo_sapiens.GRCh37.75.pep.all.parsedCCDS.fa", seqtype = "AA", as.string = TRUE)
+
+
 cl <- makeCluster(5)#I have 8 cores but had a crash when using all 8
 registerDoParallel(cl)
 SNPeffFinal$ProteomeIndex <- foreach(i = 1:length(SNPeffFinal$peptide), .combine = "c") %dopar% {
@@ -74,77 +78,78 @@ SNPeffFinal$ProteomeIndex <- foreach(i = 1:length(SNPeffFinal$peptide), .combine
 stopCluster(cl)
 
 
-#   To be used for motif proximity enrichment analysis, that is for each protein/hit, is the variant within 7 residues of a S/T/Y? 
+
+# Annotation: Distance to nearest phosphorylatable residue (on hold) ----------------
+
+#Can be used for motif proximity enrichment analysis, that is for each protein/hit, is the variant within 7 residues of a S/T/Y? This can provide insight into potential longer range interactions, in cis.
 
 #getsequence from 'hits' index and position from snpeff table. Return distance to nearest S/T/Y residue. 'NA' results from either no Tyr in sequence or protein mapped to snp is not searched in database. 
 
-# Annotation: Distance to nearest phosphorylatable residue ----------------
-
-
-#for this work only missense variants are considered
-SNPeffFinalMSonly <- SNPeffFinal[SNPeffFinal$effect == "missense_variant" | SNPeffFinal$effect == "missense_variant&splice_region_variant",]#41,388 nonsynonymous snps
-
-#Dist to closest Tyrosine  
-TyrDist <- function(ProtSeq, VariantPosition){
-  #if ProtSeq index is valid 
-  if(ProtSeq != "no match"){
-    #retrieve sequence and Tyr index
-    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
-    Tyr <- grep("Y", seq)
-    #if sequence contains tyrosines
-    if(length(Tyr) > 0){
-      #retrive variant position
-      Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
-      #return minimum distance
-      min(abs(Variant - Tyr))}else{
-        NA
-      }
-  }else
-  {NA}
-}
-
-#Dist to closest Serine  
-SerDist <- function(ProtSeq, VariantPosition){
-  #if ProtSeq index is valid 
-  if(ProtSeq != "no match"){
-    #retrieve sequence and Syr index
-    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
-    Ser <- grep("S", seq)
-    #if sequence contains Serines
-    if(length(Ser) > 0){
-      #retrive variant position
-      Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
-      #return minimum distance
-      min(abs(Variant - Ser))}else{
-        NA
-      }
-  }else
-  {NA}
-}
-
-#Dist to closest Threonine  
-ThrDist <- function(ProtSeq, VariantPosition){
-  #if ProtSeq index is valid 
-  if(ProtSeq != "no match"){
-    #retrieve sequence and Thr index
-    seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
-    Thr <- grep("T", seq)
-    #if sequence contains Serines
-    if(length(Thr) > 0){
-      #retrive variant position
-      Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
-      #return minimum distance
-      min(abs(Variant - Thr))}else{
-        NA
-      }
-  }else
-  {NA}
-}
-
-#apply minimum distance functions
-SNPeffFinalMSonly$NearestTyrDist <- mapply(TyrDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
-SNPeffFinalMSonly$NearestSerDist <- mapply(SerDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
-SNPeffFinalMSonly$NearestThrDist <- mapply(ThrDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
+# 
+# #for this work only missense variants are considered
+# SNPeffFinalMSonly <- SNPeffFinal[SNPeffFinal$effect == "missense_variant" | SNPeffFinal$effect == "missense_variant&splice_region_variant",]#41,388 nonsynonymous snps
+# 
+# #Dist to closest Tyrosine  
+# TyrDist <- function(ProtSeq, VariantPosition){
+#   #if ProtSeq index is valid 
+#   if(ProtSeq != "no match"){
+#     #retrieve sequence and Tyr index
+#     seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
+#     Tyr <- grep("Y", seq)
+#     #if sequence contains tyrosines
+#     if(length(Tyr) > 0){
+#       #retrive variant position
+#       Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+#       #return minimum distance
+#       min(abs(Variant - Tyr))}else{
+#         NA
+#       }
+#   }else
+#   {NA}
+# }
+# 
+# #Dist to closest Serine  
+# SerDist <- function(ProtSeq, VariantPosition){
+#   #if ProtSeq index is valid 
+#   if(ProtSeq != "no match"){
+#     #retrieve sequence and Syr index
+#     seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
+#     Ser <- grep("S", seq)
+#     #if sequence contains Serines
+#     if(length(Ser) > 0){
+#       #retrive variant position
+#       Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+#       #return minimum distance
+#       min(abs(Variant - Ser))}else{
+#         NA
+#       }
+#   }else
+#   {NA}
+# }
+# 
+# #Dist to closest Threonine  
+# ThrDist <- function(ProtSeq, VariantPosition){
+#   #if ProtSeq index is valid 
+#   if(ProtSeq != "no match"){
+#     #retrieve sequence and Thr index
+#     seq <- seqinr::getSequence(proteome[[as.numeric(ProtSeq)]])
+#     Thr <- grep("T", seq)
+#     #if sequence contains Serines
+#     if(length(Thr) > 0){
+#       #retrive variant position
+#       Variant <- as.integer(gsub("[^0-9]+", "", VariantPosition))#removes any non-numeric elements
+#       #return minimum distance
+#       min(abs(Variant - Thr))}else{
+#         NA
+#       }
+#   }else
+#   {NA}
+# }
+# 
+# #apply minimum distance functions
+# SNPeffFinalMSonly$NearestTyrDist <- mapply(TyrDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
+# SNPeffFinalMSonly$NearestSerDist <- mapply(SerDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
+# SNPeffFinalMSonly$NearestThrDist <- mapply(ThrDist, SNPeffFinalMSonly$ProteomeIndex, SNPeffFinalMSonly$aa)
 
 #####################min distance to nearest observed phosphorylation site ------
 
@@ -182,10 +187,6 @@ multExpanded1_withDE_annotated$ClosestSNPtoSite <- mapply(DistToPhos, multExpand
 #apply closest snp to phosphorylation site function GelPrep assignments. UPDATED TO USE ONLY MISSENSE VARIANTS
 multExpanded1_withDE_annotated$ClosestSNPtoSiteGelPrep <- mapply(DistToPhos, multExpanded1_withDE$ppProteinIDs, multExpanded1_withDE$ppPositionInProteins)
 
-#apply closest snp to phosphorylation site function PhosPrep assignments. ON HOLD
-
-
-
 
 # calculate minimum of all the distances for each protein group
 multExpanded1_withDE_annotated$ClosestSNPtoSiteMin <- sapply(multExpanded1_withDE_annotated$ClosestSNPtoSite, function(x){
@@ -204,12 +205,7 @@ multExpanded1_withDE_annotated$ClosestSNPtoSiteMinGelPrep <- sapply(multExpanded
   {NA}
 })  
 
-
-#Hypothesis: omnibus pvalues correlate with the distance to observed phosphorylation site. Gives an indication of how stongly phosphomotif changes are driving global differential phosphorylation patterns.
-
-# The minimal distance to the phosphorylation site does NOT significantly impact variation in phosphorylation for that proximal site
-
-
+# The minimal distance to the phosphorylation site significantly impacts variation in phosphorylation for that proximal site
 GelPrep.distances <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",
                                                     c("GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
 y <- -log10(as.numeric(GelPrep.distances$GelPrepCovFAdjPval))
@@ -235,74 +231,6 @@ abline(reg.line, lwd = 2, lty = 2)
 text(3, 7.25, expression(R == -.12), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
 text(3, 6.85, expression(p == 9.90e-06), col = "darkred", cex = 1, family = "serif")
 dev.off()
-
-# 
-# #Hypothesis: Biological phosphosite variance correlates positively with the distance to observed phosphorylation site. ON HOLD
-# 
-# #is there a positive correlation between bio Varcomp and closest SNP?
-# # holder <- multExpanded1_withDE[,c("idmult", "ClosestSNPtoSiteMin")]
-# # 
-# # VarcompDist <- merge(varcomp, holder, by.x = "row.names", by.y = "idmult")
-# # 
-# # index <- !is.na(VarcompDist$ClosestSNPtoSiteMin)
-# # VarcompDist <- VarcompDist[index,]#length of 2427
-# # 
-# 
-# #Hypothesis: Phosphosite inter-individual variance (limma adjusted F) correlates positively with the distance to observed phosphorylation site   
-# 
-# #is there a positive correlation between bio Varcomp and closest SNP?
-# holder <- multExpanded1_withDE[,c("idmult", "ClosestSNPtoSiteMin")]
-# FDist <- merge(sigFvalsCombat, holder, by.x = "row.names", by.y = "idmult")
-# 
-# index <- !is.na(FDist$ClosestSNPtoSiteMin)
-# FDist <- FDist[index,]#length of 837
-# 
-# 
-# plot(log10(FDist$ClosestSNPtoSiteMin), log10(FDist$F))
-# plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$adj.P.Val))
-# plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$P.Value), ylab = "-log10(Pvalue)", xlab = "log10(AA Distance between phosphosite and closest SNP)", main = "Confounded Data")
-# 
-# 
-# 
-# 
-# #with phosprep covariate Fs
-# FDist <- merge(sigFvalsPhosPrepProt, holder, by.x = "row.names", by.y = "idmult")
-# index <- !is.na(FDist$ClosestSNPtoSiteMin)
-# FDist <- FDist[index,]#length of 348
-# 
-# plot(log10(FDist$ClosestSNPtoSiteMin), log10(FDist$F))
-# plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$adj.P.Val))
-# plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$P.Value), ylab = "-log10(Pvalue)", xlab = "log10(AA Distance between phosphosite and closest SNP)", main = "PhosPrep Covariate Data")
-# 
-# #with GelPrep covariate Fs
-# FDist <- merge(sigFvalsGelPrepProt, holder, by.x = "row.names", by.y = "idmult")
-# index <- !is.na(FDist$ClosestSNPtoSiteMin)
-# FDist <- FDist[index,]#length of 348
-# 
-# plot(log10(FDist$ClosestSNPtoSiteMin), log10(FDist$F))
-# plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$adj.P.Val))
-# plot(log10(FDist$ClosestSNPtoSiteMin), -log10(FDist$P.Value), ylab = "-log10(Pvalue)", xlab = "log10(AA Distance between phosphosite and closest SNP)", main = "GelPrep Covariate Data")
-# 
-# 
-# #There may be a relationship between the distance between phosphosite and the closest SNP and individual variance component magnitude. (per [0-5] AA window interval there may be more sites with disproportionate representation in the 'high' individual variance component section. Note that all of these sites belong to a protein group with at least one member having a nonsyn snp. Therefore these proteins are overrepresented in the diffexp subset. This graphic effectively tests for overrepresentation IN ADDITION TO OVERREPRESENTATION IN HIGH VARCOMP DUE TO HAVING A SNP? If there is an enrichment it seems very small.
-# 
-# plot(log10(VarcompDist$ClosestSNPtoSiteMin), log10(VarcompDist$individual), xlim = c(-.1, 4.0), ylab = "log10(Individual Variance Component)", xlab = "log10(AA Distance between phosphosite and closest SNP)")
-# plot(log10(VarcompDist$ClosestSNPtoSiteMin), log10(VarcompDist$biorep), ylab = "log10(Biological Variance Component)", xlab = "log10(AA Distance between phosphosite and closest SNP)")
-# plot(log10(VarcompDist$ClosestSNPtoSiteMin), log10(VarcompDist$residual), ylab = "log10(Individual Variance Component)", xlab = "log10(AA Distance between phosphosite and closest SNP)")
-# 
-# #showing the 0 data point
-# plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$individual), xlim = c(0,10), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
-# plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$biorep), xlim = c(0,10), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
-# plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$residual), xlim = c(0,10), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
-# 
-# #out to 100
-# plot(VarcompDist$ClosestSNPtoSiteMin, log10(VarcompDist$individual), xlim = c(0,100), ylab = "log10(Individual Variance Component)", xlab = "AA Distance between phosphosite and closest SNP")
-# 
-# #For the protein normalized data
-# 
-# 
-# 
-# #min distance to nearest annotated phosphorylation or other site modification site
 
 
 
@@ -372,25 +300,23 @@ SNPeffFinal <- SNPeffFinal[SNPeffFinal$ProteomeIndex != "no match", ]
 # col2: T/F in any phospho relevant domain
 
 #not easy to download so manually curated from pfam as of 8-24-15
-# pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
-#                   "PF00017", "PF08416", "PF00168",#Y
-#                   "PF00782", "PF00102", "PF13350", "PF06602", "PF04273", "PF03162", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
-#                   "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
-#                   "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
-
-
-#trimmed to only pS/pT relevant. Removed Y binding and Y kinase. phosphatases include dual specificity members.
 pfam.phospho <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
+                  "PF00017", "PF08416", "PF00168",#Y
                   "PF00782", "PF00102", "PF13350", "PF06602", "PF04273", "PF03162", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
                   "PF00069", "PF01636",  "PF07714", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
                   "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
 
 
-require(stringr)
-require(doParallel)
+
+#trimmed to only pS/pT relevant. Removed Y binding and Y kinase. phosphatases include dual specificity members.
+pfam.phospho.ST <- c("PF00498", "PF01846", "PF03166", "PF10401", "PF00244", "PF00533", "PF00400", "PF00659", "PF00397",#S/T
+                     "PF00782", "PF06602", "PF04273", "PF14566", "PF14671", "PF04179", "PF05706", #phosphatase
+                     "PF00069", "PF01636", "PF03109", "PF03881", "PF06293", "PF01163", "PF01633", "PF10707", "PF06176", #kinase
+                     "PF02958", "PF04655", "PF10009", "PF12260", "PF16474", "PF07914", "PF14531", "PF06734", "PF05445", "PF07387") #kinase
+
+
 cl <- makeCluster(cl)
 registerDoParallel(cl)
-
 snp.domain.boundary <- foreach(i = 1:length(SNPeffFinal$peptide), .combine = "rbind", .packages = "stringr") %dopar% {
   #retrieve protein and site
   protein <- SNPeffFinal$peptide[i]
@@ -407,11 +333,13 @@ snp.domain.boundary <- foreach(i = 1:length(SNPeffFinal$peptide), .combine = "rb
     hits <- domains[site >= domains$Start & site <= domains$Stop, "PFamID"]
     in.domain <- length(hits) > 0
     phospho.relevant <- any(hits %in% pfam.phospho)
+    phospho.relevant.ST <- any(hits %in% pfam.phospho.ST)
   }else{
     in.domain <- FALSE
     phospho.relevant <- FALSE
+    phospho.relevant.ST <- FALSE
   }
-  data.frame(variant.in.domain = in.domain, domain.phospho.relevant = phospho.relevant)
+  data.frame(variant.in.domain = in.domain, domain.phospho.relevant = phospho.relevant, domain.phospho.relevant.ST = phospho.relevant.ST)
 }
 stopCluster(cl)
 
@@ -422,7 +350,6 @@ SNPeffFinal <- cbind(SNPeffFinal, snp.domain.boundary)
 
 cl <- makeCluster(5)
 registerDoParallel(cl)
-
 GelPrep.SNP.domain <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajorityProteinIDs), .combine = "rbind") %dopar% {
   protein.group <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
   if(multExpanded1_withDE_annotated$GelPrepNsSnpPositive[i] == "+"){
@@ -433,33 +360,42 @@ GelPrep.SNP.domain <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajo
       #for each member of the group, does it contain a snp in a domain/phospho.domain?
       in.domain <- vector(mode = 'logical', length = length(protein.group))
       phospho.relevant <- vector(mode = 'logical', length = length(protein.group))
+      phospho.relevant.ST <- vector(mode = 'logical', length = length(protein.group))
       for(protein in seq_along(protein.group)){
         in.domain[protein] <- ifelse(length(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "variant.in.domain"]) > 0, 
                                      SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "variant.in.domain"], NA)
         
         phospho.relevant[protein] <- ifelse(length(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "domain.phospho.relevant"]) > 0,
                                             SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "domain.phospho.relevant"], NA)
+        
+        phospho.relevant.ST[protein] <- ifelse(length(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein],
+                                                                  "domain.phospho.relevant.ST"]) > 0,
+                                               SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "domain.phospho.relevant.ST"], NA)
       }
-      data.frame(snp.in.domain = any(in.domain, na.rm = T), snp.domain.phospho.relevant = any(phospho.relevant, na.rm = T))
+      data.frame(snp.in.domain = any(in.domain, na.rm = T), snp.domain.phospho.relevant = any(phospho.relevant, na.rm = T),
+                 snp.domain.phospho.relevant.ST = any(phospho.relevant.ST, na.rm = T))
     }
   } else {
-    data.frame(snp.in.domain = NA, snp.domain.phospho.relevant = NA)
+    data.frame(snp.in.domain = NA, snp.domain.phospho.relevant = NA, snp.domain.phospho.relevant.ST = NA)
   }
 }
 stopCluster(cl)
 
 #quite a few with snps in domains
-table(GelPrep.SNP.domain[,1])
-
+table(GelPrep.SNP.domain$snp.in.domain)
 FALSE  TRUE 
-3204  1381  
+3637   948 
 
-#enough
-table(GelPrep.SNP.domain[,2])
+#A large enough sample to perform enrichment analysis
+table(GelPrep.SNP.domain$snp.domain.phospho.relevant)
 FALSE  TRUE 
-4467   118 
+4522    63 
 
-#add back to parent table
+table(GelPrep.SNP.domain$snp.domain.phospho.relevant.ST)
+FALSE  TRUE 
+4544    41 
+
+#add snp information back to mE_annotated table
 multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, GelPrep.SNP.domain)
 
 
@@ -545,6 +481,52 @@ table(multExpanded1_withDE_annotated$GelPrepSNPInmotif)
 #from 5 unique proteins
 length(unique(multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepSNPInmotif == T, "ppMajorityProteinIDs"]))
 
+
+###SNP assignment relative to disordered regions -----
+
+#Iupred amino acid level disorder 
+source("./Disorder/iupredProcessing.R")#creates "Iupred" list of ENSPID dataframes with primary sequence disorder annotation. DisProb >.5 is considered disordered.
+
+
+#two seconds faster to perform this with parallel processing
+cl <- makeCluster(5)
+registerDoParallel(cl)
+system.time(SNPeffFinal$variant.in.disordered.region <- foreach(i = 1:length(SNPeffFinal[[1]]), .combine = c, .packages = "stringr") %dopar% {
+  #retrieve protein and site
+  protein <- SNPeffFinal$peptide[i]
+  #extract site information. Use the first number within the chacter string for insertions etc.
+  site <- SNPeffFinal$aa[i]
+  site <- as.numeric(str_extract(site, "[0-9]+"))
+  #find matching protein dataframe within the iupred list
+  diso.pred <- Iupred[[which(names(Iupred)==protein)]]
+  #find matching site and return ordered/disordered categorization. Note for stops etc the length will be 0.
+  ifelse(length(diso.pred[diso.pred$Position == site, 3]) > 0, diso.pred[diso.pred$Position == site, 3] >= .5, NA)
+})
+stopCluster(cl)
+  
+
+#Add presence/absence of ANY SNP within a disordered region to the ME dataframe.
+cl <- makeCluster(5)
+registerDoParallel(cl)
+multExpanded1_withDE_annotated$GelPrepAnySNPInDisorderedRegion  <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajorityProteinIDs), .combine = c) %dopar% {
+  protein.group <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
+  if(multExpanded1_withDE_annotated$GelPrepNsSnpPositive[i] == "+"){
+    if(protein.group != ""){
+      protein.group <- strsplit(protein.group, ";")
+      protein.group <- as.character(unlist(protein.group))
+      protein.group <- protein.group[!grepl("REV", protein.group)]#remove reverse entries
+      #for each member of the group, does it contain a snp in a disordered region?
+      snp.in.disorder <- vector(mode = 'logical', length = length(protein.group))
+      for(protein in seq_along(protein.group)){
+        snp.in.disorder[protein] <- any(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "variant.in.disordered.region"])
+      }
+      snp.in.disorder = any(snp.in.disorder, na.rm = T)
+    }
+  } else {
+    snp.in.disorder = FALSE
+  }
+}
+stopCluster(cl)
 
 
 
@@ -632,6 +614,10 @@ cor(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]], method = "spearm
 cor.test(NSsnp.domain.matrix[[1]], NSsnp.domain.matrix[[2]], method = "spearman", exact = F)$p.value
 [1] 1.409406e-05
 
+#Few proteins have at least one snp within a domain
+table(NSsnp.domain.matrix$snp.in.domain)
+FALSE  TRUE 
+1111   288 
 
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
@@ -657,14 +643,68 @@ cor.test(NSsnp.phosphodomain.matrix[[1]], NSsnp.phosphodomain.matrix[[2]], metho
 0.6338825
 
 
+
+
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+NSsnp.phosphodomain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" & SubtoDEGelProt$snp.in.domain == TRUE,
+                                             c("snp.domain.phospho.relevant.ST", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant.ST<- ifelse(NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant.ST == T, 1, 0)
+NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant.ST[is.na(NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant.ST)] <- 0
+
+NSsnp.phosphodomain.matrix[] <- lapply(NSsnp.phosphodomain.matrix, as.numeric)
+
+plot(NSsnp.phosphodomain.matrix[[1]], -log10(NSsnp.phosphodomain.matrix[[2]]))
+plot(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. 
+cor(NSsnp.phosphodomain.matrix[[1]], -log10(NSsnp.phosphodomain.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]], method = "spearman")
+[1] 0.03691468
+
+
+#the negative correlation is significant at alpha  = .05; 
+cor.test(NSsnp.phosphodomain.matrix[[1]], NSsnp.phosphodomain.matrix[[2]], method = "spearman", exact = F)$p.value
+0.5326597
+
+
+
+
+
+
 #motifs.....Not a significant sampling
 table(SubtoDEGelProt$GelPrepSNPInmotif)
 FALSE  TRUE 
 3252     5
 
 
+#Test of ANY snp within a disordered region affecting variability
+NSsnp.disorder.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" , c("GelPrepAnySNPInDisorderedRegion", "GelPrepCovFPval")]
 
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion <- ifelse(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion == T, 1, 0)
+NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion[is.na(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion)] <- 0
 
+NSsnp.disorder.matrix[] <- lapply(NSsnp.disorder.matrix, as.numeric)
+
+plot(NSsnp.disorder.matrix[[1]], -log10(NSsnp.disorder.matrix[[2]]))
+plot(-log10(NSsnp.disorder.matrix[[2]]), NSsnp.disorder.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(NSsnp.disorder.matrix[[1]], -log10(NSsnp.disorder.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.disorder.matrix[[2]]), NSsnp.disorder.matrix[[1]], method = "spearman")
+[1] -0.002778683
+
+#the correlation IS NOT significant.
+cor.test(NSsnp.disorder.matrix[[1]], NSsnp.disorder.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.9172971
+
+#most genes have at least one snp within a disordered region
+table(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion)
+0    1 
+297 1102 
 
 
 

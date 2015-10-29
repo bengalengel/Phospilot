@@ -115,7 +115,7 @@ multExpanded1_withDE_annotated$GelPrepSiteInMotif <- foreach(i = 1:length(multEx
       motif.hits <- match.elm$motif
       #where do these motifs reside within the matching enspid protein?
       proteome.index <- grep(proteins[j], names(proteome))
-      hit.sequence <- unlist(getSequence(proteome[[proteome.index]], as.string = T))
+      hit.sequence <- unlist(seqinr::getSequence(proteome[[proteome.index]], as.string = T))
       #a matrix of start and stop positions for the motifs
       motif.indices <- do.call(rbind, str_locate_all(hit.sequence, motif.hits))
       # start end
