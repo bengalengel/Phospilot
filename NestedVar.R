@@ -20,9 +20,12 @@
 NestedVar <- function(ratios, noMissing = TRUE){
     
     ## Set up
+    require(plyr)
     require(dplyr)
     require(reshape2)
     require(MCMCglmm)
+    require(reshape2)
+    require(qdapRegex)
     
     ##------ Prepare data ------#
     
@@ -38,30 +41,54 @@ NestedVar <- function(ratios, noMissing = TRUE){
     melted <- melt(ratios, measure.vars = names(ratios))
     
     # Make meta data matrix
-    sampleLabels <- strsplit(as.character(unique(melted$Var2)), split = "_")
-    metaData <- data.frame(individual = as.factor(sapply(sampleLabels, "[[", 1)),
-                           biorep = as.factor(sapply(sampleLabels, "[[", 2)),
-                           techrep = as.factor(sapply(sampleLabels, "[[", 3)) )
-    metaData$label <- with(metaData, paste(individual, biorep, techrep, sep = "_"))
+#     sampleLabels <- strsplit(as.character(unique(melted$Var2)), split = "_")
+#     metaData <- data.frame(individual = as.factor(sapply(sampleLabels, "[[", 1)),
+#                            biorep = as.factor(sapply(sampleLabels, "[[", 2)),
+#                            techrep = as.factor(sapply(sampleLabels, "[[", 3)) )
+#     metaData$label <- with(metaData, paste(individual, biorep, techrep, sep = "_"))
+
+
+#identify individual name and add it to the table
+matches <- gregexpr("[0-9]{5}", melted$Var2, perl=T)
+individual <- regmatches(melted$Var2,matches)
+individual <- as.character(individual)
+individual <- as.factor(individual)
+melted$individual <- individual
+
+#identify the biological replicate
+biorep <- rm_between(melted$Var2, "_", "_", extract=TRUE)
+biorep <- as.character(biorep)
+biorep <- as.factor(biorep)
+melted$biorep <- biorep
+
+#identify the technical replicate
+matches <- gregexpr("[0-9]$", melted$Var2, perl=T)
+techrep <- regmatches(melted$Var2,matches)
+techrep <- as.character(techrep)
+techrep <- as.factor(techrep)
+melted$techrep <- techrep
+
+
+
     
     # Append meta data matrix
-    melted <- cbind(melted, metaData)
+#     melted <- cbind(melted, metaData)
         
     ## Create a unique identifier for biological replicates
-    melted$biorep <- as.factor(paste(melted$individual, melted$biorep,sep="_"))
+    melted$biorep_unique <- as.factor(paste(melted$individual, melted$biorep,sep="_"))
 
         
     ##------ MCMCglmm for variance estimation ------#
-    mcmcVarcomp <- lapply( levels(melted$Var1)[1:1000], function(id) {
+    mcmcVarcomp <- lapply( levels(melted$Var1), function(id) {
         test <- melted[melted$Var1 %in% id,]
-        test1 <- test[,3:6]
+        test1 <- test[,3:7]
         fit_try <- tryCatch( MCMCglmm(value ~ 1, 
-                                      random = ~ individual + individual:biorep,
+                                      random = ~ individual + individual:biorep_unique,
                                       data = test1, verbose = FALSE),
                              condition = function(c) c)
         
         if(inherits(fit_try, "condition")){
-            varFoo <- rep(NA, 3)
+          var_foo <- rep(NA, 3)
             return(var_foo)
         }
         if(!inherits(fit_try, "condition")){
@@ -72,7 +99,7 @@ NestedVar <- function(ratios, noMissing = TRUE){
         
     })
     mcmcVarcomp <- do.call(rbind, mcmcVarcomp)
-    rownames(mcmcVarcomp) <- levels(melted$Var1)[1:1000]
+    rownames(mcmcVarcomp) <- levels(melted$Var1)
     colnames(mcmcVarcomp) <- c("individual","biorep","residual")
     
 

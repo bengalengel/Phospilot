@@ -222,9 +222,9 @@ varcomp$low_bio_var <- ifelse(log10(varcomp$biorep) < -6, "+", "-")
 
 # Send to VarComp. Note this is the same dataframe as ProtNormalized. Com2 used next!!
 ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 & rowSums(is.na(ProtNormalized[ , 5:8])) <= 2 
-                                    & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]#3488
+                                    & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]#3257
  
-VarcompProt <- NestedVar(ratios=ProtNormalizedVar, balanced = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
+VarcompProt <- NestedVar(ratios=ProtNormalizedVar, noMissing = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
 VarcompProt <- as.data.frame(VarcompProt)
 
 #assign flag to VarcompProt file according to four categories. high ind/high biological. high ind/low bio. low ind/high bio and low ind/low bio
