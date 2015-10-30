@@ -193,70 +193,35 @@ multExpanded1 <- NormalizedResults[[1]]
 ProtNormalized <- NormalizedResults[[2]]#protein subtracted phospho dataframe
 GelPrep <- NormalizedResults[[3]]#Protein level
 
-# Differential phosphorylation on confounded and protein normalized data (2 ways) --------
+# Differential phosphorylation on confounded and protein normalized (run with protein as covariate) data --------
 
-# Differential phosphorylation analysis using DiffPhos function on confounded data. 
-# Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned. 'multExpandedwithDE' is returned.
-
-# A new combined approach. DiffPhos on confounded and 'corrected' (via covariate or normalization) data.
+# Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned.
 if(!file.exists("./multExpanded1_withDE.rds")){
   multExpanded1_withDE <- DiffPhos(phosdata = adata, PhosPrep = PhosPrepCombatBio, GelPrep = GelPrep, multExpanded1)
 }else{
   multExpanded1_withDE <- readRDS("./multExpanded1_withDE.rds")
 }
 
-#still need comparison venns and perhaps discussion/analysis of these results. Power differences with various covariates need to be considered.
-
-
 # Nested Random Effects modeling ------------------------------------------
 
-# 'NestedVar' performs analysis and I would like this to also return an annotated ME DF 
-# with each phosphosites annotated for downstream enrichment analysis. One example of 
-# a category might be high biological var/low tech and individual. I think a combinatorial categorization would work well here.
+#A bayesian approach with a naive prior is used to estimate variance components within each hierarchical level of the experimental design:
 
+# CONFOUNDED data 
 # remove exp obs if not observed at least two times in each sample
-com3 <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]
+confounded.batch.corrected <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]
 
-# send unbalanced data to NestedVar. Here a nested random effect model is fitted for each phosphopeptide. The peptide model variance components are returned. 
+# The peptide model variance components are returned. 
+varcomp.confounded <- NestedVar(ratios = confounded.batch.corrected, noMissing = F)
+varcomp.confounded <- as.data.frame(varcomp.confounded)
 
-varcomp <- NestedVar(ratios = ProtNormalized, noMissing = F)
-varcomp <- as.data.frame(varcomp)
 
-# assign flag to varcomp file according to four categories. high ind/high biological. high ind/low bio. low ind/high bio and low ind/low bio
-# cutoff for high/low individual is log10 = -5. cutoff for high/low biological variance is log10 = -6.
-varcomp$high_ind_var <- ifelse(log10(varcomp$individual) >= -5, "+", "-")
-varcomp$low_ind_var <- ifelse(log10(varcomp$individual) < -5, "+", "-")
-varcomp$high_bio_var <- ifelse(log10(varcomp$biorep) >= -6, "+", "-")
-varcomp$low_bio_var <- ifelse(log10(varcomp$biorep) < -6, "+", "-")
-
-# Send to VarComp. Note this is the same dataframe as ProtNormalized. Com2 used next!!
+# PROTEIN normalized data (future runs with protein as a covariate)
+# Send to VarComp. Note this is the same dataframe as ProtNormalized.
 ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 & rowSums(is.na(ProtNormalized[ , 5:8])) <= 2 
                                     & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]#3257
  
-VarcompProt <- NestedVar(ratios=ProtNormalizedVar, noMissing = F)#same result as the confounded data. Perhaps can run with protein as a covariate. 
-VarcompProt <- as.data.frame(VarcompProt)
-
-#assign flag to VarcompProt file according to four categories. high ind/high biological. high ind/low bio. low ind/high bio and low ind/low bio
-#cutoff for high/low individual is log10 = -5. cutoff for high/low biological variance is log10 = -6.
-VarcompProt$high_ind_var <- ifelse(log10(VarcompProt$individual) >= -5, "+", "-")
-VarcompProt$low_ind_var <- ifelse(log10(VarcompProt$individual) < -5, "+", "-")
-VarcompProt$high_bio_var <- ifelse(log10(VarcompProt$biorep) >= -6, "+", "-")
-VarcompProt$low_bio_var <- ifelse(log10(VarcompProt$biorep) < -6, "+", "-")
-
-# Is this signature unique to phospho? What do the small number of protein estimates show? They also show this signature
-
-#add the new categorizations from the varcompdata to the multexpanded DF for enrichment analyses. SOME DESCREPANCY BETWEEN IDMULT AND ROWNAMES!! 11 MISSING
-multExpanded1_withDE$SubtoVarcomp <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp), "+", "-")
-multExpanded1_withDE$HighIndVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp[varcomp$high_ind_var=="+",]), "+", "-")
-multExpanded1_withDE$LowIndVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp[varcomp$low_ind_var=="+",]), "+", "-")
-multExpanded1_withDE$HighBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp[varcomp$high_bio_var=="+",]), "+", "-")
-multExpanded1_withDE$LowBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(varcomp[varcomp$low_bio_var=="+",]), "+", "-")
-
-multExpanded1_withDE$ppSubtoVarcomp <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt), "+", "-")#no descrepancy with pp numbers
-multExpanded1_withDE$pnHighIndVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$high_ind_var=="+",]), "+", "-")
-multExpanded1_withDE$pnLowIndVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$low_ind_var=="+",]), "+", "-")
-multExpanded1_withDE$pnHighBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$high_bio_var=="+",]), "+", "-")
-multExpanded1_withDE$pnLowBioVar <- ifelse(multExpanded1_withDE$idmult %in% row.names(VarcompProt[VarcompProt$low_bio_var=="+",]), "+", "-")
+varcomp.protein <- NestedVar(ratios=ProtNormalizedVar, noMissing = F)
+varcomp.protein <- as.data.frame(varcomp.protein)
 
 
 #######Enrichment analyses. quite a few of them ----
