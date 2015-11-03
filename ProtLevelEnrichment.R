@@ -8,7 +8,9 @@
 #packages
 require(plyr)
 require(dplyr)
-library(gplots)
+require(gplots)
+
+
 
 ##########Enrichment of highly expressed proteins in diffphos? ----
 
@@ -18,7 +20,7 @@ library(gplots)
 ibaq <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",
                                        c("ppiBAQ.L.18486", "ppiBAQ.L.18862", "ppiBAQ.L.19160", "GelPrepCovFPval")] #note the NAs
 ibaq$ibaq.median <- apply(as.matrix(ibaq[,1:3]), 1, median)
-ibaq <- lapply(ibaq, as.numeric)
+ibaq[] <- lapply(ibaq, as.numeric)
 
 y <- -log10(ibaq$GelPrepCovFPval)
 x <- log10(ibaq$ibaq.median)
@@ -219,7 +221,7 @@ dev.off()
 
 
 ### Number of phosphosites, cut by expression decile and correlation with phosphopeptide variability
-library(ggplot2)
+require(ggplot2)
 require("Hmisc")
 
 ibaq.sites.subtoDE$Ibaqdecile <- cut2(ibaq.sites.subtoDE$ibaq.median, g=10)
@@ -354,7 +356,7 @@ normalizedSites.expression.interaction.robust <- rlm(-log10(GelPrepCovFPval) ~ l
 
 #summaries
 summary(normalizedSites.expression)
-summary(normalizedSites.expression.interaction)#hmm no interaction term
+summary(normalizedSites.expression.interaction)#interaction term is not significant
 
 
 #robust summary
@@ -371,7 +373,7 @@ x <- log2(ibaq.sites.subtoDE$site.normalized)
 cor.test(x,y, alternative = "two", method = "pearson")$p.value
 # [1] 0.0004833163
 cor(x,y, use = "complete.obs")
-[1] -0.06117257
+# [1] -0.06117257
 
 
 pdf("normalized_sites_pval_density.pdf", 7, 5)
