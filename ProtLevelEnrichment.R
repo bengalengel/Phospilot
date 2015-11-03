@@ -218,6 +218,187 @@ dev.off()
 
 
 
+### Number of phosphosites, cut by expression decile and correlation with phosphopeptide variability
+library(ggplot2)
+require("Hmisc")
+
+ibaq.sites.subtoDE$Ibaqdecile <- cut2(ibaq.sites.subtoDE$ibaq.median, g=10)
+ibaq.sites.subtoDE$Ibaqquintile <- cut2(ibaq.sites.subtoDE$ibaq.median, g=5)
+
+
+y <- -log10(ibaq.sites.subtoDE$GelPrepCovFPval)
+x <- log2(ibaq.sites.subtoDE$sites)
+
+
+
+qplot(log2(sites), -log10(GelPrepCovFPval), data = ibaq.sites.subtoDE, color = Ibaqquintile)
+qplot(log2(sites), -log10(GelPrepCovFPval), data = ibaq.sites.subtoDE, facets = .~Ibaqquintile)
+
+
+site.variation.quintile <- ggplot(ibaq.sites.subtoDE, aes(x = log2(sites),
+                                                          y = -log10(GelPrepCovFPval),
+                                                          color = Ibaqquintile)) +
+  geom_point() + 
+#   facet_grid(~.Ibaqquintile) + 
+  geom_smooth(method = "lm")
+
+site.variation.quintile
+
+site.variation.decile <- ggplot(ibaq.sites.subtoDE, aes(x = log2(sites),
+                                                          y = -log10(GelPrepCovFPval),
+                                                          color = Ibaqdecile)) +
+  geom_point() + 
+  #   facet_grid(~.Ibaqquintile) + 
+  geom_smooth(method = "lm")
+
+site.variation.decile
+
+
+#quantile with facet plots. At the higher concentrations there is a connection. This effect may also be driven by length.
+site.variation.quintile <- ggplot(ibaq.sites.subtoDE, aes(x = log2(sites),
+                                                          y = -log10(GelPrepCovFPval))) +
+  geom_point() + 
+  facet_grid(.~Ibaqquintile) + 
+  geom_smooth(method = "lm")
+
+site.variation.quintile
+
+site.variation.decile <- ggplot(ibaq.sites.subtoDE, aes(x = log2(sites),
+                                                          y = -log10(GelPrepCovFPval))) +
+  geom_point() + 
+  facet_grid(.~Ibaqdecile) + 
+  geom_smooth(method = "lm")
+
+site.variation.decile
+
+
+
+
+
+
+#Normalize the number of sites by protein length. I hypothesize that when the number of sites is normalized by protein length there is relationship
+# between number of sites per protein and phosphopeptide variability. This relationship should be positive and should become stronger with increasing concentration.
+
+ibaq.sites.subtoDE$site.normalized <- ibaq.sites.subtoDE$sites/ibaq.sites.subtoDE$ppSequence.length
+ibaq.sites.subtoDE$site.normalized2 <- ibaq.sites.subtoDE$ppSequence.length / ibaq.sites.subtoDE$sites
+
+site.variation.normalized <- ggplot(ibaq.sites.subtoDE, aes(x = log2(site.normalized),
+                                                            y = -log10(GelPrepCovFPval))) + 
+  geom_point() + 
+  geom_smooth(method = "lm")
+site.variation.normalized
+
+#The results confirm the hypothesis and the trend is significant.
+
+x = log2(ibaq.sites.subtoDE$site.normalized)
+y = -log10(ibaq.sites.subtoDE$GelPrepCovFPval)
+
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+[1] 0.0004833163
+cor(x,y, use = "complete.obs")
+[1] 0.06117257
+
+
+
+
+
+
+
+
+
+
+#Evidence of an interaction with concentration? I hypothesize that concentration has an additive affect on the relationship.
+require(MASS)#for rlm function
+
+site.variation.normalized.concentration <- ggplot(ibaq.sites.subtoDE, aes(x = log2(site.normalized),
+                                                            y = -log10(GelPrepCovFPval))) + 
+  geom_point() + 
+  facet_grid(.~Ibaqquintile) +
+  geom_smooth(method = "rlm")
+site.variation.normalized.concentration
+
+
+site.variation.normalized.concentration.decile <- ggplot(ibaq.sites.subtoDE, aes(x = log2(site.normalized),
+                                                                          y = -log10(GelPrepCovFPval))) + 
+  geom_point() + 
+  facet_grid(.~Ibaqdecile) +
+  geom_smooth(method = "rlm")
+site.variation.normalized.concentration.decile
+
+
+
+#these results imply that the number of sites/unit length is a more relevant factor for the lowest expressed protien complement, even after correcting for protein length. I was expecting something of an additive effect. HERE THERE SEEMS TO BE A NEGATIVE RELATIONSHIP BETWEEN THE NUMBER OF SITES/UNIT LENGTH AND VARIABILITY WHEN CUT BY EXPRESSION LEVEL.
+
+
+
+# what about a lm with Fstat pvalue as resposnse variable with sites + protein.length + expression.level as terms. These are all correlated with each other. What about sites/length and expression level?
+site.expression <- lm(-log10(GelPrepCovFPval) ~ log2(sites) + log10(ibaq.median), data = ibaq.sites.subtoDE)
+sites <- lm(-log10(GelPrepCovFPval) ~ log2(sites), data = ibaq.sites.subtoDE)
+expression <- lm(-log10(GelPrepCovFPval) ~ log10(ibaq.median), data = ibaq.sites.subtoDE)
+site.expression.interaction <- lm(-log10(GelPrepCovFPval) ~ log2(sites) * log10(ibaq.median), data = ibaq.sites.subtoDE)
+site.expression.length.interactions <- lm(-log10(GelPrepCovFPval) ~ log2(sites) * log10(ibaq.median) * log2(ppSequence.length)
+                                         , data = ibaq.sites.subtoDE)
+
+
+
+#summaries
+summary(site.expression.interaction)
+summary(site.expression.length.interactions)
+
+
+
+#is it better to take the length normalized number of sites to make the term independent of expression level?... I think yes
+normalizedSites.expression <- lm(-log10(GelPrepCovFPval) ~ log2(site.normalized) + log10(ibaq.median), data = ibaq.sites.subtoDE)
+normalizedSites.expression.interaction <- lm(-log10(GelPrepCovFPval) ~ log2(site.normalized) * log10(ibaq.median), data = ibaq.sites.subtoDE)
+normalizedSites.expression.interaction.robust <- rlm(-log10(GelPrepCovFPval) ~ log2(site.normalized) * log10(ibaq.median), data = ibaq.sites.subtoDE)
+
+#summaries
+summary(normalizedSites.expression)
+summary(normalizedSites.expression.interaction)#hmm no interaction term
+
+
+#robust summary
+robust.info <- data.frame(summary(normalizedSites.expression.interaction.robust)$coefficients)
+robust.info$pval <- 2*pt(abs(robust.info$t.value), summary(normalizedSites.expression.interaction.robust)$df[2], lower.tail=FALSE)
+robust.info
+
+
+
+# sites per unit length vs. variability. Relationship is still significant after normalization. I will produce this plot and note that an interaction term is not significant in the text.
+
+y <- -log10(ibaq.sites.subtoDE$GelPrepCovFPval)
+x <- log2(ibaq.sites.subtoDE$site.normalized)
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+# [1] 0.0004833163
+cor(x,y, use = "complete.obs")
+[1] -0.06117257
+
+
+pdf("normalized_sites_pval_density.pdf", 7, 5)
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+              xlab = expression(log[2](sites~per~amino~acid)),
+              ylab = expression(-log[10](P~value)), lwd = 10,
+              family = "serif"
+)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+text(-11.5, 10, expression(R == -0.06), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+text(-11.5, 9.25, expression(p == 4.83e-04), col = "darkred", cex = 1, family = "serif")
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
 
 ##reactome and GO enrichments ----
 source("Enrichment.R")
