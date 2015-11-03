@@ -106,7 +106,7 @@ CorrectedData <- BatchNorm(multExpanded1=multExpanded1)#class 1 sites
   CorrectedData <- readRDS("./CorrectedData.rds")
 }
 com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
-adata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
+phosdata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
 pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
 
 
@@ -185,7 +185,7 @@ rm(GelProtSummary)
 
 #for the moment I am using ME1 as ME with DE. Sorry for this future self, I must move forward. Also note this takes awhile!!!
 if(!file.exists("./NormalizedResults.rds")){
-NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=adata, proteome)
+NormalizedResults <- ProtAssignment2(proteinfull = ProteinZia, proteinnorm = RegressedCommon, multExpanded1_withDE = multExpanded1, phosphonorm=phosdata, proteome)
 } else {
   NormalizedResults <- readRDS("./NormalizedResults.rds")
 }
@@ -197,7 +197,7 @@ GelPrep <- NormalizedResults[[3]]#Protein level
 
 # Below is limma based DE across contrasts with annotation added to the passed multExpanded1 file. multiple images/venns are returned.
 if(!file.exists("./multExpanded1_withDE.rds")){
-  multExpanded1_withDE <- DiffPhos(phosdata = adata, PhosPrep = PhosPrepCombatBio, GelPrep = GelPrep, multExpanded1)
+  multExpanded1_withDE <- DiffPhos(phosdata = phosdata, PhosPrep = PhosPrepCombatBio, GelPrep = GelPrep, multExpanded1)
 }else{
   multExpanded1_withDE <- readRDS("./multExpanded1_withDE.rds")
 }
@@ -215,13 +215,90 @@ varcomp.confounded <- NestedVar(ratios = confounded.batch.corrected, noMissing =
 varcomp.confounded <- as.data.frame(varcomp.confounded)
 
 
-# PROTEIN normalized data (future runs with protein as a covariate)
-# Send to VarComp. Note this is the same dataframe as ProtNormalized.
-ProtNormalizedVar <- ProtNormalized[rowSums(is.na(ProtNormalized[ , 1:4])) <= 2 & rowSums(is.na(ProtNormalized[ , 5:8])) <= 2 
-                                    & rowSums(is.na(ProtNormalized[ , 9:12])) <= 2,]#3257
- 
-varcomp.protein <- NestedVar(ratios=ProtNormalizedVar, noMissing = F)
-varcomp.protein <- as.data.frame(varcomp.protein)
+# PROTEIN as a covariate data. It is better to run with protein as a covariate that use normalized data.
+colnames(GelPrep) <- c("HL18862", "HL18486", "HL19160")
+PhosProtGel <- merge(phosdata, GelPrep, by = "row.names", 
+                     suffixes = c("_peptide", "_GelPrep") ) #3257 observations
+rownames(PhosProtGel) <- PhosProtGel$Row.names
+PhosProtGel <- PhosProtGel[ , -1]
+PhosProtGel <- as.matrix(PhosProtGel)
+
+PhosProtGel_with_protein <- NestedVar(PhosProtGel, includeProteinCovariate = TRUE)
+# varcomp.protein <- as.data.frame(varcomp.protein)
+
+
+
+
+##------ Results ------#
+
+#absolute and standardized variance component plots for protein covariate and for confounded. (protein as a covariate makes biorep the largest contributor as opposed to the protein normalized and confounded data)
+
+
+
+# Plot the variance component distributions
+colnames(mcmcVarcomp) <- c("individual","biorep","residual")
+boxplot(log10(mcmcVarcomp), ylab = "log10 variance component")
+summary(mcmcVarcomp)
+head(mcmcVarcomp)
+
+# Histograms of log10 variance 
+for (i in 1:ncol(mcmcVarcomp) ) {
+  plot( density(log10(mcmcVarcomp[ ,i]), na.rm = T), xlab = "log10 variance", 
+        main = paste(colnames(mcmcVarcomp)[i], "variance") )
+}
+
+# Scatter plots of log10 variance components
+plot(log10(mcmcVarcomp[,1]),log10(mcmcVarcomp[,3]), 
+     main = "log10 variance", xlab = colnames(mcmcVarcomp)[1], ylab = colnames(mcmcVarcomp)[3])
+plot(log10(mcmcVarcomp[,1]),log10(mcmcVarcomp[,2]), 
+     main = "log10 variance", xlab = colnames(mcmcVarcomp)[1], ylab = colnames(mcmcVarcomp)[2])
+plot(log10(mcmcVarcomp[,2]),log10(mcmcVarcomp[,3]), 
+     main = "log10 variance", xlab = colnames(mcmcVarcomp)[2], ylab = colnames(mcmcVarcomp)[3])
+
+
+# Here we'd like to identify phosphpeptides with little or no variability 
+# at the individual level and at the biological replicate level. To do so, 
+# we standardized the values of the variance components for each phosphopeptides 
+# with respect to its sum of variance components. The standardized variance 
+# components are the proportion of the total variation in each phosphopeptides
+# attributed to individuals, biological replicates, and technical replicates. 
+
+# Boxplots of the standardized VCs confirm our observations from the raw VC values. 
+# Proportion of variability attributed to biological replicates is the smallest, 
+# followed by technical replicates, with individaul samples contributing the largest 
+# portion of variabilty in expression levels. 
+par(mfrow = c(1,1))
+varprop <- mcmcVarcomp/rowSums(mcmcVarcomp)
+labs = c("individual","biorep","tech")
+boxplot((varprop), axes = F)
+axis(1, at = c(1, 2, 3), labels = labs, col = "white"); axis(2)
+
+
+# Heatmap representation of the standardized VCs. 
+varprop <- na.omit(varprop)
+require(gplots)
+require(RColorBrewer)
+colnames(varprop) = c("individual","bio","tech")
+heatmap.2(as.matrix(varprop),
+          col=brewer.pal(9,"YlGnBu"),
+          Colv=F,
+          labRow="",
+          trace="none",
+          srtCol=45,  ,adjCol = c(1,1),
+          margins = c(6,5),
+          cexCol=1.5,
+          key.xlab = "Standardized VC", key.ylab=NULL, key.title = "",
+)
+
+return(mcmcVarcomp)
+}
+
+
+
+
+
+
+
 
 
 #######Enrichment analyses. quite a few of them ----

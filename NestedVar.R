@@ -17,23 +17,41 @@
 #' load(file.path(dir,"melted.RData"))
 #' ratios <- melted
 
-NestedVar <- function(ratios, noMissing = TRUE){
+NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE) {
     
     ## Set up
     require(plyr)
     require(dplyr)
     require(reshape2)
     require(MCMCglmm)
-    require(reshape2)
     require(qdapRegex)
     
     ##------ Prepare data ------#
-    
     ratios <- as.matrix(ratios)
     
     # Remove rows with any missing values.
     if(noMissing) {
-        noMissing <- na.omit(noMissing)
+      ratios <- na.omit(ratios)
+    }
+    
+    # Compute a variable indicating which columns
+    # are not phospho samples (i.e, protein)
+    variable_not_phospho <- grep("_", colnames(ratios), invert = TRUE)
+    
+    ## If not including protein as a covariate,
+    ## check if protein values are also in the data.frame
+    if(!includeProteinCovariate) {
+      if(length( variable_not_phospho ) > 0) {
+        ratios <- ratios[ , -variable_not_phospho]
+      } 
+    }
+    
+    ## If including protein as a covariate,
+    ## make sure protein values are in the data.frame
+    if(includeProteinCovariate) {
+      if( length( variable_not_phospho ) != 3 ) {
+        stop("Missing covariate vectors", call. = TRUE)
+      } 
     }
     
     # Transform the data from one peptide per row
@@ -68,9 +86,6 @@ NestedVar <- function(ratios, noMissing = TRUE){
     techrep <- as.factor(techrep)
     melted$techrep <- techrep
     
-    
-    
-    
     # Append meta data matrix
     #     melted <- cbind(melted, metaData)
     
@@ -80,12 +95,30 @@ NestedVar <- function(ratios, noMissing = TRUE){
     
     ##------ MCMCglmm for variance estimation ------#
     mcmcVarcomp <- lapply( levels(melted$Var1), function(id) {
+      
       test <- melted[melted$Var1 %in% id,]
-      test1 <- test[,3:7]
-      fit_try <- tryCatch( MCMCglmm(value ~ 1, 
-                                    random = ~ individual + individual:biorep_unique,
-                                    data = test1, verbose = FALSE),
-                           condition = function(c) c)
+      #      test1 <- test[ ,3:7]
+      
+      if (includeProteinCovariate == FALSE) { 
+        stopifnot()  
+        fit_try <- tryCatch( MCMCglmm(value ~ 1, 
+                                      random = ~ individual + individual:biorep_unique,
+                                      data = test, verbose = FALSE),
+                             condition = function(c) c)
+      } 
+      
+      if (includeProteinCovariate == TRUE) {
+        protein_values <- test[ grep("_", test$Var2, invert = TRUE), ]
+        test$protein <- test$value[ match(test$individual, protein_values$individual) ]
+        
+        # Add uncertains to the protein vector 
+        test$protein <- as.numeric( test$protein + runif(NROW(test), 0, 1e-10) )
+        
+        fit_try <- tryCatch( MCMCglmm(value ~ protein, 
+                                      random = ~ individual + individual:biorep_unique,
+                                      data = test, verbose = FALSE),
+                             condition = function(c) c)
+      }
       
       if(inherits(fit_try, "condition")){
         var_foo <- rep(NA, 3) 
@@ -101,68 +134,10 @@ NestedVar <- function(ratios, noMissing = TRUE){
     mcmcVarcomp <- do.call(rbind, mcmcVarcomp)
     rownames(mcmcVarcomp) <- levels(melted$Var1)
     colnames(mcmcVarcomp) <- c("individual","biorep","residual")
-    
-    
-    ##------ Results ------#
-    
-    # Plot the variance component distributions
-    colnames(mcmcVarcomp) <- c("individual","biorep","residual")
-    boxplot(log10(mcmcVarcomp), ylab = "log10 variance component")
-    summary(mcmcVarcomp)
-    head(mcmcVarcomp)
-    
-    # Histograms of log10 variance 
-    for (i in 1:ncol(mcmcVarcomp) ) {
-      plot( density(log10(mcmcVarcomp[ ,i]), na.rm = T), xlab = "log10 variance", 
-            main = paste(colnames(mcmcVarcomp)[i], "variance") )
-    }
-    
-    # Scatter plots of log10 variance components
-    plot(log10(mcmcVarcomp[,1]),log10(mcmcVarcomp[,3]), 
-         main = "log10 variance", xlab = colnames(mcmcVarcomp)[1], ylab = colnames(mcmcVarcomp)[3])
-    plot(log10(mcmcVarcomp[,1]),log10(mcmcVarcomp[,2]), 
-         main = "log10 variance", xlab = colnames(mcmcVarcomp)[1], ylab = colnames(mcmcVarcomp)[2])
-    plot(log10(mcmcVarcomp[,2]),log10(mcmcVarcomp[,3]), 
-         main = "log10 variance", xlab = colnames(mcmcVarcomp)[2], ylab = colnames(mcmcVarcomp)[3])
-  
-    
-    # Here we'd like to identify phosphpeptides with little or no variability 
-    # at the individual level and at the biological replicate level. To do so, 
-    # we standardized the values of the variance components for each phosphopeptides 
-    # with respect to its sum of variance components. The standardized variance 
-    # components are the proportion of the total variation in each phosphopeptides
-    # attributed to individuals, biological replicates, and technical replicates. 
-
-    # Boxplots of the standardized VCs confirm our observations from the raw VC values. 
-    # Proportion of variability attributed to biological replicates is the smallest, 
-    # followed by technical replicates, with individaul samples contributing the largest 
-    # portion of variabilty in expression levels. 
-    par(mfrow = c(1,1))
-    varprop <- mcmcVarcomp/rowSums(mcmcVarcomp)
-    labs = c("individual","biorep","tech")
-    boxplot((varprop), axes = F)
-    axis(1, at = c(1, 2, 3), labels = labs, col = "white"); axis(2)
-
-
-    # Heatmap representation of the standardized VCs. 
-    varprop <- na.omit(varprop)
-    require(gplots)
-    require(RColorBrewer)
-    colnames(varprop) = c("individual","bio","tech")
-    heatmap.2(as.matrix(varprop),
-              col=brewer.pal(9,"YlGnBu"),
-              Colv=F,
-              labRow="",
-              trace="none",
-              srtCol=45,  ,adjCol = c(1,1),
-              margins = c(6,5),
-              cexCol=1.5,
-              key.xlab = "Standardized VC", key.ylab=NULL, key.title = "",
-              )
-
-    return(mcmcVarcomp)
+    mcmcVarcomp
 }
-  
+
+
   
   
   
