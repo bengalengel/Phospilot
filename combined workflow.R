@@ -211,8 +211,8 @@ if(!file.exists("./multExpanded1_withDE.rds")){
 confounded.batch.corrected <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]
 
 # The peptide model variance components are returned. 
-varcomp.confounded <- NestedVar(ratios = confounded.batch.corrected, noMissing = F)
-varcomp.confounded <- as.data.frame(varcomp.confounded)
+mcmcVarcomp.confounded <- NestedVar(ratios = confounded.batch.corrected, noMissing = TRUE)
+colnames(mcmcVarcomp.confounded) <- c("individual","culture","residual")
 
 
 # PROTEIN as a covariate data. It is better to run with protein as a covariate that use normalized data.
@@ -223,8 +223,9 @@ rownames(PhosProtGel) <- PhosProtGel$Row.names
 PhosProtGel <- PhosProtGel[ , -1]
 PhosProtGel <- as.matrix(PhosProtGel)
 
-PhosProtGel_with_protein <- NestedVar(PhosProtGel, includeProteinCovariate = TRUE)
-# varcomp.protein <- as.data.frame(varcomp.protein)
+#missing values are removed
+mcmcVarcomp.proteinCov <- NestedVar(PhosProtGel, includeProteinCovariate = TRUE)
+colnames(mcmcVarcomp.proteinCov) <- c("individual","culture","residual")
 
 
 
@@ -233,6 +234,77 @@ PhosProtGel_with_protein <- NestedVar(PhosProtGel, includeProteinCovariate = TRU
 
 #absolute and standardized variance component plots for protein covariate and for confounded. (protein as a covariate makes biorep the largest contributor as opposed to the protein normalized and confounded data)
 
+
+#combine confounded and protein as a covariate results in to a list of data frames for common processing.
+
+results <- list(Confounded = mcmcVarcomp.confounded,
+                ProteinCorrected = mcmcVarcomp.proteinCov)
+
+
+#summaries. Note that these are complete cases
+lapply(results, summary)
+lapply(results, dim)
+
+lapply(names(results), function(x){
+  res <- results[[x]]
+  varprop <- res/rowSums(res)
+  summary(varprop)
+})
+  
+
+
+#So that I can work with the embedded fonts
+install.packages("extrafont")
+library(extrafont)
+font_import()
+loadfonts(device = "pdf")       #Register fonts for pdf output device
+fonts()                
+
+
+#absolute values of the variance components boxplots
+require(ggplot2)
+
+for (ii_result in 1:2) {
+  res <- data.frame( results[[ii_result]] )
+  p <- ggplot(data.frame(var_estimate = do.call(c, res),
+                          var_source = factor( rep( c(1:3), each = dim(res)[1]),
+                                               labels = c("individual", "culture", "technical")) ),
+               aes(x = var_source, y = log10(var_estimate)) )  +
+          geom_violin(alpha = .6) + geom_boxplot(width = .2, alpha = .2) +
+          xlab("Source of variation") + ylab(expression(log[10](Variance~Component))) +  
+          ggtitle(names(results[ii_result])) +
+          theme_bw() +
+          theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+          theme(text=element_text(family="Times New Roman", size=12)) 
+  ggsave(paste0(names(results[ii_result]), ".pdf"), p, width=11, height=8.5)
+}
+  
+
+#relative values for the variance components boxplots
+for (ii_result in 1:2) {
+  res <- data.frame( results[[ii_result]] )
+  varprop <- res/rowSums(res)
+  p <- ggplot(data.frame(var_proportion = do.call(c, varprop),
+                         var_source = factor( rep( c(1:3), each = dim(res)[1]),
+                                              labels = c("individual", "culture", "technical")) ),
+              aes(x = var_source, y = var_proportion) )  +
+    geom_violin(alpha = .6) + geom_boxplot(width = .05, alpha = .2) +
+    xlab("Source of variation") + ylab("Fraction of total variation") +  
+    ggtitle(names(results[ii_result])) +
+    theme_bw() +
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+    theme(text=element_text(family="Times New Roman", size=12)) 
+  ggsave(paste0(names(results[ii_result]), "standardized.pdf"), p, width=11, height=8.5)
+}
+
+
+
+
+#embed the fonts to that I don't have continuous issues with Illustrator on different devices! (must install and point device to ghostscript)
+
+
+
+embed_fonts("Confounded.pdf", outfile="Confounded_embed.pdf")
 
 
 # Plot the variance component distributions
