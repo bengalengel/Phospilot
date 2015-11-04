@@ -254,11 +254,12 @@ lapply(names(results), function(x){
 
 
 #So that I can work with the embedded fonts
-install.packages("extrafont")
+# install.packages("extrafont")
 library(extrafont)
-font_import()
+# font_import() only once
 loadfonts(device = "pdf")       #Register fonts for pdf output device
-fonts()                
+fonts()    #show available fonts
+
 
 
 #absolute values of the variance components boxplots
@@ -299,12 +300,15 @@ for (ii_result in 1:2) {
 
 
 
-
-#embed the fonts to that I don't have continuous issues with Illustrator on different devices! (must install and point device to ghostscript)
-
-
-
+#embed the fonts to that I don't have continuous issues with Illustrator on different devices! (must install and point device to ghostscript freeware)
+# For Windows - in each session
+# Adjust the path to match your installation of Ghostscript
+Sys.setenv(R_GSCMD = "C:/Program Files/gs/gs9.18/bin/gswin64c.exe")
 embed_fonts("Confounded.pdf", outfile="Confounded_embed.pdf")
+embed_fonts("ProteinCorrected.pdf", outfile = "ProteinCorrected_embed.pdf")
+embed_fonts("ProteinCorrectedstandardized.pdf", outfile="ProteinCorrectedstandardized_embed.pdf")
+embed_fonts("Confoundedstandardized.pdf", outfile = "Confoundedstandardized_embed.pdf")
+
 
 
 # Plot the variance component distributions
