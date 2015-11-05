@@ -226,7 +226,7 @@ mcmcVarcomp.confounded.batchfit <- NestedVar(ratios = confounded.batch.raw, noMi
 colnames(mcmcVarcomp.confounded.batchfit) <- c("individual","culture","residual")
 
 
-
+## incorporating protien data ----
 
 # PROTEIN as a covariate data. It is better to run with protein as a covariate that use normalized data.
 colnames(GelPrep) <- c("HL18862", "HL18486", "HL19160")
@@ -242,11 +242,26 @@ colnames(mcmcVarcomp.proteinCov) <- c("individual","culture","residual")
 
 # PROTEIN NORMALIZED data. Do we see the same switch in culture vs technical?
 colnames(ProtNormalized) <- colnames(confounded.batch.corrected)
-mcmcVarcomp.proteinNOrm <- NestedVar(ProtNormalized, includeProteinCovariate = FALSE, noMissing = TRUE)
-colnames(mcmcVarcomp.proteinNOrm) <- c("individual","culture","residual")
+mcmcVarcomp.proteinNorm <- NestedVar(ProtNormalized, includeProteinCovariate = FALSE, noMissing = TRUE)
+colnames(mcmcVarcomp.proteinNorm) <- c("individual","culture","residual")
 
 
-##------ Results ------#
+
+#PROTEIN AS A COVARIATE WITH NON BE CORRECTED PHOSPHO DATA
+colnames(GelPrep) <- c("HL18862", "HL18486", "HL19160")
+PhosProtGelBatch <- merge(medianSub.quantiled, GelPrep, by = "row.names", 
+                     suffixes = c("_peptide", "_GelPrep") ) #3257 observations
+rownames(PhosProtGelBatch) <- PhosProtGelBatch$Row.names
+PhosProtGelBatch <- PhosProtGelBatch[ , -1]
+PhosProtGelBatch <- as.matrix(PhosProtGelBatch)
+
+#Estimate variance componenets
+mcmcVarcomp.proteinCov.Batch <- NestedVar(PhosProtGelBatch, includeProteinCovariate = TRUE, NoBatchCorrect = TRUE)
+colnames(mcmcVarcomp.proteinCov.Batch) <- c("individual","culture","residual")
+
+
+
+##------ NRE fit Results ------
 
 #absolute and standardized variance component plots for protein covariate and for confounded. (protein as a covariate makes biorep the largest contributor as opposed to the protein normalized and confounded data)
 
@@ -256,7 +271,8 @@ colnames(mcmcVarcomp.proteinNOrm) <- c("individual","culture","residual")
 results <- list(Confounded = mcmcVarcomp.confounded,
                 Confounded.Batchfit = mcmcVarcomp.confounded.batchfit,
                 ProteinCorrected = mcmcVarcomp.proteinCov,
-                ProteinNormalized = mcmcVarcomp.proteinNOrm)
+                ProteinNormalized = mcmcVarcomp.proteinNorm,
+                ProteinCovariateBatch = mcmcVarcomp.proteinCov.Batch)
 
 
 #summaries. Note that these are complete cases
@@ -274,7 +290,7 @@ lapply(names(results), function(x){
 #So that I can work with the embedded fonts
 # install.packages("extrafont")
 library(extrafont)
-# font_import() only once
+font_import() #only once
 loadfonts(device = "pdf")       #Register fonts for pdf output device
 fonts()    #show available fonts
 
@@ -283,7 +299,7 @@ fonts()    #show available fonts
 #absolute values of the variance components boxplots
 require(ggplot2)
 
-for (ii_result in 1:3) {
+for (ii_result in 1:5) {
   res <- data.frame( results[[ii_result]] )
   p <- ggplot(data.frame(var_estimate = do.call(c, res),
                           var_source = factor( rep( c(1:3), each = dim(res)[1]),
@@ -300,7 +316,7 @@ for (ii_result in 1:3) {
   
 
 #relative values for the variance components boxplots
-for (ii_result in 1:3) {
+for (ii_result in 1:5) {
   res <- data.frame( results[[ii_result]] )
   varprop <- res/rowSums(res)
   p <- ggplot(data.frame(var_proportion = do.call(c, varprop),

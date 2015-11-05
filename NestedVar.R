@@ -86,18 +86,17 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
     techrep <- as.factor(techrep)
     melted$techrep <- techrep
     
-    # Append meta data matrix
-    #     melted <- cbind(melted, metaData)
     
-    ## Create a unique identifier for biological replicates
+    ## Create a unique identifier for biological replicates. This is debateable.
     melted$biorep_unique <- as.factor(paste(melted$individual, melted$biorep,sep="_"))
+
+    
     
     
     ##------ MCMCglmm for variance estimation ------#
     mcmcVarcomp <- lapply( levels(melted$Var1), function(id) {
       
       test <- melted[melted$Var1 %in% id,]
-      #      test1 <- test[ ,3:7]
       
       if (includeProteinCovariate == FALSE & NoBatchCorrect == FALSE) { 
         stopifnot()  
@@ -118,14 +117,58 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
       } 
       
       
-      if (includeProteinCovariate == TRUE) {
+      if (includeProteinCovariate == TRUE & NoBatchCorrect == FALSE) {
+        
+        #identify and add protein values to data matrix
         protein_values <- test[ grep("_", test$Var2, invert = TRUE), ]
-        test$protein <- test$value[ match(test$individual, protein_values$individual) ]
+        test$protein <- protein_values$value[ match(test$individual, protein_values$individual) ]
+        
+        #remove extra rows
+        test <- test[1:12,]
         
         # Add uncertains to the protein vector 
         test$protein <- as.numeric( test$protein + runif(NROW(test), 0, 1e-10) )
         
+        # fix the factor levels
+        test[] <- lapply(test, function(x) {
+          if(is.factor(x)){
+            as.factor(as.character(x))
+            } else x
+          }
+        )
+        
+        #fit the model
         fit_try <- tryCatch( MCMCglmm(value ~ protein, 
+                                      random = ~ individual + individual:biorep_unique,
+                                      data = test, verbose = FALSE),
+                             condition = function(c) c)
+      }
+      
+      if (includeProteinCovariate == TRUE & NoBatchCorrect == TRUE) {
+        
+        #identify and add protein values to data matrix
+        protein_values <- test[ grep("_", test$Var2, invert = TRUE), ]
+        test$protein <- protein_values$value[ match(test$individual, protein_values$individual) ]
+        
+        #remove extra rows
+        test <- test[1:12,]
+      
+        # Add uncertains to the protein vector 
+        test$protein <- as.numeric( test$protein + runif(NROW(test), 0, 1e-10) )
+        
+        # fix the factor levels
+        test[] <- lapply(test, function(x) {
+          if(is.factor(x)){
+            as.factor(as.character(x))
+          } else x
+        }
+        )
+        
+        #add batch factor test dataframe
+        test$batch <- test$biorep
+        
+        #fit the model
+        fit_try <- tryCatch( MCMCglmm(value ~ protein + batch, 
                                       random = ~ individual + individual:biorep_unique,
                                       data = test, verbose = FALSE),
                              condition = function(c) c)
@@ -135,6 +178,7 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
         var_foo <- rep(NA, 3) 
         return(var_foo)
       }
+      
       if(!inherits(fit_try, "condition")){
         mcmc_varest <- c(summary(fit_try)$Gcovariances[,1], 
                          summary(fit_try)$Rcovariances[,1])
