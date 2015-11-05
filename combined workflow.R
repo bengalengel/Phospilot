@@ -108,7 +108,7 @@ CorrectedData <- BatchNorm(multExpanded1=multExpanded1)#class 1 sites
 com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
 phosdata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
 pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
-
+medianSub.quantiled <- CorrectedData[[3]]
 
 # protein level assignment and normalization and  using phosprep and gelprep data --------
 ##read in the proteome fasta file that was used for search. Here Ensembl cCDS. This will be used for protein assignment.
@@ -210,9 +210,22 @@ if(!file.exists("./multExpanded1_withDE.rds")){
 # remove exp obs if not observed at least two times in each sample
 confounded.batch.corrected <- com2[rowSums(is.na(com2[ , 1:4])) <= 2 & rowSums(is.na(com2[ , 5:8])) <= 2 & rowSums(is.na(com2[ , 9:12])) <= 2,]
 
+
 # The peptide model variance components are returned. 
 mcmcVarcomp.confounded <- NestedVar(ratios = confounded.batch.corrected, noMissing = TRUE)
 colnames(mcmcVarcomp.confounded) <- c("individual","culture","residual")
+
+
+#confounded without batch effect correction
+# remove exp obs if not observed at least two times in each sample
+confounded.batch.raw <- medianSub.quantiled
+
+
+# The peptide model variance components are returned. 
+mcmcVarcomp.confounded.batchfit <- NestedVar(ratios = confounded.batch.raw, noMissing = TRUE, NoBatchCorrect = TRUE)
+colnames(mcmcVarcomp.confounded.batchfit) <- c("individual","culture","residual")
+
+
 
 
 # PROTEIN as a covariate data. It is better to run with protein as a covariate that use normalized data.
@@ -227,7 +240,10 @@ PhosProtGel <- as.matrix(PhosProtGel)
 mcmcVarcomp.proteinCov <- NestedVar(PhosProtGel, includeProteinCovariate = TRUE)
 colnames(mcmcVarcomp.proteinCov) <- c("individual","culture","residual")
 
-
+# PROTEIN NORMALIZED data. Do we see the same switch in culture vs technical?
+colnames(ProtNormalized) <- colnames(confounded.batch.corrected)
+mcmcVarcomp.proteinNOrm <- NestedVar(ProtNormalized, includeProteinCovariate = FALSE, noMissing = TRUE)
+colnames(mcmcVarcomp.proteinNOrm) <- c("individual","culture","residual")
 
 
 ##------ Results ------#
@@ -238,7 +254,9 @@ colnames(mcmcVarcomp.proteinCov) <- c("individual","culture","residual")
 #combine confounded and protein as a covariate results in to a list of data frames for common processing.
 
 results <- list(Confounded = mcmcVarcomp.confounded,
-                ProteinCorrected = mcmcVarcomp.proteinCov)
+                Confounded.Batchfit = mcmcVarcomp.confounded.batchfit,
+                ProteinCorrected = mcmcVarcomp.proteinCov,
+                ProteinNormalized = mcmcVarcomp.proteinNOrm)
 
 
 #summaries. Note that these are complete cases
@@ -265,7 +283,7 @@ fonts()    #show available fonts
 #absolute values of the variance components boxplots
 require(ggplot2)
 
-for (ii_result in 1:2) {
+for (ii_result in 1:3) {
   res <- data.frame( results[[ii_result]] )
   p <- ggplot(data.frame(var_estimate = do.call(c, res),
                           var_source = factor( rep( c(1:3), each = dim(res)[1]),
@@ -282,7 +300,7 @@ for (ii_result in 1:2) {
   
 
 #relative values for the variance components boxplots
-for (ii_result in 1:2) {
+for (ii_result in 1:3) {
   res <- data.frame( results[[ii_result]] )
   varprop <- res/rowSums(res)
   p <- ggplot(data.frame(var_proportion = do.call(c, varprop),

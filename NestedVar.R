@@ -17,7 +17,7 @@
 #' load(file.path(dir,"melted.RData"))
 #' ratios <- melted
 
-NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE) {
+NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE, NoBatchCorrect = FALSE) {
     
     ## Set up
     require(plyr)
@@ -99,13 +99,24 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE)
       test <- melted[melted$Var1 %in% id,]
       #      test1 <- test[ ,3:7]
       
-      if (includeProteinCovariate == FALSE) { 
+      if (includeProteinCovariate == FALSE & NoBatchCorrect == FALSE) { 
         stopifnot()  
         fit_try <- tryCatch( MCMCglmm(value ~ 1, 
                                       random = ~ individual + individual:biorep_unique,
                                       data = test, verbose = FALSE),
                              condition = function(c) c)
+      }
+      
+      if (includeProteinCovariate == FALSE & NoBatchCorrect == TRUE) { 
+        stopifnot()
+        #add batch factor test dataframe
+        test$batch <- test$biorep
+        fit_try <- tryCatch( MCMCglmm(value ~ batch, 
+                                      random = ~ individual + individual:biorep_unique,
+                                      data = test, verbose = FALSE),
+                             condition = function(c) c)
       } 
+      
       
       if (includeProteinCovariate == TRUE) {
         protein_values <- test[ grep("_", test$Var2, invert = TRUE), ]
