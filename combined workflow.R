@@ -222,7 +222,7 @@ confounded.batch.raw <- medianSub.quantiled
 
 
 # The peptide model variance components are returned. 
-mcmcVarcomp.confounded.batchfit <- NestedVar(ratios = confounded.batch.raw, noMissing = TRUE, NoBatchCorrect = TRUE)
+mcmcVarcomp.confounded.batchfit <- NestedVar(ratios = confounded.batch.raw, noMissing = TRUE, BatchCorrected = FALSE)
 colnames(mcmcVarcomp.confounded.batchfit) <- c("individual","culture","residual")
 
 
@@ -247,17 +247,30 @@ colnames(mcmcVarcomp.proteinNorm) <- c("individual","culture","residual")
 
 
 
-#PROTEIN AS A COVARIATE WITH NON BE CORRECTED PHOSPHO DATA
+#GELPROT PROTEIN AS A COVARIATE WITH NON BE CORRECTED PHOSPHO DATA
 colnames(GelPrep) <- c("HL18862", "HL18486", "HL19160")
 PhosProtGelBatch <- merge(medianSub.quantiled, GelPrep, by = "row.names", 
-                     suffixes = c("_peptide", "_GelPrep") ) #3257 observations
+                     suffixes = c("_peptide", "_GelPrep") ) #3257 observations after omitting missing values. suffix only used if names are different
 rownames(PhosProtGelBatch) <- PhosProtGelBatch$Row.names
 PhosProtGelBatch <- PhosProtGelBatch[ , -1]
 PhosProtGelBatch <- as.matrix(PhosProtGelBatch)
 
 #Estimate variance componenets
-mcmcVarcomp.proteinCov.Batch <- NestedVar(PhosProtGelBatch, includeProteinCovariate = TRUE, NoBatchCorrect = TRUE)
+mcmcVarcomp.proteinCov.Batch <- NestedVar(PhosProtGelBatch, includeProteinCovariate = TRUE, BatchCorrected = FALSE)
 colnames(mcmcVarcomp.proteinCov.Batch) <- c("individual","culture","residual")
+
+
+#PhosPrep PROTEIN AS A COVARIATE WITH NON BE CORRECTED PHOSPHO DATA
+PhosProtPhosBatch <- merge(medianSub.quantiled, PhosPrepCombatBio, by = "row.names", 
+                  suffixes = c("_peptide", "_PhosPrep") ) #1308 observations
+rownames(PhosProtPhosBatch) <- PhosProtPhosBatch$Row.names
+PhosProtPhosBatch <- PhosProtPhosBatch[ , -1]
+PhosProtPhosBatch <- as.matrix(PhosProtPhosBatch)
+
+
+#Estimate variance componenets include protein estimates and batch as a covariate
+mcmcVarcomp.PhosProteinCov.Batch <- NestedVar(PhosProtPhosBatch, includeProteinCovariate = TRUE, BatchCorrected = FALSE, PhosPrep = TRUE)
+colnames(mcmcVarcomp.PhosProteinCov.Batch) <- c("individual","culture","residual")
 
 
 
@@ -268,11 +281,13 @@ colnames(mcmcVarcomp.proteinCov.Batch) <- c("individual","culture","residual")
 
 #combine confounded and protein as a covariate results in to a list of data frames for common processing.
 
-results <- list(Confounded = mcmcVarcomp.confounded,
-                Confounded.Batchfit = mcmcVarcomp.confounded.batchfit,
-                ProteinCorrected = mcmcVarcomp.proteinCov,
-                ProteinNormalized = mcmcVarcomp.proteinNorm,
-                ProteinCovariateBatch = mcmcVarcomp.proteinCov.Batch)
+results <- list(Confounded = mcmcVarcomp.confounded, #confounded after combat batch effect correction
+                Confounded.Batchfit = mcmcVarcomp.confounded.batchfit, #med/quantile norm confounded with batch as a covariate
+                ProteinCorrected = mcmcVarcomp.proteinCov, # pQTL regressed gelprot protein dataframe subtracted from combat corrected phospho
+                ProteinNormalized = mcmcVarcomp.proteinNorm, # pQTL regressed gelprot protein dataframe as a covariate with combat corrected phospho
+                ProteinCovariateBatch = mcmcVarcomp.proteinCov.Batch, # pQTL regressed gelprot protein dataframe and batch as covariates with median/quantile normalized phospho
+                ProteinCovariateBatchPhos = mcmcVarcomp.PhosProteinCov.Batch #you get the idea
+)
 
 
 #summaries. Note that these are complete cases
@@ -290,8 +305,8 @@ lapply(names(results), function(x){
 #So that I can work with the embedded fonts
 # install.packages("extrafont")
 library(extrafont)
-font_import() #only once
-loadfonts(device = "pdf")       #Register fonts for pdf output device
+# font_import() #only once
+# loadfonts(device = "pdf")       #Register fonts for pdf output device. only once
 fonts()    #show available fonts
 
 
@@ -299,7 +314,7 @@ fonts()    #show available fonts
 #absolute values of the variance components boxplots
 require(ggplot2)
 
-for (ii_result in 1:5) {
+for (ii_result in 1:6) {
   res <- data.frame( results[[ii_result]] )
   p <- ggplot(data.frame(var_estimate = do.call(c, res),
                           var_source = factor( rep( c(1:3), each = dim(res)[1]),
@@ -316,7 +331,7 @@ for (ii_result in 1:5) {
   
 
 #relative values for the variance components boxplots
-for (ii_result in 1:5) {
+for (ii_result in 1:6) {
   res <- data.frame( results[[ii_result]] )
   varprop <- res/rowSums(res)
   p <- ggplot(data.frame(var_proportion = do.call(c, varprop),

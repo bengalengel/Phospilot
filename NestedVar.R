@@ -17,7 +17,7 @@
 #' load(file.path(dir,"melted.RData"))
 #' ratios <- melted
 
-NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE, NoBatchCorrect = FALSE) {
+NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE, BatchCorrected = TRUE, PhosPrep = FALSE) {
     
     ## Set up
     require(plyr)
@@ -35,25 +35,29 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
     }
     
     # Compute a variable indicating which columns
-    # are not phospho samples (i.e, protein)
-    variable_not_phospho <- grep("_", colnames(ratios), invert = TRUE)
-    
-    ## If not including protein as a covariate,
-    ## check if protein values are also in the data.frame
-    if(!includeProteinCovariate) {
-      if(length( variable_not_phospho ) > 0) {
-        ratios <- ratios[ , -variable_not_phospho]
-      } 
-    }
-    
-    ## If including protein as a covariate,
-    ## make sure protein values are in the data.frame
-    if(includeProteinCovariate) {
-      if( length( variable_not_phospho ) != 3 ) {
-        stop("Missing covariate vectors", call. = TRUE)
-      } 
-    }
-    
+#     # are not phospho samples (i.e, protein)
+#     if(!PhosPrep){
+#       variable_not_phospho <- grep("_", colnames(ratios), invert = TRUE)
+#     } else {
+#       variable_not_phospho <- grep("_", colnames(ratios), invert = TRUE)
+#       
+#     
+#     ## If not including protein as a covariate,
+#     ## check if protein values are also in the data.frame
+#     if(!includeProteinCovariate) {
+#       if(length( variable_not_phospho ) > 0) {
+#         ratios <- ratios[ , -variable_not_phospho]
+#       } 
+#     }
+#     
+#     ## If including protein as a covariate,
+#     ## make sure protein values are in the data.frame
+#     if(includeProteinCovariate) {
+#       if( length( variable_not_phospho ) != 3 ) {
+#         stop("Missing covariate vectors", call. = TRUE)
+#       } 
+#     }
+#     
     # Transform the data from one peptide per row
     # to one sample per row
     melted <- melt(ratios, measure.vars = names(ratios))
@@ -79,6 +83,19 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
     biorep <- as.factor(biorep)
     melted$biorep <- biorep
     
+    if(PhosPrep){
+    #identify the biological and technical replicate for phosprep
+    biotech <- rm_between(melted$Var2, "_", "_", extract=TRUE)
+    biorep <- sapply(biotech, "[[", 1)
+    biorep <- as.character(biorep)
+    biorep <- as.factor(biorep)
+    melted$biorep <- biorep
+    techrep <- sapply(biotech, "[[", 2)
+    techrep <- as.character(techrep)
+    techrep <- as.factor(techrep)
+    melted$techrep <- techrep
+    }
+    
     #identify the technical replicate
     matches <- gregexpr("[0-9]$", melted$Var2, perl=T)
     techrep <- regmatches(melted$Var2,matches)
@@ -92,13 +109,12 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
 
     
     
-    
     ##------ MCMCglmm for variance estimation ------#
     mcmcVarcomp <- lapply( levels(melted$Var1), function(id) {
       
       test <- melted[melted$Var1 %in% id,]
       
-      if (includeProteinCovariate == FALSE & NoBatchCorrect == FALSE) { 
+      if (includeProteinCovariate == FALSE & BatchCorrected == TRUE) { 
         stopifnot()  
         fit_try <- tryCatch( MCMCglmm(value ~ 1, 
                                       random = ~ individual + individual:biorep_unique,
@@ -106,7 +122,7 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
                              condition = function(c) c)
       }
       
-      if (includeProteinCovariate == FALSE & NoBatchCorrect == TRUE) { 
+      if (includeProteinCovariate == FALSE & BatchCorrected == FALSE) { 
         stopifnot()
         #add batch factor test dataframe
         test$batch <- test$biorep
@@ -117,7 +133,7 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
       } 
       
       
-      if (includeProteinCovariate == TRUE & NoBatchCorrect == FALSE) {
+      if (includeProteinCovariate == TRUE & BatchCorrected == TRUE & PhosPrep == FALSE) {
         
         #identify and add protein values to data matrix
         protein_values <- test[ grep("_", test$Var2, invert = TRUE), ]
@@ -144,7 +160,7 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
                              condition = function(c) c)
       }
       
-      if (includeProteinCovariate == TRUE & NoBatchCorrect == TRUE) {
+      if (includeProteinCovariate == TRUE & BatchCorrected == FALSE & PhosPrep == FALSE) {
         
         #identify and add protein values to data matrix
         protein_values <- test[ grep("_", test$Var2, invert = TRUE), ]
@@ -174,6 +190,27 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
                              condition = function(c) c)
       }
       
+      
+      if (includeProteinCovariate == TRUE & BatchCorrected == FALSE & PhosPrep == TRUE) {
+        
+        #identify and add protein values to data matrix
+        protein_values <- test[ grep("PhosPrep", test$Var2), ]
+        
+        #remove extra rows
+        test <- test[1:12,]
+        
+        test$protein <- protein_values$value
+
+        #add batch factor test dataframe
+        test$batch <- test$biorep
+        
+        #fit the model
+        fit_try <- tryCatch( MCMCglmm(value ~ protein + batch, 
+                                      random = ~ individual + individual:biorep_unique,
+                                      data = test, verbose = FALSE),
+                             condition = function(c) c)
+      }
+      
       if(inherits(fit_try, "condition")){
         var_foo <- rep(NA, 3) 
         return(var_foo)
@@ -193,7 +230,6 @@ NestedVar <- function(ratios, noMissing = TRUE, includeProteinCovariate = FALSE,
 }
 
 
-  
-  
-  
-  
+
+
+
