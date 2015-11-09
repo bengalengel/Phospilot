@@ -1,9 +1,10 @@
 #' Differential phosphorylation analysis
 #'
 #' Per gene differential phosporylation analysis controlling for protein levels 
-#' quantified using PhosPre. Each model is a mixed effect model with a fixed effect
-#' of individual cell lines and a random effect of cell culture; each individual's
-#' corresponding protein level for the peptide is used as a covariate.
+#' quantified using PhosPrep. Each model is a mixed effect model with a fixed effect
+#' for individual cell lines and a random effect for cell cultures; protein levels
+#' quantified by PhosPrep or GelPrep for each peptide is used as a covariate in
+#' the analysis.
 #' 
 #' @param phosdata Phosphorylated peptides quantifications. Each row uniquely identifies
 #'	           a peptide with an individual, cell culture, and technical replicate.
@@ -16,16 +17,19 @@
 #'  
 #' @param multExpanded1 
 #' @export
-#' 
 #' @examples
 #' setwd("~/Dropbox/GitHub/Phospilot/diffphos-data")
 #' GelPrep <- readRDS("GelPrep.rds")
 #' phosdata <- readRDS("phosdata.rds")
 #' PhosPrep <- readRDS("PhosPrep.rds")
 #' MultExpanded1 <- readRDS("MultExpanded1.rds")
-#'
 #' DiffPhos()
-
+#'
+#' # GelPrep and batch as covariate
+#' # Use median substracted and quantile normalized phosdata
+#' GelPrep <- readRDS("GelPrep.rds")
+#' phosdata <- readRDS("medianSub.quantiled.rds")
+#' 
 DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   # This function accepts phospho and protein matrices runs diffphos 
   # analysis using limma. Columns are appended
@@ -38,7 +42,6 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   require(qdapRegex)
   require(plyr)
   require(reshape2)
-  
   
     
   ### LINEAR MIXED MODEL USING CULTURE AS RANDOM EFFECT ####################  
@@ -110,7 +113,8 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
                                                                         metaData_phos$biorep == per_biorep 
                                                         vals <- phosMat[iiReplace]
                                                         if( sum(is.na(vals) > 0) ) {
-                                                            vals[ is.na(vals)] <- vals[ !is.na(vals) ]
+                                                            vals[ is.na(vals)] <- vals[ !is.na(vals) ] + 
+                                                                runif(sum(is.na(vals)), 0, 10^-6)
                                                             vals
                                                         } else {
                                                             vals    
@@ -124,6 +128,7 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
     })
   PhosProt_phos_imput <- do.call(rbind, PhosProt_phos_imput)
   
+
   ### FIT A LINEAR MODEL FOR ONE PEPTIDE AT A TIME
   ### Use the consensus correlation computed earlier in
   ### the linear mixed model without protein level as
@@ -137,14 +142,13 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   #' for each gene (row) of the input data matrix.
   #'
   #' 
-  #' @param design
-  #' @param block
-  #' @param yy
+  #' @param design Design matrix.
+  #' @param block Phentype for the blocking factor (vector).
+  #' @param yy Gene (feature) by sample matrix.
   #'
   #' @keywords Humanzee
   #' 
   #' @export
-  #' 
   #' @examples
   #' mixedModel2Fit_multiple_design()
   #' data_matrix <- pheno_data
@@ -154,42 +158,49 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   #' yy <- pheno_data$phos
   
   mixedModel2Fit_multiple_design <- 
-    function(design, block, yy) {
-      o <- is.finite(yy)
-      A <- factor(block[o])
-      nobs <- sum(o)
-      nblocks <- length(levels(A))
-      nbeta <- NCOL(design)
-      nafun <- function(e) NA
-      
-      #        if (nobs > (nbeta + 2) && nblocks > 1 && nblocks < nobs - 1) {
-      yy <- yy[o]
-      X <- design[o, , drop = FALSE]
-      Z <- model.matrix(~0 + A)
-      s <- tryCatch(statmod::mixedModel2Fit(yy, X, 
-                                            Z, only.varcomp = TRUE, maxit = 20)$varcomp, 
-                    error = nafun)
-      if (!is.na(s[1])) 
-        rho <- s[2]/sum(s)
-      return(rho)
-      #        }
-    }
+      function(design, block, yy) {
+          o <- is.finite(yy)
+          A <- factor(block[o])
+          nobs <- sum(o)
+          nblocks <- length(levels(A))
+          nbeta <- NCOL(design)
+          nafun <- function(e) NA
+          
+          #        if (nobs > (nbeta + 2) && nblocks > 1 && nblocks < nobs - 1) {
+          yy <- yy[o]
+          X <- design[o, , drop = FALSE]
+          Z <- tryCatch(model.matrix(~0 + A), error = nafun)
+          if (sum(is.na(Z)) >= 1)  {
+              rho <- NA
+          } else {
+              s <- tryCatch(statmod::mixedModel2Fit(yy, X, 
+                                                    Z, only.varcomp = TRUE, maxit = 20)$varcomp, 
+                            error = nafun)
+              if (!is.na(s[1])) 
+                  rho <- s[2]/sum(s)
+          }
+          return(rho)
+          #        }
+      }
   
   
-  #' limma gls.series for varying covariates across genes
+  
+  
+  #' limma gls.series adapted for varying covariates across genes
   #' 
   #' This function tests for divergence between two species
   #' in one molecular phenotype at a time. 
   #' 
-  #' @param M
-  #'
+  #' @param M Matrix of gene by sample.
+  #' @param cov_matrix Matrix of gene specific covariate information (gene by sample).
+  #' @param design Model matrix, the part that is fixed across genes, indepenent of cov_matrix.
+  #' 
   #' @keywords Humanzee
   #' 
   #' @export
-  #'
   #' @examples 
-  #' M = phos_data
-  #' cov_matrix = protein_pheno_data
+  #' M <- phos_data
+  #' cov_matrix <- protein_pheno_data
   #' individual <- as.numeric(str_extract(colnames(phos_data), "[0-9]+"))
   #' design <- model.matrix(~ 1 + as.factor(individual))
   #' block <- block
@@ -200,161 +211,120 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
                                            cov_matrix = NULL, design = NULL, ndups = 1, 
                                            spacing = 1, block = NULL, 
                                            correlation = NULL, weights = NULL, ...) {
-    
-    M <- as.matrix(M)
-    
-    # narrays: number of samples
-    narrays <- ncol(M)
-    
-    if (is.null(design)) 
-      design <- matrix(1, narrays, 1)
-    design <- as.matrix(design)
-    if (nrow(design) != narrays) 
-      stop("Number of rows of design matrix does not match number of arrays")
-    if (is.null(correlation)) 
-      correlation <- duplicateCorrelation(M, design = design, 
-                                          ndups = ndups, spacing = spacing, block = block, 
-                                          weights = weights, ...)$consensus.correlation
-    if (!is.null(weights)) {
-      weights[is.na(weights)] <- 0
-      weights <- asMatrixWeights(weights, dim(M))
-      M[weights < 1e-15] <- NA
-      weights[weights < 1e-15] <- NA
-    }
-    
-    if (!is.null(cov_matrix)) {
-      nbeta <- ncol(design) + 1        
-      coef.names <- c(colnames(design), "cov")
-    } else {
-      nbeta <- ncol(design)
-      coef.names <- colnames(design)
-    }
-    
-    if (is.null(block)) {
-      if (ndups < 2) {
-        warning("No duplicates: correlation between duplicates set to zero")
-        ndups <- 1
-        correlation <- 0
+      
+      M <- as.matrix(M)
+      
+      # narrays: number of samples
+      narrays <- ncol(M)
+      
+      if (is.null(design)) 
+          design <- matrix(1, narrays, 1)
+      design <- as.matrix(design)
+      if (nrow(design) != narrays) 
+          stop("Number of rows of design matrix does not match number of arrays")
+      #    if (is.null(correlation)) 
+      #        correlation <- duplicateCorrelation(M, design = design, 
+      #                                            ndups = ndups, spacing = spacing, block = block, 
+      #                                            weights = weights, ...)$consensus.correlation
+      if (!is.null(weights)) {
+          weights[is.na(weights)] <- 0
+          weights <- asMatrixWeights(weights, dim(M))
+          M[weights < 1e-15] <- NA
+          weights[weights < 1e-15] <- NA
       }
-      if (is.null(spacing)) 
-        spacing <- 1
-      cormatrix <- diag(rep(correlation, len = narrays), nrow = narrays, 
-                        ncol = narrays) %x% array(1, c(ndups, ndups))
-      M <- unwrapdups(M, ndups = ndups, spacing = spacing)
-      if (!is.null(weights)) 
-        weights <- unwrapdups(weights, ndups = ndups, spacing = spacing)
-      design <- design %x% rep(1, ndups)
-      colnames(design) <- coef.names 
-    } else {
-      if (ndups > 1) {
-        stop("Cannot specify ndups>2 and non-null block argument")
+      
+      if (!is.null(cov_matrix)) {
+          nbeta <- ncol(design) + 1        
+          coef.names <- c(colnames(design), "cov")
+      } else {
+          nbeta <- ncol(design)
+          coef.names <- colnames(design)
       }
-      else {
-        ndups <- spacing <- 1
+      
+      if (is.null(block)) {
+          if (ndups < 2) {
+              warning("No duplicates: correlation between duplicates set to zero")
+              ndups <- 1
+              correlation <- 0
+          }
+          if (is.null(spacing)) 
+              spacing <- 1
+          cormatrix <- diag(rep(correlation, len = narrays), nrow = narrays, 
+                            ncol = narrays) %x% array(1, c(ndups, ndups))
+          M <- unwrapdups(M, ndups = ndups, spacing = spacing)
+          if (!is.null(weights)) 
+              weights <- unwrapdups(weights, ndups = ndups, spacing = spacing)
+          #         design <- design %x% rep(1, ndups)
+          #         colnames(design) <- coef.names 
+      } else {
+          if (ndups > 1) {
+              stop("Cannot specify ndups>2 and non-null block argument")
+          }
+          else {
+              ndups <- spacing <- 1
+          }
+          block <- as.vector(block)
+          if (length(block) != narrays) 
+              stop("Length of block does not match number of arrays")
+          ub <- unique(block)
+          nblocks <- length(ub)
+          Z <- matrix(block, narrays, nblocks) == matrix(ub, narrays, 
+                                                         nblocks, byrow = TRUE)
+          cormatrix <- Z %*% (correlation * t(Z))
       }
-      block <- as.vector(block)
-      if (length(block) != narrays) 
-        stop("Length of block does not match number of arrays")
-      ub <- unique(block)
-      nblocks <- length(ub)
-      Z <- matrix(block, narrays, nblocks) == matrix(ub, narrays, 
-                                                     nblocks, byrow = TRUE)
-      cormatrix <- Z %*% (correlation * t(Z))
-    }
-    diag(cormatrix) <- 1
-    ngenes <- nrow(M)
-    stdev.unscaled <- matrix(NA, ngenes, nbeta, 
-                             dimnames = list(rownames(M), 
-                                             coef.names))
-    # NoProbeWts <- all(is.finite(M)) && (is.null(weights) || !is.null(attr(weights, 
-    #                                                                      "arrayweights")))
-    #     if (NoProbeWts) {
-    #         V <- cormatrix
-    #         if (!is.null(weights)) {
-    #             wrs <- 1/sqrt(weights[1, ])
-    #             V <- wrs * t(wrs * t(V))
-    #         }
-    #         cholV <- chol(V)
-    #         y <- backsolve(cholV, t(M), transpose = TRUE)
-    #         dimnames(y) <- rev(dimnames(M))
-    #         X <- backsolve(cholV, design, transpose = TRUE)
-    #         dimnames(X) <- dimnames(design)
-    #         fit <- lm.fit(X, y)
-    #         if (fit$df.residual > 0) {
-    #             if (is.matrix(fit$effects)) 
-    #                 fit$sigma <- sqrt(colMeans(fit$effects[-(1:fit$rank), 
-    #                                                        , drop = FALSE]^2))
-    #             else fit$sigma <- sqrt(mean(fit$effects[-(1:fit$rank)]^2))
-    #         }
-    #         else fit$sigma <- rep(NA, ngenes)
-    #         fit$fitted.values <- fit$residuals <- fit$effects <- NULL
-    #         fit$coefficients <- t(fit$coefficients)
-    #         fit$cov.coefficients <- chol2inv(fit$qr$qr, size = fit$qr$rank)
-    #         est <- fit$qr$pivot[1:fit$qr$rank]
-    #         dimnames(fit$cov.coefficients) <- list(coef.names[est], 
-    #                                                coef.names[est])
-    #         stdev.unscaled[, est] <- matrix(sqrt(diag(fit$cov.coefficients)), 
-    #                                         ngenes, fit$qr$rank, byrow = TRUE)
-    #         fit$stdev.unscaled <- stdev.unscaled
-    #         fit$df.residual <- rep.int(fit$df.residual, ngenes)
-    #         dimnames(fit$stdev.unscaled) <- dimnames(fit$stdev.unscaled) <- dimnames(fit$coefficients)
-    #         fit$pivot <- fit$qr$pivot
-    #         fit$ndups <- ndups
-    #         fit$spacing <- spacing
-    #         fit$block <- block
-    #         fit$correlation <- correlation
-    #         return(fit)
-    #     }
-    
-    beta <- stdev.unscaled
-    sigma <- rep(NA, ngenes)
-    df.residual <- rep(0, ngenes)
-    for (i in 1:ngenes) {
-      design_gene <- cbind(design, unlist(cov_matrix[i,]))
-      y <- drop(M[i, ])
-      o <- is.finite(y)
-      y <- y[o]
-      n <- length(y)
-      if (n > 0) {
-        X <- design_gene[o, , drop = FALSE]
-        V <- cormatrix[o, o]
-        if (!is.null(weights)) {
-          wrs <- 1/sqrt(drop(weights[i, o]))
-          V <- wrs * t(wrs * t(V))
-        }
-        cholV <- chol(V)
-        y <- backsolve(cholV, y, transpose = TRUE)
-        if (all(X == 0)) {
-          df.residual[i] <- n
-          sigma[i] <- sqrt(array(1/n, c(1, n)) %*% y^2)
-        }
-        else {
-          X <- backsolve(cholV, X, transpose = TRUE)
-          out <- lm.fit(X, y)
-          est <- !is.na(out$coefficients)
-          beta[i, ] <- out$coefficients
-          stdev.unscaled[i, est] <- sqrt(diag(chol2inv(out$qr$qr, 
-                                                       size = out$rank)))
-          df.residual[i] <- out$df.residual
-          if (df.residual[i] > 0) 
-            sigma[i] <- sqrt(array(1/out$df.residual, c(1, 
-                                                        n)) %*% out$residuals^2)
-        }
+      diag(cormatrix) <- 1
+      ngenes <- nrow(M)
+      stdev.unscaled <- matrix(NA, ngenes, nbeta, 
+                               dimnames = list(rownames(M), 
+                                               coef.names))
+      
+      beta <- stdev.unscaled
+      sigma <- rep(NA, ngenes)
+      df.residual <- rep(0, ngenes)
+      for (i in 1:ngenes) {
+          design_gene <- cbind(design, unlist(cov_matrix[i,]))
+          y <- drop(M[i, ])
+          o <- is.finite(y)
+          y <- y[o]
+          n <- length(y)
+          if (n > 0) {
+              X <- design_gene[o, , drop = FALSE]
+              V <- cormatrix[o, o]
+              if (!is.null(weights)) {
+                  wrs <- 1/sqrt(drop(weights[i, o]))
+                  V <- wrs * t(wrs * t(V))
+              }
+              cholV <- chol(V)
+              y <- backsolve(cholV, y, transpose = TRUE)
+              if (all(X == 0)) {
+                  df.residual[i] <- n
+                  sigma[i] <- sqrt(array(1/n, c(1, n)) %*% y^2)
+              } else {
+                  X <- backsolve(cholV, X, transpose = TRUE)
+                  out <- lm.fit(X, y)
+                  est <- !is.na(out$coefficients)
+                  beta[i, ] <- out$coefficients
+                  stdev.unscaled[i, est] <- sqrt(diag(chol2inv(out$qr$qr, 
+                                                               size = out$rank)))
+                  df.residual[i] <- out$df.residual
+                  if (df.residual[i] > 0) 
+                      sigma[i] <- sqrt(array(1/out$df.residual, c(1, 
+                                                                  n)) %*% out$residuals^2)
+              }
+          }
       }
-    }
-    cholV <- chol(cormatrix)
-    QR <- qr(backsolve(cholV, design_gene, transpose = TRUE))
-    cov.coef <- chol2inv(QR$qr, size = QR$rank)
-    est <- QR$pivot[1:QR$rank]
-    dimnames(cov.coef) <- list(coef.names[est], coef.names[est])
-    
-    list(coefficients = beta, stdev.unscaled = stdev.unscaled, 
-         sigma = sigma, df.residual = df.residual, ndups = ndups, 
-         spacing = spacing, block = block, correlation = correlation, 
-         cov.coefficients = cov.coef, pivot = QR$pivot, rank = QR$rank,
-         design = design)
+      cholV <- chol(cormatrix)
+      QR <- qr(backsolve(cholV, design_gene, transpose = TRUE))
+      cov.coef <- chol2inv(QR$qr, size = QR$rank)
+      est <- QR$pivot[1:QR$rank]
+      dimnames(cov.coef) <- list(coef.names[est], coef.names[est])
+      
+      list(coefficients = beta, stdev.unscaled = stdev.unscaled, 
+           sigma = sigma, df.residual = df.residual, ndups = ndups, 
+           spacing = spacing, block = block, correlation = correlation, 
+           cov.coefficients = cov.coef, pivot = QR$pivot, rank = QR$rank,
+           design = design)
   }
-  
   
   #######################################################
   
@@ -370,12 +340,12 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
                              phosprep = PhosProt_phos_imput[per_peptide, ] )
       designMatrix <- model.matrix(~ 0 + individual + phosprep, 
                                     data = per_phenoData)
-      block <- per_phenoData$biorep
+      block <- droplevels(per_phenoData$biorep)
       yy <- per_phenoData$peptide
       
       mixedModel2Fit_multiple_design(design = designMatrix, block = block, yy = yy)
   })
-  corrsPhosProt_mean <- mean(corrsPhosProt)
+  corrsPhosProt_mean <- mean(corrsPhosProt, na.rm = TRUE)
   
   # Per gene limma mixed model 
   ii_peptide <- metaData$dataType == "peptide"
@@ -395,6 +365,7 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
                                    individualHL19160 - individualHL18486, 
                                    levels = designMatrixCov)
+  rownames(contrastMatrix) <- colnames(glsRes$coefficients)
   
   fit2 <- contrasts.fit(glsRes, contrastMatrix)
   PhosPrepCovFit <- eBayes(fit2)
@@ -425,20 +396,21 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
                                techrep = "NA") )
   metaData$dataType <- c(rep("peptide", 12), rep("GelPrep", 3) )
   metaData$label <- with(metaData, paste(individual, biorep, techrep, sep = "_"))
-  
 
   ### FIT A LINEAR MODEL FOR ONE PEPTIDE AT A TIME
 
   # First, add random perturbation to the covariate matrix
   ii_phosprotgel <- metaData$dataType == "GelPrep"
-  randomPhosProtGel <- PhosProtGel[ , ii_phosprotgel] + 
-                        matrix( runif(NROW(PhosProtGel[ , ii_phosprotgel])*NCOL(PhosProtGel[ , ii_phosprotgel]), 
-                                0, 10^(-6)), 
-                                nrow(PhosProtGel[ , ii_phosprotgel]) )
+  randomPhosProtGel <- PhosProtGel[ , ii_phosprotgel] 
   ii_peptide <- metaData$dataType == "peptide"
   metaData_peptide <- metaData[ ii_peptide, ]
   order_phosgel <- match(metaData_peptide$individual, colnames(randomPhosProtGel) )
   randomPhosProtGel <- randomPhosProtGel[, order_phosgel]
+  randomPhosProtGel <- randomPhosProtGel + 
+      matrix( runif( NROW(randomPhosProtGel) * NCOL(randomPhosProtGel),
+                     0, 10^(-6)),
+              nrow(randomPhosProtGel))
+  
   
   # Compute correlation due to the random effect of
   # biological replicate
@@ -451,12 +423,12 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
 
       designMatrix <- model.matrix(~ 0 + individual + phosgel, 
                                    data = per_phenoData)
-      block <- per_phenoData$biorep
+      block <- droplevels(per_phenoData$biorep)
       yy <- per_phenoData$peptide
       
       mixedModel2Fit_multiple_design(design = designMatrix, block = block, yy = yy)
       })
-  corrsPhosProtGel_mean <- mean(corrsPhosProtGel)
+  corrsPhosProtGel_mean <- mean(corrsPhosProtGel, na.rm = TRUE)
   
   # Per gene limma mixed model 
   designMatrix <- model.matrix(~ 0 + individual, data = metaData_peptide )
@@ -475,10 +447,85 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
                                   individualHL19160 - individualHL18486, 
                                   levels = designMatrixCov)
+  rownames(contrastMatrix) <- colnames(glsRes$coefficients)
   
   fit2 <- contrasts.fit(glsRes, contrastMatrix)
   GelPrepCovFit <- eBayes(fit2)
 
+  
+  
+  ### GELPREP and BATCH (BIOREP) AS COVARIATES ###################################
+  ### DIFFERENTIAL PHOSPHORYLATION ANALYSIS
+
+  ### PREPARE DATA 
+  colnames(GelPrep) <- c("HL18862", "HL18486", "HL19160")
+  PhosProtGel <- merge(phosdata, GelPrep, by = "row.names", 
+                       suffixes = c("_peptide", "_GelPrep") ) #3257 observations
+  rownames(PhosProtGel) <- PhosProtGel$Row.names
+  PhosProtGel <- PhosProtGel[ , -1]
+  PhosProtGel <- as.matrix(PhosProtGel)
+  
+  
+  # Make meta data matrix
+  sampleLabels <- strsplit( colnames(PhosProtGel)[1:12], split = "_", fixed = FALSE)
+  metaData <- data.frame(individual = as.factor(sapply(sampleLabels, "[[", 1)),
+                         biorep = as.factor(sapply(sampleLabels, "[[", 2)),
+                         techrep = as.factor(sapply(sampleLabels, "[[", 3)) )
+  metaData <- rbind(metaData,
+                    data.frame(individual = colnames(PhosProtGel)[13:15],
+                               biorep = "NA",
+                               techrep = "NA") )
+  metaData$dataType <- c(rep("peptide", 12), rep("GelPrep", 3) )
+  metaData$label <- with(metaData, paste(individual, biorep, techrep, sep = "_"))
+  
+  
+  ### FIT A LINEAR MODEL FOR ONE PEPTIDE AT A TIME
+  
+  # First, add random perturbation to the covariate matrix
+  ii_phosprotgel <- metaData$dataType == "GelPrep"
+  randomPhosProtGel <- PhosProtGel[ , ii_phosprotgel] 
+  ii_peptide <- metaData$dataType == "peptide"
+  metaData_peptide <- metaData[ ii_peptide, ]
+  order_phosgel <- match(metaData_peptide$individual, colnames(randomPhosProtGel) )
+  randomPhosProtGel <- randomPhosProtGel[, order_phosgel]
+  randomPhosProtGel <- randomPhosProtGel + 
+      matrix( runif( NROW(randomPhosProtGel) * NCOL(randomPhosProtGel),
+                     0, 10^(-6)),
+              nrow(randomPhosProtGel))
+
+  # Drop unused levels in individual, biorep, and techrep
+  metaData_peptide$individual <- droplevels(metaData_peptide$individual)
+  metaData_peptide$biorep <- droplevels(metaData_peptide$biorep)
+  metaData_peptide$techrep <- droplevels(metaData_peptide$techrep)
+  
+  # Per gene limma model
+  designMatrix <- model.matrix(~ 0 + individual + biorep, data = metaData_peptide )
+  glsRes <- gls.series_multiple_designs(M = PhosProtGel[ ,ii_peptide ], 
+                                        cov_matrix = randomPhosProtGel, 
+                                        design = designMatrix, 
+                                        ndups = 1, 
+                                        spacing = 1, 
+                                        block = NULL, 
+                                        correlation = NULL)
+  
+  
+  # Contrast test
+  designMatrixCov <- model.matrix(~ 0 + individual + biorep + pseudoCov, 
+                                  data = data.frame(metaData_peptide, pseudoCov = runif(12) ) )
+  contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
+                                  individualHL19160 - individualHL18486, 
+                                  levels = designMatrixCov)
+  rownames(contrastMatrix) <- colnames(glsRes$coefficients)
+  
+      
+  fit2 <- contrasts.fit(glsRes, contrastMatrix)
+  GelPrepBatchCovFit <- eBayes(fit2)
+  
+  
+  
+  
+  
+  
     
   ############# Collect the sig hits and annotate ME df --------------
 
@@ -647,6 +694,9 @@ ProcessFit <- function(fit2, header, FitData, multExpanded1){
                                 FitData = PhosProt, multExpanded1)
     multExpanded1 <- ProcessFit(fit2 = GelPrepCovFit, header = "GelPrepCov", 
                                 FitData = PhosProtGel, multExpanded1)
+    multExpanded1 <- ProcessFit(fit2 = GelPrepBatchCovFit, header = "GelPrepBatchCov", 
+                                FitData = PhosProtGel, multExpanded1)
+    
 
     ############# Annotate the ME dataframe --------------
   
