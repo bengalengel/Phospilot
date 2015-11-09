@@ -260,8 +260,8 @@ mcmcVarcomp.proteinCov.Batch <- NestedVar(PhosProtGelBatch, includeProteinCovari
 colnames(mcmcVarcomp.proteinCov.Batch) <- c("individual","culture","residual")
 
 
-#PhosPrep PROTEIN AS A COVARIATE WITH NON BE CORRECTED PHOSPHO DATA
-PhosProtPhosBatch <- merge(medianSub.quantiled, PhosPrepCombatBio, by = "row.names", 
+#PhosPrep PROTEIN AS A COVARIATE WITH NON BE CORRECTED PHOSPHO DATA AND PROTEIN ESTIMATES
+PhosProtPhosBatch <- merge(medianSub.quantiled, PhosPrepquantiledBio, by = "row.names", 
                   suffixes = c("_peptide", "_PhosPrep") ) #1308 observations
 rownames(PhosProtPhosBatch) <- PhosProtPhosBatch$Row.names
 PhosProtPhosBatch <- PhosProtPhosBatch[ , -1]
