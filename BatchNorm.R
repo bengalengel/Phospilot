@@ -185,21 +185,19 @@ BatchNorm <- function(multExpanded1){
   )
   
   
-  # plot.new()
-  
   #PCA analysis  - cdata = combat corrected confounded phospho data. 
   x <- t(cdata)#samples are the rows of the column matrix
   pc <- prcomp(x, scale = T, center = T) #I am now scaling and centering x
-  
+
   names(pc)
-  
+
   cols <- as.factor(substr(colnames(cdata), 3, 7))##check me out. use 5 digit exp name.
   pdf("PCA_BEcorrect_confounded.pdf")
   plot(pc$x[, 1], pc$x[, 2], col = as.numeric(cols), main = "Batch Effect Corrected PCA", xlab = "PC1", ylab = "PC2", pch = 1, 
-       cex = 1.5, family = "serif")
+     cex = 1.5, family = "serif")
   legend("bottomleft", levels(cols), col = seq(along=levels(cols)), pch = 1, cex = 1.25)
   dev.off()
-  
+
   summary(pc)
   
   #SVD for calculating variance explained;

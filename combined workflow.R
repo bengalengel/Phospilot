@@ -109,6 +109,7 @@ com2 <- CorrectedData[[8]]#normalized/batch corrected (using ComBat) data frame
 phosdata <- CorrectedData[[9]]#normalized/batch corrected data frame with at lesat 1 obs in each bio rep
 pilot <- CorrectedData[[10]]#same as above with mean ratios for each bio replicate
 medianSub.quantiled <- CorrectedData[[3]]
+medianSub.quantiled.two.per.batch <- CorrectedData[[6]]
 
 # protein level assignment and normalization and  using phosprep and gelprep data --------
 ##read in the proteome fasta file that was used for search. Here Ensembl cCDS. This will be used for protein assignment.
@@ -326,7 +327,7 @@ for (ii_result in 1:6) {
           theme_bw() +
           theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
           theme(text=element_text(family="Times New Roman", size=12)) 
-  ggsave(paste0(names(results[ii_result]), ".pdf"), p, width=11, height=8.5)
+  ggsave(paste0(names(results[ii_result]), ".pdf"), p, width=5.5, height=4)
 }
   
 
@@ -344,7 +345,7 @@ for (ii_result in 1:6) {
     theme_bw() +
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
     theme(text=element_text(family="Times New Roman", size=12)) 
-  ggsave(paste0(names(results[ii_result]), "standardized.pdf"), p, width=11, height=8.5)
+  ggsave(paste0(names(results[ii_result]), "standardized.pdf"), p, width=5.5, height=4)
 }
 
 
