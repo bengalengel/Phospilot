@@ -140,7 +140,7 @@ PhosPrepCombatPilot <- PhosPrepMatrices[[12]]#same as above with mean ratios for
 
 #For GelPrep protein normalization and assignment of proteins to phosphopeptides is done in two steps. 
 
-# Normprot performs 'traditional' quantile normalization AND calls multiple scripts to perform a pQTL optimization routing by regressing PCs.
+# Normprot performs 'traditional' quantile normalization AND calls multiple scripts to perform a pQTL optimization routine by regressing PCs.
 # See the PCregression folder for more details
 
 # Choose directory containing proteomics data to pass to 'NormProt'.
@@ -150,36 +150,93 @@ CorrectedDataProt <- NormProt(directory = "E:/My Documents/Pilot/EnsemblDBProteo
 CorrectedDataProt <- NormProt(directory = "D:/EnsemblDBProteome/iBAQ proteome/")#from laptop INCLUDES IBAQ
 ProtQuantiled <- CorrectedDataProt[[4]] #Median and quantile normalized inverted (L/H) protein ratios (with MQ normalization as well).
 ProteinZia <- CorrectedDataProt[[1]]#Proteins from 60 human LCLs with no contaminants, reverse hits, or non-quantified IDs (6421)
-RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed.
+RegressedCommon <- CorrectedDataProt[[6]]#Gelprep with 13 PCs regressed. 
 
 
 
+###########Protein summary stats (SF4 and ST2 and ST3) ---------
 
-#protein table output. Keep columns 244:length and remove unwanted manually. Only keep proteingroups that were PC corrected.
+#GelProt output
+#protein table outputs. Keep columns 244:length and remove unwanted manually. Only keep proteingroups that were PC corrected.
 ProteinZia.out <- ProteinZia[ProteinZia$id %in% row.names(RegressedCommon), 244:length(ProteinZia)]
 write.table(ProteinZia.out, file = "./GelPrep.table.txt", sep = "\t", row.names = F)
 rm(ProteinZia.out)
 
 
-#violin plots of number of peptides/protein and sequence coverage for the proteins present in all three lines (for SF4 A)
+#PhosProt output
+#use protein1 dataframe so that protiens identified only with a site that was modified aren't included
+Protein1.out <- protein1[ , 52:length(protein1)]
+write.table(Protein1.out, file = "./PhosPrep.table.txt", sep = "\t", row.names = F)
+rm(Protein1.out)
+
+
+
+
+#violin plots of number of peptides/protein and sequence coverage for the proteins present in all three lines
+PhosProtSummary <- protein1[rowSums(is.na(protein1[ , 1:4])) <= 3 & rowSums(is.na(protein1[ , 5:8])) <= 3 & 
+                              rowSums(is.na(protein1[ , 9:12])) <= 3, c("Razor...unique.peptides", "Sequence.coverage....")]
 GelProtSummary <- ProteinZia[ProteinZia$id %in% row.names(RegressedCommon), c("Razor...unique.peptides", "Sequence.coverage....")]
 
-pdf("peptides_per_prot.pdf", 6, 5)
-plot(1, 1, ylim = c(0,300), type = 'n', xaxt = 'n', ylab = "Peptides assigned to protien group", xlab = "Protein Groups \n (n = 3885)", 
-     family = "serif")
-vioplot(GelProtSummary$Razor...unique.peptides, rectCol="gray", wex = .5, col = "cornflowerblue", add = T)
-dev.off()
+#combine into one dataframe...
+library(gdata)
+names(PhosProtSummary) <- paste0(names(PhosProtSummary), "PhosProt")
+names(GelProtSummary) <- paste0(names(GelProtSummary), "GelProt")
+proteomes <- cbindX(PhosProtSummary, GelProtSummary)
 
-pdf("sequence_coverage_per_prot.pdf", 6, 5)
-plot(1, 1, ylim = c(0,100), type = 'n', xaxt = 'n', ylab = "Protein sequence coverage (%)", xlab = "Protein Groups \n (n = 3885)", 
-     family = "serif")
-vioplot(GelProtSummary$Sequence.coverage...., rectCol="gray", wex = .5, col = "firebrick3", add = T)
-dev.off()
-median(GelProtSummary$Razor...unique.peptides)#18
-median(GelProtSummary$Sequence.coverage....)#43.8
-rm(GelProtSummary)
+#make a 'number of peptides and sequence coverage dataframe
+PeptideCount <- data.frame( peptide_count = c(PhosProtSummary$Razor...unique.peptidesPhosProt, 
+                                              GelProtSummary$Razor...unique.peptidesGelProt),
+                            peptide_source = factor( rep( c(1:2), c(dim(PhosProtSummary)[1], dim(GelProtSummary)[1])),
+                                                  labels = c("SCX-TiO2", "SDS-PAGE")) )
 
-###!!! Ensure RegressedCommon contains row.names = proteingroup ids. If not delete "./PCregression/PRO_raw.RData" and call NormProt again.
+
+SequenceCoverage <- data.frame( sequence_coverage = c(PhosProtSummary$Sequence.coverage....PhosProt, 
+                                                      GelProtSummary$Sequence.coverage....GelProt),
+                                sequence_source = factor( rep( c(1:2), c(dim(PhosProtSummary)[1], dim(GelProtSummary)[1])),
+                                                          labels = c("SCX-TiO2", "SDS-PAGE")) )
+
+require(ggplot2)
+require(extrafont)
+
+
+
+p <- ggplot(PeptideCount,
+            aes(x = peptide_source, y = peptide_count ))  +
+  geom_violin(alpha = .6) + geom_boxplot(width = .2, alpha = .2, outlier.size = 0) + 
+  ylab("Peptides assigned to protein") + xlab("Peptide source") + 
+  scale_y_continuous(limits = quantile(GelProtSummary$Razor...unique.peptidesGelProt, c(0,0.95))) + #for clarity
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(text=element_text(family="Times New Roman", size=12))   
+print(p)
+ggsave("peptides_per_group.pdf", p, width = 4, height = 5.5)
+
+  
+p <- ggplot(SequenceCoverage,
+            aes(x = sequence_source, y = sequence_coverage ))  +
+  geom_violin(alpha = .6) + geom_boxplot(width = .25, alpha = .2, outlier.size = 0) + 
+  ylab("Protein sequence coverage (%)") + xlab("Peptide source") + 
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(text=element_text(family="Times New Roman", size=12))   
+print(p)
+ggsave("sequence_coverage.pdf", p, width = 4, height = 5.5)
+
+
+# pdf("peptides_per_prot.pdf", 6, 5)
+# plot(1, 1, ylim = c(0,300), type = 'n', xaxt = 'n', ylab = "Peptides assigned to protien group", xlab = "Protein Groups \n (n = 3885)", 
+#      family = "serif")
+# vioplot(GelProtSummary$Razor...unique.peptides, rectCol="gray", wex = .5, col = "cornflowerblue", add = T)
+# dev.off()
+# 
+# pdf("sequence_coverage_per_prot.pdf", 6, 5)
+# plot(1, 1, ylim = c(0,100), type = 'n', xaxt = 'n', ylab = "Protein sequence coverage (%)", xlab = "Protein Groups \n (n = 3885)", 
+#      family = "serif")
+# vioplot(GelProtSummary$Sequence.coverage...., rectCol="gray", wex = .5, col = "firebrick3", add = T)
+# dev.off()
+# median(GelProtSummary$Razor...unique.peptides)#18
+# median(GelProtSummary$Sequence.coverage....)#43.8
+# rm(GelProtSummary)
 
 
 #ProtAssignment2 matches the two datasets. It returns a DF with the PCregressed protein L/H values and majority ids appended to the ME DF. It also returns a protein normalized data frame along with EDA plots corresponding to the batch corrected and normalized phospho dataframe that was passed - "phosphonorm".
