@@ -359,6 +359,22 @@ lapply(names(results), function(x){
 })
   
 
+relative.results <- lapply(names(results), function(x){
+  res <- results[[x]]
+  res/rowSums(res)
+})
+
+names(relative.results) <- names(results)
+
+#test of confounded vs confounded with phosprep genetic variance central tendency
+summary(results$Confounded.Batchfit[,1])
+
+#performs mann-whitney test
+wilcox.test(results$Confounded.Batchfit[ , 1], results$ProteinCovariateBatchPhos[ , 1], alternative="two.sided")$p.value
+
+#performs mann-whitney test
+wilcox.test(relative.results$Confounded.Batchfit[ , 1], relative.results$ProteinCovariateBatchPhos[ , 1], alternative="two.sided")$p.value
+
 
 #So that I can work with the embedded fonts
 # install.packages("extrafont")
