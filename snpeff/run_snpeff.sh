@@ -68,10 +68,23 @@ $JAVA -Xmx6g -jar $SNPSIFT filter \
   $OUTDIR/snpeff_oneperline/$BASE.snpeff.oneperline.vcf  \
   > $OUTDIR/snpeff_filter/$BASE.snpeff.filter.vcf
 
+# Add functional predictions
+# http://snpeff.sourceforge.net/SnpSift.html#dbNSFP
+mkdir -p $OUTDIR/snpeff_dbnsfp/
+$JAVA -Xmx6g -jar $SNPSIFT dbnsfp -v -a \
+  -db dbNSFP.txt.gz \
+  $OUTDIR/snpeff_filter/$BASE.snpeff.filter.vcf \
+  > $OUTDIR/snpeff_dbnsfp/$BASE.snpeff.dbnsfp.vcf
+
 # Extract fields
 # http://snpeff.sourceforge.net/SnpSift.html#Extract
 mkdir -p $OUTDIR/tables
-$JAVA -Xmx6g -jar $SNPSIFT extractFields $OUTDIR/snpeff_filter/$BASE.snpeff.filter.vcf \
+$JAVA -Xmx6g -jar $SNPSIFT extractFields $OUTDIR/snpeff_dbnsfp/$BASE.snpeff.dbnsfp.vcf \
   "ANN[*].GENEID" "ANN[*].FEATUREID" "ANN[*].BIOTYPE" "ANN[*].EFFECT" "ID" "REF" "ALT" "AF" \
   "CHROM" "POS" "ANN[*].HGVS_C" "ANN[*].HGVS_P" "GEN[*].GT" \
+  "dbNSFP_Uniprot_acc" "dbNSFP_Interpro_domain" "dbNSFP_SIFT_pred" \
+  "dbNSFP_Polyphen2_HDIV_pred" "dbNSFP_Polyphen2_HVAR_pred" \
+  "dbNSFP_LRT_pred" "dbNSFP_MutationTaster_pred" "dbNSFP_phastCons100way_vertebrate" \
+  "dbNSFP_1000Gp1_AF" "dbNSFP_1000Gp1_AFR_AF" "dbNSFP_1000Gp1_EUR_AF" "dbNSFP_1000Gp1_AMR_AF" \
+  "dbNSFP_1000Gp1_ASN_AF" "dbNSFP_ESP6500_AA_AF" "dbNSFP_ESP6500_EA_AF" \
   > $OUTDIR/tables/$BASE.txt
