@@ -81,10 +81,10 @@ $JAVA -Xmx6g -jar $SNPSIFT dbnsfp -v -a \
 mkdir -p $OUTDIR/tables
 $JAVA -Xmx6g -jar $SNPSIFT extractFields $OUTDIR/snpeff_dbnsfp/$BASE.snpeff.dbnsfp.vcf \
   "ANN[*].GENEID" "ANN[*].FEATUREID" "ANN[*].BIOTYPE" "ANN[*].EFFECT" "ID" "REF" "ALT" "AF" \
-  "CHROM" "POS" "ANN[*].HGVS_C" "ANN[*].HGVS_P" "GEN[*].GT" \
+  "CHROM" "POS" "ANN[*].HGVS_C" "ANN[*].HGVS_P" \
   "dbNSFP_Uniprot_acc" "dbNSFP_Interpro_domain" "dbNSFP_SIFT_pred" \
   "dbNSFP_Polyphen2_HDIV_pred" "dbNSFP_Polyphen2_HVAR_pred" \
   "dbNSFP_LRT_pred" "dbNSFP_MutationTaster_pred" "dbNSFP_phastCons100way_vertebrate" \
   "dbNSFP_1000Gp1_AF" "dbNSFP_1000Gp1_AFR_AF" "dbNSFP_1000Gp1_EUR_AF" "dbNSFP_1000Gp1_AMR_AF" \
-  "dbNSFP_1000Gp1_ASN_AF" "dbNSFP_ESP6500_AA_AF" "dbNSFP_ESP6500_EA_AF" \
+  "dbNSFP_1000Gp1_ASN_AF" "dbNSFP_ESP6500_AA_AF" "dbNSFP_ESP6500_EA_AF"  "GEN[*].GT" \
   > $OUTDIR/tables/$BASE.txt
