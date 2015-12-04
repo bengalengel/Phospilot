@@ -56,7 +56,7 @@ ibaq.sites$ibaq.median <- apply(as.matrix(ibaq.sites[,1:3]), 1, median)
 
 #each element of x is the number of unique 'id'/unique ppMajorityProteinID (x)
 
-ProtID.sites.expression <- ibaq.sites %>% group_by(ppProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
+ProtID.sites.expression <- ibaq.sites %>% group_by(ppProteinIDs) %>% summarise(sites = length(unique(id)), expression.level = unique(ibaq.median))
 
 
 
@@ -90,7 +90,7 @@ dev.off()
 index <- which(ibaq.sites$ppMajorityProteinIDs != "")
 ibaq.sites <- ibaq.sites[index,]
 
-# MajProtID.sites.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
+# MajProtID.sites.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarise(sites = length(unique(id)), expression.level = unique(ibaq.median))
 # 
 # x <- log2(MajProtID.sites.expression$sites)
 # y <- log10(MajProtID.sites.expression$expression.level)
@@ -101,7 +101,7 @@ ibaq.sites <- ibaq.sites[index,]
 
 
 #number of sites identified strongly correlated with protein length 
-MajProtID.sites.length <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(sites = length(unique(id)), length = unique(ppSequence.length))
+MajProtID.sites.length <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarise(sites = length(unique(id)), length = unique(ppSequence.length))
 
 x <- log2(MajProtID.sites.length$length)
 y <- log2(MajProtID.sites.length$sites)
@@ -194,7 +194,7 @@ x <- log10(ibaq.sites$ppSequence.length)
 y <- log10(ibaq.sites$ibaq.median)
 
 #protein level plot
-MajProtID.length.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(length = unique(ppSequence.length), expression = unique(ibaq.median))
+MajProtID.length.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarise(length = unique(ppSequence.length), expression = unique(ibaq.median))
 
 x <- log10(MajProtID.length.expression$length)
 y <- log10(MajProtID.length.expression$expression)

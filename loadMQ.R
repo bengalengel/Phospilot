@@ -61,9 +61,10 @@ load.MQ <- function(type = c("phospho","protein"), directory) {
     ##The sample number precedes 'Rep' (technical replicate) and the triple underscore denotes the multiplicity 
     expression <- data[,grep("Ratio.H.L.normalized(.*)_[12]_", colnames(data))]
     ibaq <- data[,grep("ibaq.*", colnames(data), ignore.case = T)]
+    intensity <- data[, grep("intensity.*", colnames(data), ignore.case = T)]
     
     ##combine the two
-    data <- cbind(expression,ibaq,other_data)
+    data <- cbind(expression, ibaq, intensity, other_data)
   }
   ## return the opened MQ file and have a nice day
   
