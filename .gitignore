@@ -11,10 +11,12 @@
 *.csv
 *.vcf
 #*.html I am going to track these rmd produced files due to requirements to build cache etc
+*.gmt
 
 #specific folders to ignore#
 #################
-Figs/*
+*Figs/*
+*Images*/*
 ChainFiles/*
 images/*
 MQ output/*
@@ -31,6 +33,14 @@ Perseus/*
 src/*
 Disorder/IUPred
 Disorder/Rapid
+Enrichments/*
+ELM/*
+*cache/*
+*images*/*
+*InterProScan/*
+
+
+
 
 # Example data for Joyce testing DiffPhos.R
 diffphos-data/
