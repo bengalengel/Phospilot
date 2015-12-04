@@ -1,0 +1,278 @@
+---
+title: "Mean Variance Relationships"
+author: "Brett Engelmann"
+date: "Tuesday, November 10, 2015"
+output: 
+  html_document:
+    fontsize: 12pt
+    css: "./CSSscripts/FloatTOC.css"
+    toc: yes
+---
+
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='FigsMVRs/',
+                      warning=FALSE, message=FALSE)
+```
+
+# Overview
+We observe a relationship between protein expression level and phosphopeptide variability. We also observe a negative relationship between the number of phosphosites per unit AA and phosphopeptide variability. This transform should make the relationship between the number of phosphosites/protein and phosphosite variability independent of protein length (and therefore independent of the negative correlation between protein expression and length). Indeed when protein expression level and phosphosite density are fitted as independent terms in a linear model using phosphopeptide variability as the response variable, both are significant.
+
+Is this relationship driven by biology or by a confounding relationship between peptide intensity and silac ratios?
+
+
+## Packages Used
+```{r, message=FALSE}
+require(gplots)
+require(RColorBrewer)
+require(plyr)
+require(dplyr)
+require(reshape2)
+require(qdapRegex)
+require(ggplot2)
+require(Hmisc)
+require(MASS)
+require(limma)
+require(swamp)  
+```
+
+## A protein expression phosphopeptide variability relationship?
+There is a positive correlation between protein expression and phosphosite variability. **Spoiler alert**. This is may be driven in part by the positive correlation between replicate precision and peptide intensity. That is, the s.d. of replicate measurements decreases with increasing peptide intensity. Note there is no such relationship for the SILAC ratios themselves.
+
+```{r, echo=FALSE}
+#get median ibaq and median rank, calculate relative rank.
+ibaq <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",
+                                       c("ppiBAQ.L.18486", "ppiBAQ.L.18862", "ppiBAQ.L.19160", "GelPrepCovFPval")] #note the NAs
+ibaq$ibaq.median <- apply(as.matrix(ibaq[,1:3]), 1, median)
+ibaq[] <- lapply(ibaq, as.numeric)
+
+y <- -log10(ibaq$GelPrepCovFPval)
+x <- log10(ibaq$ibaq.median)
+cor(x,y, use = "complete.obs")
+# [1] 0.05184077
+cor.test(x,y, alternative = "two", method = "pearson")$p.value
+# [1] 0.003082246
+
+#make and save plot
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+              xlab = expression(log[10](iBAQ~abundance~estimate)),
+              ylab = expression(-log[10](P~value)), lwd = 10,
+              family = "serif"
+              )
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+text(8.8, 10.2, expression(R == .053), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+text(8.8, 9.4, expression(p == .003), col = "darkred", cex = 1, family = "serif")
+
+```
+
+
+## A phosphosite 'density' phosphopeptide variability relationship?
+There is a slight depletion for proteins with higher 'densities' (#phosphosites/unit protein length) in diffphos. Proteins that are highly connected (hubs) tend to have higher phosphorylation density. 
+
+
+```{r, echo=FALSE, cache=TRUE}
+#protein expression level is negatively correlated with the number of sites identified and quantified
+ibaq.sites <- multExpanded1_withDE_annotated[ , c("ppiBAQ.L.18486", "ppiBAQ.L.18862", "ppiBAQ.L.19160", "GelPrepCovFPval", "GelPrepCovSubtoDE", 
+                                         "ppMajorityProteinIDs", "ppProteinIDs", "ppSequence.length", "id")] #note the NAs
+ibaq.sites$ibaq.median <- apply(as.matrix(ibaq.sites[,1:3]), 1, median)
+
+
+#each element of x is the number of unique 'id'/unique ppMajorityProteinID (x)
+ProtID.sites.expression <- ibaq.sites %>% group_by(ppProteinIDs) %>% summarise(sites = length(unique(id)), expression.level = unique(ibaq.median))
+
+#remove those identifications that have a ppProteinID assignment but not a ppMajProteinID assignment
+index <- which(ibaq.sites$ppMajorityProteinIDs != "")
+ibaq.sites <- ibaq.sites[index,]
+
+#number of sites identified strongly correlated with protein length 
+MajProtID.sites.length <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarise(sites = length(unique(id)), length = unique(ppSequence.length))
+
+#add a column with the number of phosphosites (repeated for each protein using Majority Protein ID)
+ibaq.sites <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% mutate(sites = length(unique(id)))
+ibaq.sites.subtoDE <- ibaq.sites[ibaq.sites$GelPrepCovSubtoDE == "+",]
+ibaq.sites.subtoDE["GelPrepCovFPval"] <- as.numeric(ibaq.sites.subtoDE$GelPrepCovFPval)
+ibaq.sites["ibaq.median"] <- as.numeric(ibaq.sites$ibaq.median)
+
+ibaq.sites.subtoDE$Ibaqdecile <- cut2(ibaq.sites.subtoDE$ibaq.median, g=10)
+ibaq.sites.subtoDE$Ibaqquintile <- cut2(ibaq.sites.subtoDE$ibaq.median, g=5)
+
+ibaq.sites.subtoDE$site.normalized <- ibaq.sites.subtoDE$sites/ibaq.sites.subtoDE$ppSequence.length
+ibaq.sites.subtoDE$site.normalized2 <- ibaq.sites.subtoDE$ppSequence.length / ibaq.sites.subtoDE$sites
+
+site.variation.normalized <- ggplot(ibaq.sites.subtoDE, aes(x = log2(site.normalized),
+                                                            y = -log10(GelPrepCovFPval))) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  xlab( expression(log[2](phosphosites/protein~length)))
+site.variation.normalized
+
+
+```
+
+This number of sites/unit length measurement should control for the fact that longer proteins are expressed at lower levels. If we used simply the number of sites/protein this effect would dominate and would therefore drive a depletion. 
+```{r}
+x <- log10(MajProtID.length.expression$length)
+y <- log10(MajProtID.length.expression$expression)
+smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+              cex = .3,
+              pch = 19, nrpoints = .15*length(ibaq$GelPrepCovFPval),
+              colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+              xlab = expression(log[10](protein~length)),
+              ylab = expression(log[10](iBAQ~abundance~estimate)), lwd = 10,
+              family = "serif"
+)
+reg.line <- lm(y~x, na.action = "na.omit")
+abline(reg.line, lwd = 2, lty = 2)
+text(3.7, 8.5, expression(R == -0.56), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+```
+
+
+However we still observe a concentration dependent effect, where lowly expressed proteins drive the depletion. This again could be explained by the lower precision of estimates derived from lowly expressed proteins (see below). 
+```{r}
+site.variation.normalized.concentration <- ggplot(ibaq.sites.subtoDE, aes(x = log2(site.normalized),
+                                                            y = -log10(GelPrepCovFPval))) + 
+  geom_point() + 
+  facet_grid(.~Ibaqquintile) +
+  geom_smooth(method = "rlm")
+site.variation.normalized.concentration
+```
+
+
+
+
+
+# Mean Variance Relationship Investigation
+
+For the observed relationship to be valid, The SILAC ratios should not have increased variability with increased peptide intensity. This would manifest in MA plots as a broadening of the blob at the high peptide intensity end.
+
+## MA plots of silac ratios vs peptide intensity
+
+There is no relationship between peptide intensity and SILAC ratio
+
+```{r, echo = FALSE, cache=TRUE}
+#grab the phospho numbers from the and combat correct them
+# Extraction and normalization of PhosPrep protein ratios -----------------
+
+#Retrieve and transform data
+  expCol <- grep("Ratio.H.L(.*)", colnames(protein1))
+  RawRatios <- protein1[,expCol]
+  
+  # add row names with site id and multiplicity designation 
+  row.names(RawRatios) <- protein1$id
+  RawRatios <- log2(RawRatios)
+  
+  #median normalize
+  names(RawRatios) <- gsub("Ratio.H.L.normalized.", "HL", names(RawRatios) )
+  names <- colnames(RawRatios)  
+  median.subtract <- function(x){ x - median(x, na.rm = TRUE)}##create a wrapper for median subtraction
+  MedianNorm <- colwise(median.subtract, names)(RawRatios)
+  row.names(MedianNorm) <- protein1$id##add back the row names
+  
+  # quantile normalization. from normalize.quantiles {preprocessCore}  
+  # "This functions will handle missing data (ie NA values), based on the assumption that the data is missing at random."
+  
+  quantiled <- normalizeQuantiles(MedianNorm,ties = T)#ties are all assigned the same value for the common quantile
+  # remove exp obs if not observed two or more times in each batch to ensure a variance measurement
+  quantiled4 <- quantiled[rowSums(is.na(quantiled[ , c("HL18486_1_1", "HL18486_1_2", "HL18862_1_1", "HL18862_1_2", "HL19160_1_1", "HL19160_1_2")])) < 5 
+                          & rowSums(is.na(quantiled[, c("HL18486_2_1", "HL18486_2_2", "HL18862_2_1", "HL18862_2_2", "HL19160_2_1", "HL19160_2_2")])) < 5,] 
+  
+  #combat batch correction
+  swamp <- as.matrix(quantiled4)
+  ##### sample annotations (data.frame)
+  set.seed(50)
+  o1<-data.frame(Factor1=factor(rep(c("A","A","B","B"),3)),
+                 Numeric1=rnorm(12),row.names=colnames(swamp))
+  
+  combat.PhosProt <-combat(swamp,o1$Factor1,batchcolumn=1, prior.plots = F) 
+#now look at the intensities specific for each measurement. take the median.
+ibaq <- grep("ibaq.H.*[0-9]",  names(protein1), ignore.case = T)
+intensity <- grep("intensity.[0-9]+.*", names(protein1), ignore.case = T)
+id <- 91
+
+intensity.ibaq.ids <- protein1[,c(intensity, ibaq, id)]
+
+complete <- merge(combat.PhosProt, intensity.ibaq.ids, by.x = "row.names", by.y = "id")
+
+#subset to unique phosprep ids
+
+# complete <- complete[unique(complete$PhosPrepMatchProteinGroupID), ]
+
+row.names(complete) <- complete[[1]]
+complete <- complete[,-1]
+complete <- na.omit(complete) #641 rows
+
+##add standard deviation information to the dataframe
+complete$HL18486STDEV <- apply(complete[,1:4], 1, sd)
+complete$HL18862STDEV <- apply(complete[,5:8], 1, sd)
+complete$HL19160STDEV <- apply(complete[,9:12], 1, sd)
+
+
+##add median intensity for each individual to the dataframe
+complete$HL18486MEDINT <- apply(complete[,13:16], 1, median)
+complete$HL18862MEDINT <- apply(complete[,17:20], 1, median)
+complete$HL19160MEDINT <- apply(complete[,21:24], 1, median)
+
+##median ibaq for each individual
+complete$HL18486MEDiBAQ <- apply(complete[,25:28], 1, median)
+complete$HL18862MEDiBAQ <- apply(complete[,29:32], 1, median)
+complete$HL19160MEDiBAQ <- apply(complete[,33:36], 1, median)
+
+#add median HL intensity information to the dataframe
+complete$HL18486MEDHL <- apply(complete[,1:4], 1, median)
+complete$HL18862MEDHL <- apply(complete[,5:8], 1, median)
+complete$HL19160MEDHL <- apply(complete[,9:12], 1, median)
+
+```
+
+```{r}
+#MA plots of intensity and protein group level SILAC ratios
+for (i in 1:12) {
+  if(i == 1) plot(log10(complete[, i + 12]), complete[, i], xlab = expression(log10(intensity~H~+~L)), ylab = expression(log2(H/L))) 
+  else points(log10(complete[, i + 12]), complete[, i], col = i)
+    }
+```
+
+There is no mean variance relationship for the ratios
+```{r}
+par(mfrow = c(3,1))
+plot(log2(complete$HL18486STDEV), complete$HL18486MEDHL)
+plot(log2(complete$HL18862STDEV), complete$HL18862MEDHL)
+plot(log2(complete$HL19160STDEV), complete$HL19160MEDHL)
+```
+
+
+
+## SILAC ratio replicate variance inverse related to phosphopeptide intensity
+
+However, there **is** a relationship between phosphopeptide intensity/iBAQ and SILAC ratio variance. Higher intensity derived ratios are more precise. This would lead to an improvement in power to detect diffphos for highly expressed proteins/high intensity derived peptide ratios. 
+
+```{r}
+plot(log10(complete$HL18486STDEV), log10(complete$HL18486MEDINT), ylab = expression(log[10](median~intensity)), xlab = expression(log[10](SILAC~STDEV)))
+reg.line <- lm( log10(complete$HL18486MEDINT) ~ log10(complete$HL18486STDEV), na.action = "na.omit")
+points(log10(complete$HL18862STDEV), log10(complete$HL18862MEDINT), col = 2)
+points(log10(complete$HL19160STDEV), log10(complete$HL19160MEDINT), col = 3)
+abline(reg.line, col = 1, lty =2, lwd = 2)
+
+
+
+#this relationship is also apparent for the ibaq values
+plot(log10(complete$HL18486STDEV), log10(complete$HL18486MEDiBAQ), ylab = expression(log[10](median~iBAQ~intensity)), xlab = expression(log[10](SILAC~STDEV)))
+points(log10(complete$HL18862STDEV), log10(complete$HL18862MEDiBAQ), col = 2)
+points(log10(complete$HL19160STDEV), log10(complete$HL19160MEDiBAQ), col = 3)
+reg.line <- lm( log10(complete$HL18486MEDiBAQ) ~ log10(complete$HL18486STDEV), na.action = "na.omit")
+abline(reg.line, col = 1, lty =2, lwd = 2)
+```
+
+
+#Can anything be done?
+
+As of now I am removing **all** of my protein level enrichment analysis based on annotations that may be confounded with differences in protein length or expression level.
+
+
+
+
+
+
