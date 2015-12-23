@@ -14,7 +14,7 @@ SNPeffFinal <- read.table("D:/snpeff_final.txt", sep = "\t", header = T, strings
 
 #subset to 4 samples of interest: 18486, 18862, 19160, and the 19238 standard
 sampleNames <- grep("18486|18862|19160|19238", names(SNPeffFinal), value = T)
-variables <- names(SNPeffFinal)[1:13]
+variables <- names(SNPeffFinal)[c(1:13, 17, 18)]
 SNPeffFinal <- SNPeffFinal[,c(variables,sampleNames)]
 
 #a quick view of the structure of the dataframe
@@ -50,6 +50,49 @@ length(unique(SNPeffFinal$gene))#9208
 length(unique(SNPeffFinal$peptide))#25705
 
 
+## polyphen2 cleanup
+
+# polyphen2 hdiv and hvar (humdiv model build from mendelian train set while humdiv was build from snp associations with disease training set).
+# D - probably damaging
+# P -  possibly damaging
+# B - benign
+# 
+# The multiple scores correspond to multiple transcript forms (the annotation is based at the gene level). I take the the highest "score", which corresponds to
+# D>P>B
+# 
+# A variant is assigned to the most damaging category
+
+ 
+1) Summarize based on letter frequency
+
+SNPeffFinal$Polyphen2_HDIV_pred <- sapply(SNPeffFinal$Polyphen2_HDIV_pred, function(x) {
+  predictions <- unlist(strsplit(x, ","))
+  if(any(predictions == "D")) {
+    return("D") } else {
+      if(any(predictions == "P")) {
+        return("P") } else {
+          if(any(predictions == "B")) {
+            return("B") } else {
+              return(NA)
+            }
+        }
+    } 
+} )
+
+
+SNPeffFinal$Polyphen2_HVAR_pred <- sapply(SNPeffFinal$Polyphen2_HVAR_pred, function(x) {
+  predictions <- unlist(strsplit(x, ","))
+  if(any(predictions == "D")) {
+    return("D") } else {
+      if(any(predictions == "P")) {
+        return("P") } else {
+          if(any(predictions == "B")) {
+            return("B") } else {
+              return(NA)
+            }
+        }
+    } 
+} )
 
 
 
