@@ -572,6 +572,55 @@ stopCluster(cl)
 
 
 
+#Add presence/absence of ANY SNP (at least one) scored deleterious (polyphen HDIV) to the ME dataframe.
+cl <- makeCluster(5)
+registerDoParallel(cl)
+multExpanded1_withDE_annotated$GelPrepAnySNPHDIVDeleterious  <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajorityProteinIDs), .combine = c) %dopar% {
+  protein.group <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
+  if(multExpanded1_withDE_annotated$GelPrepNsSnpPositive[i] == "+"){
+    if(protein.group != ""){
+      protein.group <- strsplit(protein.group, ";")
+      protein.group <- as.character(unlist(protein.group))
+      protein.group <- protein.group[!grepl("REV", protein.group)]#remove reverse entries
+      #for each member of the group, does it contain a snp scored HDIV deleterious?
+      snp.hdiv.deleterious <- vector(mode = 'logical', length = length(protein.group))
+      for(protein in seq_along(protein.group)){
+        snp.hdiv.deleterious[protein] <- any(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "Polyphen2_HDIV_pred"] == "D")
+      }
+      snp.hdiv.deleterious = any(snp.hdiv.deleterious, na.rm = T)
+    }
+  } else {
+    snp.hdiv.deleterious = FALSE
+  }
+}
+stopCluster(cl)
+
+
+#Add presence/absence of ANY SNP (at least one) scored deleterious (polyphen HVAR) to the ME dataframe.
+cl <- makeCluster(5)
+registerDoParallel(cl)
+multExpanded1_withDE_annotated$GelPrepAnySNPHVARDeleterious  <- foreach(i = 1:length(multExpanded1_withDE_annotated$ppMajorityProteinIDs), .combine = c) %dopar% {
+  protein.group <- multExpanded1_withDE_annotated$ppMajorityProteinIDs[i]
+  if(multExpanded1_withDE_annotated$GelPrepNsSnpPositive[i] == "+"){
+    if(protein.group != ""){
+      protein.group <- strsplit(protein.group, ";")
+      protein.group <- as.character(unlist(protein.group))
+      protein.group <- protein.group[!grepl("REV", protein.group)]#remove reverse entries
+      #for each member of the group, does it contain a snp scored HVAR deleterious?
+      snp.hvar.deleterious <- vector(mode = 'logical', length = length(protein.group))
+      for(protein in seq_along(protein.group)){
+        snp.hvar.deleterious[protein] <- any(SNPeffFinal[SNPeffFinal$peptide == protein.group[protein], "Polyphen2_HVAR_pred"] == "D")
+      }
+      snp.hvar.deleterious = any(snp.hvar.deleterious, na.rm = T)
+    }
+  } else {
+    snp.hvar.deleterious = FALSE
+  }
+}
+stopCluster(cl)
+
+
+
 ##############Enrichment tests ------
 # 1)  Test for enrichment in diffphos. background is all sites subject to DiffPhos. Foreground is omnibus F significance. Category is 'with snp' or without snp at the phosphopeptide level. Contingency matrix is of the form:
 
@@ -747,6 +796,58 @@ cor.test(NSsnp.disorder.matrix[[1]], NSsnp.disorder.matrix[[2]], method = "spear
 table(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion)
 0    1 
 297 1102 
+
+
+#Test of ANY snp HVAR deleterious affecting variability
+NSsnp.hvar.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" , c("GelPrepAnySNPHVARDeleterious", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious <- ifelse(NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious == T, 1, 0)
+NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious[is.na(NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious)] <- 0
+
+NSsnp.hvar.matrix[] <- lapply(NSsnp.hvar.matrix, as.numeric)
+
+plot(NSsnp.hvar.matrix[[1]], -log10(NSsnp.hvar.matrix[[2]]))
+plot(-log10(NSsnp.hvar.matrix[[2]]), NSsnp.hvar.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(NSsnp.hvar.matrix[[1]], -log10(NSsnp.hvar.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.hvar.matrix[[2]]), NSsnp.hvar.matrix[[1]], method = "spearman")
+[1] 0.119924
+
+#the correlation IS NOT significant.
+cor.test(NSsnp.hvar.matrix[[1]], NSsnp.hvar.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 6.866871e-06
+
+#most genes have at least one snp within a disordered region
+table(NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious)
+
+
+#Test of ANY snp HDIV deleterious affecting variability
+NSsnp.hdiv.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" , c("GelPrepAnySNPHDIVDeleterious", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.hdiv.matrix$GelPrepAnySNPHDIVDeleterious <- ifelse(NSsnp.hdiv.matrix$GelPrepAnySNPHDIVDeleterious == T, 1, 0)
+NSsnp.hdiv.matrix$GelPrepAnySNPHDIVDeleterious[is.na(NSsnp.hdiv.matrix$GelPrepAnySNPHDIVDeleterious)] <- 0
+
+NSsnp.hdiv.matrix[] <- lapply(NSsnp.hdiv.matrix, as.numeric)
+
+plot(NSsnp.hdiv.matrix[[1]], -log10(NSsnp.hdiv.matrix[[2]]))
+plot(-log10(NSsnp.hdiv.matrix[[2]]), NSsnp.hdiv.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(NSsnp.hdiv.matrix[[1]], -log10(NSsnp.hdiv.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.hdiv.matrix[[2]]), NSsnp.hdiv.matrix[[1]], method = "spearman")
+[1] 0.08519789
+
+#the correlation IS NOT significant.
+cor.test(NSsnp.hdiv.matrix[[1]], NSsnp.hdiv.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.001424566
+
+#most genes have at least one snp within a disordered region
+table(NSsnp.hdiv.matrix$GelPrepAnySNPHDIVDeleterious)
+
+
 
 
 
