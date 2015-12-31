@@ -602,8 +602,9 @@ lapply(goid.list, write, "GO.gmt", append = TRUE, ncolumns = 500, sep = "\t")
 #### Gelprot normalized bars ----
 
 GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval",
-                                                      "GelPrepPFamIDs", "GelPrepPFamIDPhospho", "GelPrepCovFPval",
-                                                      "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep")]
+                                                   "GelPrepPFamIDPhosphoST", "GelPrepPFamIDs", "GelPrepPFamIDPhospho", "GelPrepCovFPval",
+                                                      "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep"
+                                                   )]
 #note the factors. Revert. remember a dataframe is a list of vectors.
 str(GelPrep.data)
 i <- sapply(GelPrep.data, is.factor)
@@ -745,12 +746,36 @@ row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.d
           nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$GelPrepPFamIDPhospho == "no", ])
 )
 
-#FEtest. Here there is a *slightly* significant enrichment of phospho relevant domains in the diffphos dataset!
+#FEtest.
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
 # row1 
 # 0.2740768 
+
+
+
+# Threshold independent rho test
+# ST specific
+domain.matrix <- GelPrep.data[ , c("GelPrepPFamIDPhosphoST", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+domain.matrix$GelPrepPFamIDPhosphoST <- ifelse(domain.matrix$GelPrepPFamIDPhosphoST == "yes", 1, 0)
+
+domain.matrix[] <- lapply(domain.matrix, as.numeric)
+
+plot(domain.matrix[[1]], -log10(domain.matrix[[2]]))
+plot(-log10(domain.matrix[[2]]), domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
+cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
+[1] 0.009986746
+
+#the correlation is not significant.
+cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.5688538
+
 
 
 # Threshold independent rho test
@@ -770,9 +795,11 @@ cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
 cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
 [1] 0.007596505
 
-#the correlation IS significant.
+#the correlation is not significant.
 cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)$p.value
 [1] 0.6647436
+
+
 
 
 # Threshold independent rho test on proteins with a domain as background
