@@ -15,9 +15,11 @@ knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='FigsMVRs/',
 ```
 
 # Overview
-We observe a relationship between protein expression level and phosphopeptide variability. We also observe a negative relationship between the number of phosphosites per unit AA and phosphopeptide variability. This transform should make the relationship between the number of phosphosites/protein and phosphosite variability independent of protein length (and therefore independent of the negative correlation between protein expression and length). Indeed when protein expression level and phosphosite density are fitted as independent terms in a linear model using phosphopeptide variability as the response variable, both are significant.
+My ability to perform enrichment analysis/exploration of diffphos is hindered by a peptide intensity dependent mean variance relationship (shown below). Joyce do you think we can include precision weights for the fits? 
 
-Is this relationship driven by biology or by a confounding relationship between peptide intensity and silac ratios?
+For example, we observe a relationship between protein expression level and phosphopeptide variability. We also observe a negative relationship between the number of phosphosites per unit AA and phosphopeptide variability. The latter transform should make the relationship between the number of phosphosites/protein and phosphosite variability independent of protein length (and therefore independent of the negative correlation between protein expression and length). Indeed when protein expression level and phosphosite density are fitted as independent terms in a linear model using phosphopeptide variability as the response variable, both are significant.
+
+Is this relationship driven by biology or by a confounding relationship between peptide intensity and silac ratios? 
 
 
 ## Packages Used
@@ -114,6 +116,8 @@ site.variation.normalized
 
 This number of sites/unit length measurement should control for the fact that longer proteins are expressed at lower levels. If we used simply the number of sites/protein this effect would dominate and would therefore drive a depletion. 
 ```{r}
+MajProtID.length.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarise(length = unique(ppSequence.length), expression = unique(ibaq.median))
+
 x <- log10(MajProtID.length.expression$length)
 y <- log10(MajProtID.length.expression$expression)
 smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
@@ -269,7 +273,7 @@ abline(reg.line, col = 1, lty =2, lwd = 2)
 
 #Can anything be done?
 
-As of now I am removing **all** of my protein level enrichment analysis based on annotations that may be confounded with differences in protein length or expression level.
+As of now I am removing **all** of my protein level enrichment analysis based on annotations that may be confounded with differences in protein length or expression level. Weights?
 
 
 
