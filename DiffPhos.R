@@ -27,7 +27,6 @@
 #'
 #' # GelPrep and batch as covariate
 #' # Use median substracted and quantile normalized phosdata
-#' GelPrep <- readRDS("GelPrep.rds")
 #' phosdata <- readRDS("medianSub.quantiled.rds")
 #' 
 DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
