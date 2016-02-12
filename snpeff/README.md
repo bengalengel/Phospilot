@@ -1,5 +1,17 @@
 # Pipeline for cataloging Yoruba genetic variation
 
+Download large data sets for annotation with [SnpEff][].
+
+```bash
+# Download genome
+java -Xmx2g -jar snpeff download GRCh37.75
+# Download dbNSFP for functional predictions
+# dbNSFP.txt.gz is 9.1 GB!
+# http://snpeff.sourceforge.net/SnpSift.html#dbNSFP
+wget --no-check-certificate -O dbNSFP.txt.gz https://www.googledrive.com/host/0B7Ms5xMSFMYlSTY5dDJjcHVRZ3M
+wget --no-check-certificate -O dbNSFP.txt.gz.tbi https://www.googledrive.com/host/0B7Ms5xMSFMYlOTV5RllpRjNHU2s
+```
+
 Start with YRI genotypes that have 1KG genotypes imputed with IMPUTE2.
 
 Convert to VCF format, run through [SnpEff][] , and use [SnpSift][] to

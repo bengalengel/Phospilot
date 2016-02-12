@@ -25,7 +25,7 @@ samples <- read.table(samples_file, header = FALSE, stringsAsFactors = FALSE)
 stopifnot(grepl("NA", samples[, 1]))
 
 # Write header
-cat("gene\ttranscript\tpeptide\tbiotype\teffect\tsnp\tref\talt\taf\tchr\tpos\tcdna\taa\t")
+cat("gene\ttranscript\tpeptide\tbiotype\teffect\tsnp\tref\talt\taf\tchr\tpos\tcdna\taa\tUniprot_acc\tInterpro_domain\tSIFT_pred\tPolyphen2_HDIV_pred\tPolyphen2_HVAR_pred\tLRT_pred\tMutationTaster_pred\tphastCons100way_vertebrate\t1000Gp1_AF\t1000Gp1_AFR_AF\t1000Gp1_EUR_AF\t1000Gp1_AMR_AF\t1000Gp1_ASN_AF\tESP6500_AA_AF\tESP6500_EA_AF\t")
 cat(samples[, 1], sep = "\t")
 cat("\n")
 

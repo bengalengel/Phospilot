@@ -56,7 +56,7 @@ ibaq.sites$ibaq.median <- apply(as.matrix(ibaq.sites[,1:3]), 1, median)
 
 #each element of x is the number of unique 'id'/unique ppMajorityProteinID (x)
 
-ProtID.sites.expression <- ibaq.sites %>% group_by(ppProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
+ProtID.sites.expression <- ibaq.sites %>% group_by(ppProteinIDs) %>% summarise(sites = length(unique(id)), expression.level = unique(ibaq.median))
 
 
 
@@ -90,7 +90,7 @@ dev.off()
 index <- which(ibaq.sites$ppMajorityProteinIDs != "")
 ibaq.sites <- ibaq.sites[index,]
 
-# MajProtID.sites.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(sites = length(unique(id)), expression.level = unique(ibaq.median))
+# MajProtID.sites.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarise(sites = length(unique(id)), expression.level = unique(ibaq.median))
 # 
 # x <- log2(MajProtID.sites.expression$sites)
 # y <- log10(MajProtID.sites.expression$expression.level)
@@ -101,7 +101,7 @@ ibaq.sites <- ibaq.sites[index,]
 
 
 #number of sites identified strongly correlated with protein length 
-MajProtID.sites.length <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(sites = length(unique(id)), length = unique(ppSequence.length))
+MajProtID.sites.length <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarise(sites = length(unique(id)), length = unique(ppSequence.length))
 
 x <- log2(MajProtID.sites.length$length)
 y <- log2(MajProtID.sites.length$sites)
@@ -194,7 +194,7 @@ x <- log10(ibaq.sites$ppSequence.length)
 y <- log10(ibaq.sites$ibaq.median)
 
 #protein level plot
-MajProtID.length.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarize(length = unique(ppSequence.length), expression = unique(ibaq.median))
+MajProtID.length.expression <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% summarise(length = unique(ppSequence.length), expression = unique(ibaq.median))
 
 x <- log10(MajProtID.length.expression$length)
 y <- log10(MajProtID.length.expression$expression)
@@ -602,8 +602,9 @@ lapply(goid.list, write, "GO.gmt", append = TRUE, ncolumns = 500, sep = "\t")
 #### Gelprot normalized bars ----
 
 GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval",
-                                                      "GelPrepPFamIDs", "GelPrepPFamIDPhospho", "GelPrepCovFPval",
-                                                      "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep")]
+                                                   "GelPrepPFamIDPhosphoST", "GelPrepPFamIDs", "GelPrepPFamIDPhospho", "GelPrepCovFPval",
+                                                      "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep"
+                                                   )]
 #note the factors. Revert. remember a dataframe is a list of vectors.
 str(GelPrep.data)
 i <- sapply(GelPrep.data, is.factor)
@@ -745,12 +746,36 @@ row2 <- c(nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.d
           nrow(GelPrep.data[GelPrep.data$GelPrepCovglobalFsig == "-" & GelPrep.data$GelPrepPFamIDPhospho == "no", ])
 )
 
-#FEtest. Here there is a *slightly* significant enrichment of phospho relevant domains in the diffphos dataset!
+#FEtest.
 contmatrix <- rbind(row1,row2)
 result <- fisher.test(contmatrix, alternative = "g")
 result$p.value
 # row1 
 # 0.2740768 
+
+
+
+# Threshold independent rho test
+# ST specific
+domain.matrix <- GelPrep.data[ , c("GelPrepPFamIDPhosphoST", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+domain.matrix$GelPrepPFamIDPhosphoST <- ifelse(domain.matrix$GelPrepPFamIDPhosphoST == "yes", 1, 0)
+
+domain.matrix[] <- lapply(domain.matrix, as.numeric)
+
+plot(domain.matrix[[1]], -log10(domain.matrix[[2]]))
+plot(-log10(domain.matrix[[2]]), domain.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
+cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
+[1] 0.009986746
+
+#the correlation is not significant.
+cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.5688538
+
 
 
 # Threshold independent rho test
@@ -770,9 +795,11 @@ cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
 cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
 [1] 0.007596505
 
-#the correlation IS significant.
+#the correlation is not significant.
 cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)$p.value
 [1] 0.6647436
+
+
 
 
 # Threshold independent rho test on proteins with a domain as background
