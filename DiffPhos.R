@@ -18,15 +18,27 @@
 #' @export
 #' 
 #' @examples
-#' setwd("~/Dropbox/GitHub/Phospilot/diffphos-data")
+#' 
+#' setwd("~/Dropbox/Brett/diffPhose-mean-variance-20160313")
+#' 
+#' # pQTL PCA regressed data.frame from the gel based workup
 #' GelPrep <- readRDS("GelPrep.rds")
+#' 
+#' # normalized batch effect corrected phosphopeptide H/L ratios
 #' phosdata <- readRDS("phosdata.rds")
-#' PhosPrep <- readRDS("PhosPrep.rds")
+#'
+#' # protein estimates derived from the phospho workup normalized
+#' # and BE correct 
+#' PhosPrep <- readRDS("phosprepcombatbio.rds")
+#' 
+#' # Contains the phosphopeptide intensities
 #' MultExpanded1 <- readRDS("MultExpanded1.rds")
 #'
 #' DiffPhos()
 
-DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
+
+DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1,
+                     weight_by_intensities = TRUE){
   # This function accepts phospho and protein matrices runs diffphos 
   # analysis using limma. Columns are appended
   # to the multexpanded1 file according to the presence of DE or not. 
@@ -38,9 +50,41 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   require(qdapRegex)
   require(plyr)
   require(reshape2)
+  require(matrixStats)
   
-  
-    
+  ### If intending to weight peptides H/L ratios with intensity measurements,
+  ### Then, use the following function:
+  #' @param cov_matrix Matrix of the same dimension as  counts. Contain measurements that are 
+  #'                   used to compute weights for the dependent measurment counts. 
+        voom_general  <- function (counts, cov_matrix,
+                                   span = 0.5, plot = FALSE) 
+        {
+                design <- matrix(1, ncol(counts), 1)
+                rownames(design) <- colnames(counts)
+                colnames(design) <- "GrandMean"
+                fit <- lmFit(counts, design)
+                sx <- log10(rowMeans(cov_matrix, na.rm = TRUE) + 1)
+                sy <- sqrt(fit$sigma)
+                df <- cbind(sx,sy)
+                df <- df[rowSums(is.na(df)) == 0, ]
+                l <- lowess(df, f = .5)
+                if (plot) {
+                        plot(df, xlab = "log10 meausrement",
+                             ylab = "Sqrt( standard deviation )",
+                             pch = 16, cex = 0.25)
+                        title("voom: Mean-variance trend")
+                        lines(l, col = "red")
+                }
+                f <- approxfun(l, rule = 2)
+                #fitted.values <- fit$coef %*% t(fit$design)
+                
+                w <- 1/f(as.matrix(cov_matrix))^4
+                dim(w) <- dim(cov_matrix)
+                return(w)
+        }
+        
+
+        
   ### LINEAR MIXED MODEL USING CULTURE AS RANDOM EFFECT ####################  
 
   ### PREPARE DATA
@@ -66,17 +110,43 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   # Fit a linear mixed model using biorep as a 
   # random effect where the magnitude of the random effect
   # is estimated to be the same across peptides
-  fit <- lmFit(phosdata, designMatrix, block = block, correlation = dupcor$consensus)
+  if (weight_by_intensities == FALSE) {
+  fit <- lmFit(phosdata, 
+               designMatrix, 
+               block = block, 
+               correlation = dupcor$consensus)
+  } 
+  
+  if (weight_by_intensities == TRUE) {
+  intensity_matrix <- data.frame(
+      id = MultExpanded1$idmult,
+      MultExpanded1[ ,grep("Intensity.1", colnames(MultExpanded1))]) 
+  
+  ii_phosdata <- match(rownames(phosdata), intensity_matrix$id)
+  intensity_phosdata <- intensity_matrix[ii_phosdata, ]
+  weights_phosdata <- voom_general(counts = phosdata,
+                                   cov_matrix = intensity_phosdata[,c(2:13)],
+                                   plot = TRUE)
+  fit <- lmFit(phosdata, 
+               designMatrix, 
+               block = block, 
+               correlation = dupcor$consensus,
+               weights = weights_phosdata)
+  } 
+  
   
   # Construct the contrast matrix
   contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
                                    individualHL19160 - individualHL18486, levels = designMatrix)
+
   fit2 <- contrasts.fit(fit, contrastMatrix)
   
   # eBayes
   ConfoundedFit <- eBayes(fit2)
   
+
   
+    
   ### PHOSPREP AS COVARIATE ################################################
   ### DIFFERENTIAL PHOSPHORYLATION ANALYSIS
   ### using culture replicate as a random effect
@@ -381,6 +451,8 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   ii_peptide <- metaData$dataType == "peptide"
   metaData_peptide <- metaData[ ii_peptide, ]
   designMatrix <- model.matrix(~ 0 + individual, data = metaData_peptide )
+  
+  if (weight_by_intensities == FALSE) {
   glsRes <- gls.series_multiple_designs(M = PhosProt[ ,ii_peptide ], 
                                         cov_matrix = PhosProt_phos_imput, 
                                         design = designMatrix, 
@@ -388,6 +460,27 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
                                         spacing = 1, 
                                         block = metaData[ ii_peptide, ]$biorep, 
                                         correlation = corrsPhosProt_mean)
+  }
+  if (weight_by_intensities == TRUE) {
+  intensity_matrix <- data.frame(
+          id = MultExpanded1$idmult,
+          MultExpanded1[ ,grep("Intensity.1", colnames(MultExpanded1))]) 
+  
+  ii_phosdata <- match(rownames(PhosProt[,ii_peptide]), intensity_matrix$id)
+  intensity_phosdata <- intensity_matrix[ii_phosdata, ]
+  weights_phosdata <- voom_general(counts = PhosProt[,ii_peptide],
+                                   cov_matrix = intensity_phosdata[,c(2:13)],
+                                   plot = TRUE)
+          
+  glsRes <- gls.series_multiple_designs(M = PhosProt[ ,ii_peptide ], 
+                                        cov_matrix = PhosProt_phos_imput, 
+                                        design = designMatrix, 
+                                        ndups = 1, 
+                                        spacing = 1, 
+                                        block = metaData[ ii_peptide, ]$biorep, 
+                                        correlation = corrsPhosProt_mean,
+                                        weights = weights_phosdata)
+  }
   
   # Contrast test
   designMatrixCov <- model.matrix(~ 0 + individual + pseudoCov, 
@@ -395,12 +488,13 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
                                    individualHL19160 - individualHL18486, 
                                    levels = designMatrixCov)
+  rownames(contrastMatrix) <- colnames(glsRes$coefficients)
   
   fit2 <- contrasts.fit(glsRes, contrastMatrix)
   PhosPrepCovFit <- eBayes(fit2)
   
-  
 
+  
   ### GELPREP AS COVARIATE ####################################
   ### DIFFERENTIAL PHOSPHORYLATION ANALYSIS
   ### using culture replicate as a random effect
@@ -460,6 +554,7 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   
   # Per gene limma mixed model 
   designMatrix <- model.matrix(~ 0 + individual, data = metaData_peptide )
+  if (weight_by_intensities == FALSE) {
   glsRes <- gls.series_multiple_designs(M = PhosProtGel[ ,ii_peptide ], 
                                         cov_matrix = randomPhosProtGel, 
                                         design = designMatrix, 
@@ -467,6 +562,27 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
                                         spacing = 1, 
                                         block = metaData[ ii_peptide, ]$biorep, 
                                         correlation = corrsPhosProtGel_mean)
+  }
+  if (weight_by_intensities == TRUE) {
+  intensity_matrix <- data.frame(
+          id = MultExpanded1$idmult,
+          MultExpanded1[ ,grep("Intensity.1", colnames(MultExpanded1))]) 
+  
+  ii_phosdata <- match(rownames(PhosProtGel), intensity_matrix$id)
+  intensity_phosdata <- intensity_matrix[ii_phosdata, ]
+  weights_phosdata <- voom_general(counts = PhosProtGel[ , ii_peptide],
+                                   cov_matrix = intensity_phosdata[,c(2:13)],
+                                   plot = TRUE)
+          
+  glsRes <- gls.series_multiple_designs(M = PhosProtGel[ ,ii_peptide ], 
+                                        cov_matrix = randomPhosProtGel, 
+                                        design = designMatrix, 
+                                        ndups = 1, 
+                                        spacing = 1, 
+                                        block = metaData[ ii_peptide, ]$biorep, 
+                                        correlation = corrsPhosProtGel_mean,
+                                        weights = weights_phosdata)
+  }
   
 
   # Contrast test
@@ -475,11 +591,13 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1){
   contrastMatrix <- makeContrasts(individualHL18862 - individualHL18486, individualHL19160 - individualHL18862, 
                                   individualHL19160 - individualHL18486, 
                                   levels = designMatrixCov)
+  rownames(contrastMatrix) <- colnames(glsRes$coefficients)
   
   fit2 <- contrasts.fit(glsRes, contrastMatrix)
   GelPrepCovFit <- eBayes(fit2)
 
-    
+
+
   ############# Collect the sig hits and annotate ME df --------------
 
 ProcessFit <- function(fit2, header, FitData, multExpanded1){
