@@ -32,7 +32,7 @@
 #' PhosPrep <- readRDS("phosprepcombatbio.rds")
 #' 
 #' # Contains the phosphopeptide intensities
-#' MultExpanded1 <- readRDS("MultExpanded1.rds")
+#' multExpanded1 <- readRDS("multExpanded1.rds")
 #'
 #' DiffPhos()
 
@@ -119,8 +119,8 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1,
   
   if (weight_by_intensities == TRUE) {
   intensity_matrix <- data.frame(
-      id = MultExpanded1$idmult,
-      MultExpanded1[ ,grep("Intensity.1", colnames(MultExpanded1))]) 
+      id = multExpanded1$idmult,
+      multExpanded1[ ,grep("Intensity.1", colnames(multExpanded1))]) 
   
   ii_phosdata <- match(rownames(phosdata), intensity_matrix$id)
   intensity_phosdata <- intensity_matrix[ii_phosdata, ]
@@ -463,8 +463,8 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1,
   }
   if (weight_by_intensities == TRUE) {
   intensity_matrix <- data.frame(
-          id = MultExpanded1$idmult,
-          MultExpanded1[ ,grep("Intensity.1", colnames(MultExpanded1))]) 
+          id = multExpanded1$idmult,
+          multExpanded1[ ,grep("Intensity.1", colnames(multExpanded1))]) 
   
   ii_phosdata <- match(rownames(PhosProt[,ii_peptide]), intensity_matrix$id)
   intensity_phosdata <- intensity_matrix[ii_phosdata, ]
@@ -565,8 +565,8 @@ DiffPhos <- function(phosdata, PhosPrep, GelPrep, multExpanded1,
   }
   if (weight_by_intensities == TRUE) {
   intensity_matrix <- data.frame(
-          id = MultExpanded1$idmult,
-          MultExpanded1[ ,grep("Intensity.1", colnames(MultExpanded1))]) 
+          id = multExpanded1$idmult,
+          multExpanded1[ ,grep("Intensity.1", colnames(multExpanded1))]) 
   
   ii_phosdata <- match(rownames(PhosProtGel), intensity_matrix$id)
   intensity_phosdata <- intensity_matrix[ii_phosdata, ]
@@ -788,7 +788,7 @@ ProcessFit <- function(fit2, header, FitData, multExpanded1){
  
   
   #write the multExpanded table with DE information
-  write.table(multExpanded1,"multExpanded1_withDE1.csv", sep=',',col.names=T, row.names=F)
-  saveRDS(multExpanded1, file = "multExpanded1_withDE.rds")
+#   write.table(multExpanded1,"multExpanded1_withDE1.csv", sep=',',col.names=T, row.names=F)
+#   saveRDS(multExpanded1, file = "multExpanded1_withDE.rds")
   return(multExpanded1)
 }
