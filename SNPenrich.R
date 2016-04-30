@@ -620,7 +620,6 @@ multExpanded1_withDE_annotated$GelPrepAnySNPHVARDeleterious  <- foreach(i = 1:le
 stopCluster(cl)
 
 
-
 ##############Enrichment tests ------
 # 1)  Test for enrichment in diffphos. background is all sites subject to DiffPhos. Foreground is omnibus F significance. Category is 'with snp' or without snp at the phosphopeptide level. Contingency matrix is of the form:
 
@@ -711,6 +710,8 @@ FALSE  TRUE
 1111   288 
 
 
+# 3) Is the phospho relevance of the domain driving the enrichment of domains within the ns.snp bg? (no)
+
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
 NSsnp.phosphodomain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" & SubtoDEGelProt$snp.in.domain == TRUE,
                                       c("snp.domain.phospho.relevant", "GelPrepCovFPval")]
@@ -732,6 +733,39 @@ cor(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]], me
 #the negative correlation is significant at alpha  = .05; 
 cor.test(NSsnp.phosphodomain.matrix[[1]], NSsnp.phosphodomain.matrix[[2]], method = "spearman", exact = F)$p.value
 0.6338825
+
+
+
+# 4) Is the phospho relevancy of the protein an additional driver of variability?
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+NSsnp.phosphoprotein.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+",
+                                             c("GelPrepPFamIDPhosphoST", "GelPrepCovFPval")]
+
+#switch to 0/1 designation. for now the NAs are a bug
+NSsnp.phosphoprotein.matrix$GelPrepPFamIDPhosphoST <- ifelse(NSsnp.phosphoprotein.matrix$GelPrepPFamIDPhosphoST == "yes", 1, 0)
+NSsnp.phosphoprotein.matrix$GelPrepPFamIDPhosphoST[is.na(NSsnp.phosphoprotein.matrix$GelPrepPFamIDPhosphoST)] <- 0
+
+NSsnp.phosphoprotein.matrix[] <- lapply(NSsnp.phosphoprotein.matrix, as.numeric)
+
+plot(NSsnp.phosphoprotein.matrix[[1]], -log10(NSsnp.phosphoprotein.matrix[[2]]))
+plot(-log10(NSsnp.phosphoprotein.matrix[[2]]), NSsnp.phosphoprotein.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Negative depletion. 
+cor(NSsnp.phosphoprotein.matrix[[1]], -log10(NSsnp.phosphoprotein.matrix[[2]]), method = "spearman")
+cor(-log10(NSsnp.phosphoprotein.matrix[[2]]), NSsnp.phosphoprotein.matrix[[1]], method = "spearman")
+[1] -0.004124663
+
+#the negative correlation is significant at alpha  = .05; 
+cor.test(NSsnp.phosphoprotein.matrix[[1]], NSsnp.phosphoprotein.matrix[[2]], method = "spearman", exact = F)$p.value
+[1] 0.8775006
+
+
+
+
+
+
+
 
 
 
