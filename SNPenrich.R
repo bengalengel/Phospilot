@@ -317,6 +317,46 @@ table(multExpanded1_withDE_annotated$PhosPrepNsSnpCount)
 
 
 
+
+#### number of snps and phosphopeptide variation ----
+
+GelPrep.snpcount <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",
+                                                    c("GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "GelPrepNsSnpCount")]
+y <- -log10(as.numeric(GelPrep.snpcount$GelPrepCovFAdjPval))
+x <- log10(GelPrep.snpcount$GelPrepNsSnpCount + 1)
+
+# we are interested in a relationship specific to proteins that already have at least one snp.
+GelPrep.snpcount2 <- GelPrep.snpcount[GelPrep.snpcount$GelPrepNsSnpCount > 0, ]
+y <- -log10(as.numeric(GelPrep.snpcount2$GelPrepCovFAdjPval))
+x <- log10(GelPrep.snpcount2$GelPrepNsSnpCount)
+
+plot(x,y)
+R <- cor(x, y, method = "pearson", use = "complete.obs")
+R
+cor.test(x,y)$p.value
+
+#make and save plot if necessary
+# pdf("nscount_pvalue_density.pdf", 7, 5)
+# smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
+#               cex = .3,
+#               pch = 19, nrpoints = .15*length(x),
+#               colramp = colorRampPalette(c("white", "light gray", "dark gray", "red")),
+#               xlab = expression(log[10](nsSNP~count)),
+#               ylab = expression(-log[10](P~value)), lwd = 10,
+#               family = "serif"
+# )
+# reg.line <- lm(y~x, na.action = "na.omit")
+# abline(reg.line, lwd = 2, lty = 2)
+# text(3, 7.25, expression(R == -.12), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+# text(3, 6.85, expression(p == 9.90e-06), col = "darkred", cex = 1, family = "serif")
+# dev.off()
+
+
+
+
+
+
+
 ###pfam domain annotation ----
 #use the pfam.boundary file created using interproscan program that calls HMMER3/pfam. Was searched on the proteome.
 
@@ -761,6 +801,8 @@ cor.test(NSsnp.phosphoprotein.matrix[[1]], NSsnp.phosphoprotein.matrix[[2]], met
 [1] 0.8775006
 
 
+
+5) number of snps and phosphopeptide variability
 
 
 
