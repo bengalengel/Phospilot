@@ -42,7 +42,20 @@ abline(reg.line, lwd = 2, lty = 2)
 # dev.off()
 
 
+#relationship between protein length and germline variance component estimates
 
+# Here I use the variance componnent estimates derived from "mcmcVarcomp.proteinCov". (batch corrected phospho and pQTL regressed gelprot protein estimates)
+
+tmp <- multExpanded1_withDE_annotated[, c("idmult", "ppSequence.length")]
+length.variance <- merge(tmp, mcmcVarcomp.proteinCov, by.x = "idmult", by.y = "row.names")
+
+y <- log10(length.variance$individual)
+x <- log10(length.variance$ppSequence.length)
+
+plot(x,y)
+R <- cor(x, y, method = "pearson", use = "complete.obs")
+R
+cor.test(x,y)$p.value
 
 
 
