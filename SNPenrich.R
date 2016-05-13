@@ -279,27 +279,41 @@ dev.off()
 GelPrep.distances.disorder <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+" &
                                                                multExpanded1_withDE_annotated$GelPrep.Pos.Disorder == TRUE,
                                                     c("GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
-y <- -log10(as.numeric(GelPrep.distances.disorder$GelPrepCovFAdjPval))
-x <- log10(GelPrep.distances.disorder$ClosestSNPtoSiteMinGelPrep + 1)#
-
-plot(x,y)
-R <- cor(x, y, method = "pearson", use = "complete.obs")
-R
-cor.test(x,y)$p.value
+y.disorder <- -log10(as.numeric(GelPrep.distances.disorder$GelPrepCovFAdjPval))
+x.disorder <- log10(GelPrep.distances.disorder$ClosestSNPtoSiteMinGelPrep + 1)#
+disorder.line <- lm(y.disorder ~ x.disorder, na.action = "na.omit")
+R.disorder <- cor(x.disorder, y.disorder, method = "pearson", use = "complete.obs")
+R.disorder
+cor.test(x.disorder,y.disorder)$p.value
 
 
 GelPrep.distances.ordered <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+" &
                                                                multExpanded1_withDE_annotated$GelPrep.Pos.Disorder == FALSE,
                                                              c("GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
-y <- -log10(as.numeric(GelPrep.distances.ordered$GelPrepCovFAdjPval))
-x <- log10(GelPrep.distances.ordered$ClosestSNPtoSiteMinGelPrep + 1)#
+y.order <- -log10(as.numeric(GelPrep.distances.ordered$GelPrepCovFAdjPval))
+x.order <- log10(GelPrep.distances.ordered$ClosestSNPtoSiteMinGelPrep + 1)#
+order.line <- lm(y.order ~ x.order, na.action = "na.omit")
+abline(order.line, lwd = 2, lty = 2)
 
-plot(x,y)
-R <- cor(x, y, method = "pearson", use = "complete.obs")
-R
-cor.test(x,y)$p.value
+R.order <- cor(x.order, y.order, method = "pearson", use = "complete.obs")
+R.order
+cor.test(x.order,y.order)$p.value
 
-#disordered and in domain? loops?
+# plot with disordered phosphopeptides highlighted in red and ordered in black. Same with the regression lines.
+
+plot(x, y,
+     pch = 20,
+     xlab = expression(log[10](AA~distance~between~SNP~and~phosphosite)),
+     ylab = expression(-log[10](P~value)),
+     family = "serif"
+)
+
+points(x.disorder, y.disorder,
+       pch = 20,
+       col = "red3"
+)
+abline(disorder.line, lwd = 2, lty = 2, col = "red3")
+abline(order.line, lwd = 2, lty = 2, col = "black")
 
 
 
