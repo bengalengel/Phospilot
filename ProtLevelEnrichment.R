@@ -874,6 +874,70 @@ cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)
 
 
 
+# hypothesize that proteins with a higher fraction of phosphosites in disordered regions are depleted within differential phosphorylation subset
+
+This will require a dplyr like approach
+
+per protein count phosphosites in disorder and phospphosites in ordered. fraction assignment per protein. a single fractional assignment is projected to each phosphosite and a linear regression is performed.
+
+
+
+
+
+
+
+
+
+# A threshold independent test of a correlation between percent disorder and pvalues using spearman is barely sig while pearson is not.
+
+# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+disorder.matrix <- GelPrep.data[, c("FinalPercentDisorder", "GelPrepCovFPval")]
+
+# remove reverted identifications
+disorder.matrix <- disorder.matrix[complete.cases(disorder.matrix),]
+
+# y <- -log10(as.numeric(disorder.matrix$GelPrepCovFPval))
+# x <- log10(disorder.matrix$FinalPercentDisorder) 
+
+y <- -log10(as.numeric(disorder.matrix$GelPrepCovFPval))
+x <- disorder.matrix$FinalPercentDisorder 
+
+plot(x,y)
+R <- cor(x, y, method = "spearman", use = "complete.obs")
+R
+[1] -0.03758456
+cor.test(x,y, method = "spearman", exact = F)$p.value
+[1] 0.03212017
+
+
+
+
+
+
+
+
+
+
+#switch to 0/1 designation
+disorder.matrix$GelPrep.Pos.Disorder <- ifelse(disorder.matrix$GelPrep.Pos.Disorder == TRUE, 1, 0)
+disorder.matrix[] <- lapply(disorder.matrix, as.numeric)
+
+plot(disorder.matrix[[1]], -log10(disorder.matrix[[2]]))
+plot(-log10(disorder.matrix[[2]]), disorder.matrix[[1]])
+
+# Working with negative transform where a positive association indicates enrichment. Here rho is negative
+disorder.matrix <- na.omit(disorder.matrix)#omit 6 NA values...why am I getting NA values?...
+cor(disorder.matrix[[1]], -log10(disorder.matrix[[2]]), method = "spearman")
+cor(-log10(disorder.matrix[[2]]), disorder.matrix[[1]], method = "spearman")
+-0.04761224 
+
+#the correlation is significant
+cor.test(disorder.matrix[[1]], -log10(disorder.matrix[[2]]), method = "spearman", exact = F)$p.value
+[1] 0.006623004
+
+
+
+#also can stratify by length
 
 
 
