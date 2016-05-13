@@ -275,6 +275,33 @@ text(3, 6.85, expression(p == 9.90e-06), col = "darkred", cex = 1, family = "ser
 dev.off()
 
 
+# subset to sites that map to disordered regions (GelPrep.Pos.Disorder = T)
+GelPrep.distances.disorder <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+" &
+                                                               multExpanded1_withDE_annotated$GelPrep.Pos.Disorder == TRUE,
+                                                    c("GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
+y <- -log10(as.numeric(GelPrep.distances.disorder$GelPrepCovFAdjPval))
+x <- log10(GelPrep.distances.disorder$ClosestSNPtoSiteMinGelPrep + 1)#
+
+plot(x,y)
+R <- cor(x, y, method = "pearson", use = "complete.obs")
+R
+cor.test(x,y)$p.value
+
+
+GelPrep.distances.ordered <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+" &
+                                                               multExpanded1_withDE_annotated$GelPrep.Pos.Disorder == FALSE,
+                                                             c("GelPrepCovglobalFsig", "GelPrepCovFAdjPval", "ClosestSNPtoSiteMinGelPrep")]
+y <- -log10(as.numeric(GelPrep.distances.ordered$GelPrepCovFAdjPval))
+x <- log10(GelPrep.distances.ordered$ClosestSNPtoSiteMinGelPrep + 1)#
+
+plot(x,y)
+R <- cor(x, y, method = "pearson", use = "complete.obs")
+R
+cor.test(x,y)$p.value
+
+#disordered and in domain? loops?
+
+
 
 
 
