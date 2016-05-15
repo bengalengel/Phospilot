@@ -301,6 +301,7 @@ cor.test(x.order,y.order)$p.value
 
 # plot with disordered phosphopeptides highlighted in red and ordered in black. Same with the regression lines.
 
+pdf("distance_pvalue_cut_density.pdf", 7, 5)
 plot(x, y,
      pch = 20,
      xlab = expression(log[10](AA~distance~between~SNP~and~phosphosite)),
@@ -314,7 +315,7 @@ points(x.disorder, y.disorder,
 )
 abline(disorder.line, lwd = 2, lty = 2, col = "red3")
 abline(order.line, lwd = 2, lty = 2, col = "black")
-
+dev.off()
 
 
 
