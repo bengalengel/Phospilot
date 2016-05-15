@@ -874,15 +874,39 @@ cor.test(domain.matrix[[1]], domain.matrix[[2]], method = "spearman", exact = F)
 
 
 
-# hypothesize that proteins with a higher fraction of phosphosites in disordered regions are depleted within differential phosphorylation subset
+# I hypothesize that proteins with a higher fraction of phosphosites in disordered regions are depleted within differential phosphorylation subset
 
-This will require a dplyr like approach
+# per protein count phosphosites in disorder and phospphosites in ordered. fraction assignment per protein. a single fractional assignment is projected to each phosphosite and a linear regression is performed.
 
-per protein count phosphosites in disorder and phospphosites in ordered. fraction assignment per protein. a single fractional assignment is projected to each phosphosite and a linear regression is performed.
+# This will require a dplyr like approach
+
+disorder.fraction <- multExpanded1_withDE_annotated[ , c("GelPrepCovFPval", "GelPrepCovSubtoDE", "GelPrep.Pos.Disorder",
+                                                  "ppMajorityProteinIDs", "ppProteinIDs", "ppSequence.length", "idmult")] #note the NAs
+
+# I need two vectors, one of fraction of sites that map to disordered regions and another with pvalues. pvalues will be unique but proteins ids will be repeated. The depletion is significant but not very strong.
+
+disorder.fraction <- disorder.fraction %>% group_by(ppProteinIDs) %>% mutate(fraction.disordered = sum(GelPrep.Pos.Disorder / n(), na.rm = T), sites = n())
+
+disorder.fraction <- arrange(disorder.fraction, ppProteinIDs)
+disorder.fraction <- filter(disorder.fraction, GelPrepCovSubtoDE == "+") %>% arrange(ppProteinIDs)
+
+y <- -log10(as.numeric(disorder.fraction$GelPrepCovFPval))
+x <- disorder.fraction$fraction.disordered
+plot(x,y)
+R <- cor(x, y, method = "spearman", use = "complete.obs")
+R
+[1] -0.05551729
+cor.test(x,y, method = "spearman", exact = F)$p.value
+[1] 0.001526451
+
+R <- cor(x, y, method = "pearson", use = "complete.obs")
+R
+[1] -0.05198285
+cor.test(x,y, method = "pearson", exact = F)$p.value
+[1] 0.003001972
 
 
-
-
+#protein length
 
 
 
@@ -917,27 +941,6 @@ cor.test(x,y, method = "spearman", exact = F)$p.value
 
 
 
-
-#switch to 0/1 designation
-disorder.matrix$GelPrep.Pos.Disorder <- ifelse(disorder.matrix$GelPrep.Pos.Disorder == TRUE, 1, 0)
-disorder.matrix[] <- lapply(disorder.matrix, as.numeric)
-
-plot(disorder.matrix[[1]], -log10(disorder.matrix[[2]]))
-plot(-log10(disorder.matrix[[2]]), disorder.matrix[[1]])
-
-# Working with negative transform where a positive association indicates enrichment. Here rho is negative
-disorder.matrix <- na.omit(disorder.matrix)#omit 6 NA values...why am I getting NA values?...
-cor(disorder.matrix[[1]], -log10(disorder.matrix[[2]]), method = "spearman")
-cor(-log10(disorder.matrix[[2]]), disorder.matrix[[1]], method = "spearman")
--0.04761224 
-
-#the correlation is significant
-cor.test(disorder.matrix[[1]], -log10(disorder.matrix[[2]]), method = "spearman", exact = F)$p.value
-[1] 0.006623004
-
-
-
-#also can stratify by length
 
 
 
