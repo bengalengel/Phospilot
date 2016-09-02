@@ -935,6 +935,25 @@ cor.test(x,y, method = "spearman", exact = F)$p.value
 
 
 
+#Hypothesis is that proteins with more motifs are depleted if information nodes are buffered from differential phosphorylation. Motif counts is very sparse.
+
+
+motifCounts <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+", 
+                                                 c("GelPrepCovFPval", "GelPrepMotifCount"
+                                                 )]
+y <- -log10(as.numeric(motifCounts$GelPrepCovFPval))
+x <- log10(motifCounts$GelPrepMotifCount + 1) 
+plot(x,y)
+
+R <- cor(x, y, method = "spearman", use = "complete.obs")
+R
+[1] 0.09044962
+cor.test(x,y, method = "spearman", exact = F)$p.value
+[1] 2.333546e-07
+
+#how many have >0?. This is very small sample space.
+table(motifCounts$GelPrepMotifCount)
+
 
 
 
