@@ -10,12 +10,15 @@
 *.txt
 *.csv
 *.vcf
-#*.html I am going to track these rmd produced files due to requirements to build cache etc
+*.html 
 *.gmt
+*.RDataTmp*
 
-#specific folders to ignore#
+#specific folders and files to ignore#
 #################
 *Figs/*
+FigsMVRs/*
+Thumbs.db
 *Images*/*
 ChainFiles/*
 images/*
@@ -38,7 +41,8 @@ ELM/*
 *cache/*
 *images*/*
 *InterProScan/*
-
+melted
+medianquantilenormPhos
 
 
 
