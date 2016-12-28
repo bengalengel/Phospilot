@@ -341,10 +341,10 @@ colnames(mcmcVarcomp.PhosProteinCov.Batch) <- c("individual","culture","residual
 
 results <- list(Confounded = mcmcVarcomp.confounded, #confounded after combat batch effect correction
                 Confounded.Batchfit = mcmcVarcomp.confounded.batchfit, #med/quantile norm confounded with batch as a covariate
-                ProteinCorrected = mcmcVarcomp.proteinCov, # pQTL regressed gelprot protein dataframe subtracted from combat corrected phospho
-                ProteinNormalized = mcmcVarcomp.proteinNorm, # pQTL regressed gelprot protein dataframe as a covariate with combat corrected phospho
+                ProteinCorrected = mcmcVarcomp.proteinCov, # pQTL regressed gelprot protein dataframe as a covariate with combat corrected phospho
+                ProteinNormalized = mcmcVarcomp.proteinNorm, # pQTL regressed gelprot protein dataframe subtracted from combat corrected phospho
                 ProteinCovariateBatch = mcmcVarcomp.proteinCov.Batch, # pQTL regressed gelprot protein dataframe and batch as covariates with median/quantile normalized phospho
-                ProteinCovariateBatchPhos = mcmcVarcomp.PhosProteinCov.Batch #you get the idea
+                ProteinCovariateBatchPhos = mcmcVarcomp.PhosProteinCov.Batch
 )
 
 
