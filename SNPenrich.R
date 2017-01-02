@@ -281,8 +281,8 @@ smoothScatter(x,y, nbin = 150, bandwidth = 0.1,
 )
 reg.line <- lm(y~x, na.action = "na.omit")
 abline(reg.line, lwd = 2, lty = 2)
-text(3, 7.25, expression(R == -.12), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
-text(3, 6.85, expression(p == 9.90e-06), col = "darkred", cex = 1, family = "serif")
+text(3, 7.25, expression(R == -.11), col = "darkred", cex = 1, family = "serif") # rsquared and pvalue
+text(3, 6.85, expression(p == 4.37e-05), col = "darkred", cex = 1, family = "serif")
 dev.off()
 
 
