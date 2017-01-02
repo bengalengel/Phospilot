@@ -32,6 +32,7 @@ hapTypes <- c("0|1", "1|0", "1|1")
 index <- apply(SNPeffFinal[,sampleNames], 1, function(x){
   any(hapTypes %in% x)})
 SNPeffFinal <- SNPeffFinal[index,]
+nrow(SNPeffFinal)##58078
 
 # How many snps are only represented in the standard? 19238
 sampleNames <- sampleNames[!grepl("NA19238",sampleNames)]
@@ -42,12 +43,22 @@ index <- apply(SNPeffFinal[,sampleNames], 1, function(x){
 SNPeffFinal <- SNPeffFinal[index,]
 nrow(SNPeffFinal)#51427
 
-#roughly 21K coding variants in at least 1 line (not including standard)
-length(unique(SNPeffFinal$snp))#21147
 
-#
-length(unique(SNPeffFinal$gene))#9208
-length(unique(SNPeffFinal$peptide))#25705
+#subset to those variants where at least one non-standard line is different
+index <- apply(SNPeffFinal[,sampleNames],1,function(x){
+  x <- as.character(x)
+  !all(sapply(x,identical, x[1]))
+}
+)
+SNPeffFinal <- SNPeffFinal[index,]
+nrow(SNPeffFinal) #46144
+
+
+
+#19K coding variants in at least 1 line (not including standard)
+length(unique(SNPeffFinal$snp))#19002
+length(unique(SNPeffFinal$gene))#8656
+length(unique(SNPeffFinal$peptide))#24036
 
 
 ## polyphen2 cleanup
