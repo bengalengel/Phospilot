@@ -651,12 +651,66 @@ lapply(goid.list, write, "GO.gmt", append = TRUE, ncolumns = 500, sep = "\t")
 
 GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval",
                                                    "GelPrepPFamIDPhosphoST", "GelPrepPFamIDs", "GelPrepPFamIDPhospho", "GelPrepCovFPval",
-                                                      "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep"
+                                                      "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep",
+                                                   "ppSequence.length"
                                                    )]
 #note the factors. Revert. remember a dataframe is a list of vectors.
 str(GelPrep.data)
 i <- sapply(GelPrep.data, is.factor)
 GelPrep.data[i] <- lapply(GelPrep.data[i], as.character)
+
+
+#quick test of interactivity proportional to %disorder. HIGHLY SIGNIFICANT 
+y <- as.numeric(GelPrep.data$GelPrepInteractCount)
+x <- as.numeric(GelPrep.data$GelPrepPercentDisorder)
+plot(x,y)
+cor(x,y, use = "complete.obs")
+[1] 0.1846606
+cor.test(x,y, alternative = "two", method = "pearson")$p.value #spearman also highly sig
+[1] 0
+
+
+#length vs % disorder. pearson sig but spearman not. VERY WEAK
+y <- as.numeric(GelPrep.data$ppSequence.length)
+x <- as.numeric(GelPrep.data$GelPrepPercentDisorder)
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] 0.02124543
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 0.1027654
+
+
+#length vs interactivity. Sig positive association
+y <- as.numeric(GelPrep.data$ppSequence.length)
+x <- as.numeric(GelPrep.data$GelPrepInteractCount)
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] 0.06451147
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 1.480578e-11
+
+#length vs ptmcount. Obviously very large positive association
+y <- as.numeric(GelPrep.data$total.mod.count.GelPrep)
+x <- as.numeric(GelPrep.data$ppSequence.length)
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] 0.6640799
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 0
+
+#ptmcount vs interactivity. Large positive association.
+y <- as.numeric(GelPrep.data$total.mod.count.GelPrep)
+x <- as.numeric(GelPrep.data$GelPrepInteractCount)
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] 0.384984
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 0
+
+
+
+
+
 
 #subset to those phosphopeptides subjected to diffphos analysis (n = 3257)
 GelPrep.data <- GelPrep.data[GelPrep.data$GelPrepCovSubtoDE == "+",]
