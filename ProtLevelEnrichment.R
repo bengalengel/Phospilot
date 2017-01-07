@@ -652,7 +652,7 @@ lapply(goid.list, write, "GO.gmt", append = TRUE, ncolumns = 500, sep = "\t")
 GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval",
                                                    "GelPrepPFamIDPhosphoST", "GelPrepPFamIDs", "GelPrepPFamIDPhospho", "GelPrepCovFPval",
                                                       "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep",
-                                                   "ppSequence.length"
+                                                   "ppSequence.length", "GelPrep.Disorder.MaxLength"
                                                    )]
 #note the factors. Revert. remember a dataframe is a list of vectors.
 str(GelPrep.data)
@@ -678,6 +678,17 @@ cor(x,y, use = "complete.obs", method = "spearman")
 [1] 0.02124543
 cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
 [1] 0.1027654
+
+
+#length vs longest disorder stretch. strong positive association
+y <- as.numeric(GelPrep.data$ppSequence.length)
+x <- as.numeric(GelPrep.data$GelPrep.Disorder.MaxLength)
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] 0.02124543
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 0.1027654
+
 
 
 #length vs interactivity. Sig positive association
