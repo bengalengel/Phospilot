@@ -781,6 +781,25 @@ barplot2(data[1:2], plot.ci=T,
          main = "Percent disorder")
 dev.off()
 
+
+
+##Disorder max run
+disorder.run.pos <- as.numeric(GelPrep.data[sig.index, "GelPrep.Disorder.MaxLength"])
+disorder.run.neg <- as.numeric(GelPrep.data[!sig.index, "GelPrep.Disorder.MaxLength"])
+wilcox.test(disorder.run.pos, disorder.run.neg, alternative="two.sided")$p.value#performs mann-whitney test
+[1] 1.250861e-06
+
+
+data <- unlist(mean.se.calc(disorder.run.pos,disorder.run.neg))
+pdf("GelPrepDisorderRun.pdf", 5, 7)
+barplot2(data[1:2], plot.ci=T,
+         ci.l=c(data[1] - data[3], data[2] - data[3]), ci.u=c(data[1] + data[3], data[2] + data[3]),
+         lwd=3, ci.lwd=3, col = c("Red", "Blue"), axisnames = F,
+         main = "Disorder Run Length")
+dev.off()
+
+
+
 ##modification count
 modcount.pos <- as.numeric(GelPrep.data[sig.index, "total.mod.count.GelPrep"])
 modcount.neg <- as.numeric(GelPrep.data[!sig.index, "total.mod.count.GelPrep"])
