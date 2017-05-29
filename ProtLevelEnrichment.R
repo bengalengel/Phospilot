@@ -685,9 +685,9 @@ y <- as.numeric(GelPrep.data$ppSequence.length)
 x <- as.numeric(GelPrep.data$GelPrep.Disorder.MaxLength)
 plot(x,y)
 cor(x,y, use = "complete.obs", method = "spearman")
-[1] 0.02124543
+[1] 0.4925966
 cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
-[1] 0.1027654
+[1] 1.015572e-198
 
 
 
