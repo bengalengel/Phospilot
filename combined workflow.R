@@ -97,6 +97,19 @@ RevHits <- grep(multExpanded1$Protein, pattern = "REV")
 RevHitsidmult <- multExpanded1$idmult[RevHits]
 multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] #18238 now 17774
 
+## Identify phosphopeptides that map to >=2 localized phosphosites by assigning a 'phosphopeptide.id' to all sites
+expCol <- grep("HL(.*)", colnames(multExpanded1))
+site.data <- multExpanded1[,expCol]
+row.names(site.data) <- multExpanded1$idmult
+site.data <- log2(site.data)
+site.rows <- with(site.data,  paste(HL18486_1_1,HL18486_1_2,HL18486_2_1,HL18486_2_2,HL18862_1_1,HL18862_1_2,HL18862_2_1,HL18862_2_2,HL19160_1_1,HL19160_1_2,HL19160_2_1,HL19160_2_2))
+site.data <- within(site.data, phosphopeptide.id <- match(site.rows, unique(site.rows)))
+
+multExpanded1$phosphopeptide.id <- site.data$phosphopeptide.id
+
+
+
+
 # Normalization and batch correction of confounded data -------------------
 
 #remove an outlier, normalize (median and quantile), and batch correct (combat). Returned are EDA plots and a list of DFs.See BatchNorm for details

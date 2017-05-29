@@ -18,11 +18,7 @@ ExpandPhos <- function(phospho){
   drop <- c("bio_tech_mult","tech_mult")
   melted <- melted[,!(names(melted) %in% drop)]
   
-  ##cast data so that each unique 'sample/replicate' combination has its own column populated by the measurement 'currently the value column'.
-  
-  # testnew <- dcast(test, ... ~ variable)##will recast the entire data frame
-  # testnew1 <- dcast(test, ... ~ sample, value.var="value") ##casts by sample
-  
+  ##cast data so that each unique 'sample/replicate' combination has its own column populated by the measurement 'currently the value column'.  
   casted <- dcast(melted, ... ~ sample + bio + tech, value.var="value") ##close but creates extra rows
   
   
@@ -40,7 +36,7 @@ ExpandPhos <- function(phospho){
   # rename the experiment variables within the dataframe
   colnames(casted)[data] <- newnames
   
-  ## columnwise application of mean to condense the dataframe. PRODUCES CORRECT NUMBERS!
+  ## columnwise application of mean to condense the dataframe.
   out <- ddply(casted, .(id, multiplicity), colwise(mean,newnames,na.rm=T))
   
   #merge with identifying information by id to produce the multiplicity expanded table (each obs has a row)
@@ -49,7 +45,6 @@ ExpandPhos <- function(phospho){
   multExpanded <- merge(other_data, out, by="id")
   
   ## remove rows with only NAs in expression columns
-  
   expCol <- grep("HL(.*)", colnames(multExpanded))
   
   multExpanded <- multExpanded[rowSums(is.na(multExpanded[,expCol]))!=length(expCol),]##removes rows containing all 
