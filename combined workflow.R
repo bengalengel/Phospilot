@@ -104,7 +104,6 @@ row.names(site.data) <- multExpanded1$idmult
 site.data <- log2(site.data)
 site.rows <- with(site.data,  paste(HL18486_1_1,HL18486_1_2,HL18486_2_1,HL18486_2_2,HL18862_1_1,HL18862_1_2,HL18862_2_1,HL18862_2_2,HL19160_1_1,HL19160_1_2,HL19160_2_1,HL19160_2_2))
 site.data <- within(site.data, phosphopeptide.id <- match(site.rows, unique(site.rows)))
-
 multExpanded1$phosphopeptide.id <- site.data$phosphopeptide.id
 
 
