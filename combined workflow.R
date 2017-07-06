@@ -85,9 +85,7 @@ breakdown(protein, phospho1, multExpanded1)
 
 # Remove peptides mapping to protein groups with any reverse hits ---------
 
-#Perhaps I should just remove the reverse hits and produce a flag?
-
-#!!BEFORE passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (31 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping to Zia's dataset more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets. That is, what does it mean to compare enrichment for a reversed 'protein'?
+#Before passing a matrix for diffPhos, remove all ids with leading protein mapping to a REV_ hit (31 for ME1). These ids are still present because there are majority protein ids for these peptides that map to a non reverse hit. These are omitted to make protein mapping more straightforward and enrichment analysis results comparable between the confounded and non-confounded datasets.
 
 #add idmult annotation to multexpanded table
 idmult <- paste(multExpanded1$id, multExpanded1$multiplicity, sep="_")
@@ -96,18 +94,6 @@ multExpanded1 <- cbind(multExpanded1,idmult)
 RevHits <- grep(multExpanded1$Protein, pattern = "REV")
 RevHitsidmult <- multExpanded1$idmult[RevHits]
 multExpanded1 <- multExpanded1[!grepl(multExpanded1$Protein, pattern = "REV"),] #18238 now 17774
-
-## Identify phosphopeptides that map to >=2 localized phosphosites by assigning a 'phosphopeptide.id' to all sites
-expCol <- grep("HL(.*)", colnames(multExpanded1))
-site.data <- multExpanded1[,expCol]
-row.names(site.data) <- multExpanded1$idmult
-site.data <- log2(site.data)
-site.rows <- with(site.data,  paste(HL18486_1_1,HL18486_1_2,HL18486_2_1,HL18486_2_2,HL18862_1_1,HL18862_1_2,HL18862_2_1,HL18862_2_2,HL19160_1_1,HL19160_1_2,HL19160_2_1,HL19160_2_2))
-site.data <- within(site.data, phosphopeptide.id <- match(site.rows, unique(site.rows)))
-multExpanded1$phosphopeptide.id <- site.data$phosphopeptide.id
-
-
-
 
 # Normalization and batch correction of confounded data -------------------
 
