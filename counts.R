@@ -79,7 +79,7 @@ phoscount <- function(phospho,phospho1,multExpanded,multExpanded1){
   
   
   # Overlap per sample at the phosphosite level C1
-  # number of unique ids per experiment (CERTAINLY A MUCH BETTER WAY TO DO THIS!)
+  # number of unique ids per experiment
   
   newnames <- colnames(multExpanded1)[grep("_", colnames(multExpanded1))]
   
