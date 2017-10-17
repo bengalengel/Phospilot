@@ -21,9 +21,11 @@ y <- -log10(as.numeric(GelPrep.length$GelPrepCovFAdjPval))
 x <- log10(GelPrep.length$ppSequence.length)
 
 plot(x,y)
-R <- cor(x, y, method = "pearson", use = "complete.obs")
+R <- cor(x, y, method = "spearman", use = "complete.obs")
 R
-cor.test(x,y)$p.value
+# [1] -0.07458249
+cor.test(x,y, method = "spearman", exact = F)$p.value
+# [1] 2.037569e-05
 
 #make and save plot if necessary
 # pdf("nscount_pvalue_density.pdf", 7, 5)
@@ -72,10 +74,11 @@ ibaq[] <- lapply(ibaq, as.numeric)
 
 y <- -log10(ibaq$GelPrepCovFPval)
 x <- log10(ibaq$ibaq.median)
-cor(x,y, use = "complete.obs")
-# [1] 0.05184077
-cor.test(x,y, alternative = "two", method = "pearson")$p.value
-# [1] 0.003082246
+cor(x,y, use = "complete.obs", method = "spearman")
+# [1] 0.07929577
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value
+# [1] 5.875555e-06
+
 
 #make and save plot
 pdf("ibaq_pvalue_density.pdf", 7, 5)
@@ -185,10 +188,10 @@ ibaq.sites.subtoDE["GelPrepCovFPval"] <- as.numeric(ibaq.sites.subtoDE$GelPrepCo
 
 y <- -log10(ibaq.sites.subtoDE$GelPrepCovFPval)
 x <- log2(ibaq.sites.subtoDE$sites)
-cor.test(x,y, alternative = "two", method = "pearson")$p.value
-# [1] 6.969347e-07
-cor(x,y, use = "complete.obs")
-# [1] -0.08689839
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value
+# [1] 4.270045e-06
+cor(x,y, method = "spearman", use = "complete.obs")
+# [1] -0.08053805
 
 
 pdf("sites_pval_density.pdf", 7, 5)
@@ -652,7 +655,7 @@ lapply(goid.list, write, "GO.gmt", append = TRUE, ncolumns = 500, sep = "\t")
 GelPrep.data <- multExpanded1_withDE_annotated[, c("GelPrepCovSubtoDE", "GelPrepCovglobalFsig", "GelPrepCovFAdjPval",
                                                    "GelPrepPFamIDPhosphoST", "GelPrepPFamIDs", "GelPrepPFamIDPhospho", "GelPrepCovFPval",
                                                       "GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep",
-                                                   "ppSequence.length", "GelPrep.Disorder.MaxLength"
+                                                   "ppSequence.length", "GelPrep.Disorder.MaxLength", "ppMajorityProteinIDs"
                                                    )]
 #note the factors. Revert. remember a dataframe is a list of vectors.
 str(GelPrep.data)
@@ -671,8 +674,10 @@ cor.test(x,y, alternative = "two", method = "pearson")$p.value #spearman also hi
 
 
 #length vs % disorder. pearson sig but spearman not. VERY WEAK
-y <- as.numeric(GelPrep.data$ppSequence.length)
-x <- as.numeric(GelPrep.data$GelPrepPercentDisorder)
+GelPrep.data.uniqueProteins <- GelPrep.data[!duplicated(GelPrep.data$ppMajorityProteinIDs), names(GelPrep.data) %in% c("ppSequence.length", "GelPrepPercentDisorder", "GelPrep.Disorder.MaxLength")]
+
+y <- as.numeric(GelPrep.data.uniqueProteins$ppSequence.length)
+x <- as.numeric(GelPrep.data.uniqueProteins$GelPrepPercentDisorder)
 plot(x,y)
 cor(x,y, use = "complete.obs", method = "spearman")
 [1] 0.02124543
@@ -760,9 +765,19 @@ barplot2(data[1:2], plot.ci=T,
          main = "Number of protein-protein interactions")
 dev.off()
 
+## threshold independent spearman correlation test of interaction count and F-test p-values
+y <- as.numeric(GelPrep.data$GelPrepInteractCount)
+x <- -log10(as.numeric(GelPrep.data$GelPrepCovFPval))
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] -0.1009617
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 7.968663e-09
 
 
 ##Disorder
+
+#take the mean disorder percentage from all majority protein ids
 GelPrep.data$FinalPercentDisorder <- sapply(GelPrep.data$GelPrepPercentDisorder, function(x){
   mean(as.numeric(unlist(strsplit(x, ";"))))
 })
@@ -782,6 +797,17 @@ barplot2(data[1:2], plot.ci=T,
 dev.off()
 
 
+## threshold independent spearman correlation test of percent disordered residues and F-test p-values
+y <- as.numeric(GelPrep.data$FinalPercentDisorder)
+x <- -log10(as.numeric(GelPrep.data$GelPrepCovFPval))
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] -0.03758456
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 0.03212017
+
+
+
 
 ##Disorder max run
 disorder.run.pos <- as.numeric(GelPrep.data[sig.index, "GelPrep.Disorder.MaxLength"])
@@ -799,6 +825,15 @@ barplot2(data[1:2], plot.ci=T,
 dev.off()
 
 
+## threshold independent spearman correlation test of disordered max-run-length and F-test p-values
+y <- as.numeric(GelPrep.data$GelPrep.Disorder.MaxLength)
+x <- -log10(as.numeric(GelPrep.data$GelPrepCovFPval))
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] -0.08446736
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 1.383675e-06
+
 
 ##modification count
 modcount.pos <- as.numeric(GelPrep.data[sig.index, "total.mod.count.GelPrep"])
@@ -814,6 +849,21 @@ barplot2(data[1:2], plot.ci=T,
          lwd=3, ci.lwd=3, col = c("Red", "Blue"), axisnames = F,
          main = "Total number of PTMs")
 dev.off()
+
+## threshold independent spearman correlation test of PTM count and F-test p-values
+y <- as.numeric(GelPrep.data$total.mod.count.GelPrep)
+x <- -log10(as.numeric(GelPrep.data$GelPrepCovFPval))
+plot(x,y)
+cor(x,y, use = "complete.obs", method = "spearman")
+[1] -0.07493412
+cor.test(x,y, alternative = "two", method = "spearman", exact = F)$p.value 
+[1] 1.861572e-05
+
+
+
+
+
+
 
 #all non significant changes
 
@@ -1041,6 +1091,8 @@ table(motifCounts$GelPrepMotifCount)
 
 
 
+
+## proteome wide correlation between protein length and disordered residue percentage
 
 
 
