@@ -402,6 +402,39 @@ for (ii_result in 1:6) {
 }
   
 
+##protein confounded batch effect corrected with axis common to non-confounded (y 7.5, -5.0)
+res <- data.frame( results$Confounded )
+p <- ggplot(data.frame(var_estimate = do.call(c, res),
+                       var_source = factor( rep( c(1:3), each = dim(res)[1]),
+                                            labels = c("individual", "culture", "technical")) ),
+            aes(x = var_source, y = log10(var_estimate)) )  +
+  geom_violin(alpha = .6) + geom_boxplot(width = .2, alpha = .2) +
+  ylim(-5,7.5) + 
+  xlab("Source of variation") + ylab(expression(log[10](Variance~Component))) +  
+  ggtitle(names(results[1])) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(text=element_text(family="Times New Roman", size=12)) 
+ggsave(paste0("ConfoundedCommonScale", ".pdf"), p, width=5.5, height=4)
+
+
+##protein corrected batch effect corrected with common axis (y 7.5, -5.0)
+res <- data.frame( results$ProteinCorrected )
+p <- ggplot(data.frame(var_estimate = do.call(c, res),
+                       var_source = factor( rep( c(1:3), each = dim(res)[1]),
+                                            labels = c("individual", "culture", "technical")) ),
+            aes(x = var_source, y = log10(var_estimate)) )  +
+  geom_violin(alpha = .6) + geom_boxplot(width = .2, alpha = .2) +
+  ylim(-5,7.5) + 
+  xlab("Source of variation") + ylab(expression(log[10](Variance~Component))) +  
+  ggtitle(names(results[3])) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank()) +
+  theme(text=element_text(family="Times New Roman", size=12)) 
+ggsave(paste0("ProteinCorrectedCommonScale", ".pdf"), p, width=5.5, height=4)
+
+
+
 #relative values for the variance components boxplots
 for (ii_result in 1:6) {
   res <- data.frame( results[[ii_result]] )
