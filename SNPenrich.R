@@ -714,12 +714,7 @@ stopCluster(cl)
 
 
 ##############Enrichment tests ------
-# 1)  Test for enrichment in diffphos. background is all sites subject to DiffPhos. Foreground is omnibus F significance. Category is 'with snp' or without snp at the phosphopeptide level. Contingency matrix is of the form:
-
-#                            in category  not in category  
-#                    DErow
-#                    NotDErow
-# 'in' category is any majority/leading protein(s) assigned to this phosphosite has a snp.  
+# 1)  Test for enrichment in diffphos. background is all sites subject to DiffPhos. Foreground is omnibus F significance. Category is 'with snp' or without snp at the phosphopeptide level. 
 
 SubtoDEGelProt <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+",] #3257
 SubtoDEConfounded <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$ConfoundedSubtoDE == "+",] #4738
@@ -759,24 +754,8 @@ cor.test(NSsnp.matrix[[1]], NSsnp.matrix[[2]], method = "spearman", exact = F)$p
 [1] 6.483904e-08
 
 
-#bootstrap based estimate (http://content.csbs.utah.edu/~rogers/datanal/labprj/bootstrap/index.html)
-robs <- cor(-log10(NSsnp.matrix[[2]]), NSsnp.matrix[[1]], method = "spearman") # observed r
-tail.prob <- 0
-nreps <- 500
-for(i in 1:nreps) {
-  y <- sample(NSsnp.matrix[[1]])   # randomly reorder values of 2nd variable
-  rsim <- cor(-log10(NSsnp.matrix[[2]]), y, method="spearman")     # simulated r
-  if(abs(rsim) >= abs(robs)) {   # abs makes test 2-tailed
-    tail.prob <- tail.prob + 1
-  }
-}
-tail.prob <- tail.prob / nreps
-
-
 # 2) snp in domain enrichment using snp positive as background
 
-
-# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
 NSsnp.domain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+", c("snp.in.domain", "GelPrepCovFPval")]
 
 #switch to 0/1 designation. for now the NAs are a bug
@@ -788,24 +767,22 @@ NSsnp.domain.matrix[] <- lapply(NSsnp.domain.matrix, as.numeric)
 plot(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]))
 plot(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]])
 
-# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+# Working with negative transform where a positive association indicates enrichment. Negative depletion.
 cor(NSsnp.domain.matrix[[1]], -log10(NSsnp.domain.matrix[[2]]), method = "spearman")
 cor(-log10(NSsnp.domain.matrix[[2]]), NSsnp.domain.matrix[[1]], method = "spearman")
 [1] 0.1208013
 
-
-#the correlation IS significant.
 cor.test(NSsnp.domain.matrix[[1]], NSsnp.domain.matrix[[2]], method = "spearman", exact = F)$p.value
 [1] 9.829453e-06
 
 
 # 3) Is the phospho relevance of the domain driving the enrichment of domains within the ns.snp bg? (no)
 
-# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+# Threshold independent test of association using spearman rank cor coef. 
 NSsnp.phosphodomain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" & SubtoDEGelProt$snp.in.domain == TRUE,
                                       c("snp.domain.phospho.relevant", "GelPrepCovFPval")]
 
-#switch to 0/1 designation. for now the NAs are a bug
+#switch to 0/1 designation.
 NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant<- ifelse(NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant == T, 1, 0)
 NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant[is.na(NSsnp.phosphodomain.matrix$snp.domain.phospho.relevant)] <- 0
 
@@ -814,18 +791,18 @@ NSsnp.phosphodomain.matrix[] <- lapply(NSsnp.phosphodomain.matrix, as.numeric)
 plot(NSsnp.phosphodomain.matrix[[1]], -log10(NSsnp.phosphodomain.matrix[[2]]))
 plot(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]])
 
-# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here depletion
+# Working with negative transform where a positive association indicates enrichment. Negative depletion.
 cor(NSsnp.phosphodomain.matrix[[1]], -log10(NSsnp.phosphodomain.matrix[[2]]), method = "spearman")
 cor(-log10(NSsnp.phosphodomain.matrix[[2]]), NSsnp.phosphodomain.matrix[[1]], method = "spearman")
 -0.02818142 
 
-#the negative correlation is significant at alpha  = .05; 
+#the negative correlation is not sig
 cor.test(NSsnp.phosphodomain.matrix[[1]], NSsnp.phosphodomain.matrix[[2]], method = "spearman", exact = F)$p.value
 0.6338825
 
 ##again,using only S/T specific domains
 
-# Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
+# Threshold independent test of association using spearman rank cor coef.
 NSsnp.phosphodomain.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" & SubtoDEGelProt$snp.in.domain == TRUE,
                                              c("snp.domain.phospho.relevant.ST", "GelPrepCovFPval")]
 
@@ -848,7 +825,7 @@ cor.test(NSsnp.phosphodomain.matrix[[1]], NSsnp.phosphodomain.matrix[[2]], metho
 [1] 0.5753744
 
 
-# 4) Is the phospho relevancy of the protein an additional driver of variability? (omited.should appear from pfam domain enrichment)
+# 4) Is the phospho relevancy of the protein an additional driver of variability?
 
 # Threshold independent test of association using spearman rank cor coef. Here using nominal ps in the event I want to produce a qq plot
 NSsnp.phosphoprotein.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+",
@@ -886,7 +863,6 @@ FALSE  TRUE
 #Test of ANY snp within a disordered region affecting variability
 NSsnp.disorder.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" , c("GelPrepAnySNPInDisorderedRegion", "GelPrepCovFPval")]
 
-#switch to 0/1 designation. for now the NAs are a bug
 NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion <- ifelse(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion == T, 1, 0)
 NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion[is.na(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion)] <- 0
 
@@ -895,7 +871,7 @@ NSsnp.disorder.matrix[] <- lapply(NSsnp.disorder.matrix, as.numeric)
 plot(NSsnp.disorder.matrix[[1]], -log10(NSsnp.disorder.matrix[[2]]))
 plot(-log10(NSsnp.disorder.matrix[[2]]), NSsnp.disorder.matrix[[1]])
 
-# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+# Working with negative transform where a positive association indicates enrichment. Negative depletion.
 cor(NSsnp.disorder.matrix[[1]], -log10(NSsnp.disorder.matrix[[2]]), method = "spearman")
 cor(-log10(NSsnp.disorder.matrix[[2]]), NSsnp.disorder.matrix[[1]], method = "spearman")
 [1] -0.008710016
@@ -913,7 +889,7 @@ table(NSsnp.disorder.matrix$GelPrepAnySNPInDisorderedRegion)
 #Test of ANY snp HVAR deleterious affecting variability
 NSsnp.hvar.matrix <- SubtoDEGelProt[SubtoDEGelProt$GelPrepNsSnpPositive == "+" , c("GelPrepAnySNPHVARDeleterious", "GelPrepCovFPval")]
 
-#switch to 0/1 designation. for now the NAs are a bug
+#switch to 0/1 designation.
 NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious <- ifelse(NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious == T, 1, 0)
 NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious[is.na(NSsnp.hvar.matrix$GelPrepAnySNPHVARDeleterious)] <- 0
 
@@ -922,12 +898,12 @@ NSsnp.hvar.matrix[] <- lapply(NSsnp.hvar.matrix, as.numeric)
 plot(NSsnp.hvar.matrix[[1]], -log10(NSsnp.hvar.matrix[[2]]))
 plot(-log10(NSsnp.hvar.matrix[[2]]), NSsnp.hvar.matrix[[1]])
 
-# Working with negative transform where a positive association indicates enrichment. Negative depletion. Here enrichment!
+# Working with negative transform where a positive association indicates enrichment. Negative depletion.
 cor(NSsnp.hvar.matrix[[1]], -log10(NSsnp.hvar.matrix[[2]]), method = "spearman")
 cor(-log10(NSsnp.hvar.matrix[[2]]), NSsnp.hvar.matrix[[1]], method = "spearman")
 [1] 0.1235908
 
-#the correlation IS NOT significant.
+#the correlation is significant.
 cor.test(NSsnp.hvar.matrix[[1]], NSsnp.hvar.matrix[[2]], method = "spearman", exact = F)$p.value
 [1] 6.075066e-06
 

@@ -106,7 +106,7 @@ cor(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman")
 cor(-log10(domain.matrix[[2]]), domain.matrix[[1]], method = "spearman")
 [1] 0.06167596
 
-#the correlation is not significant
+#the correlation is significant
 cor.test(domain.matrix[[1]], -log10(domain.matrix[[2]]), method = "spearman", exact = F)$p.value
 [1] 0.0006557162
 
@@ -354,30 +354,4 @@ if(!file.exists("./MotifX")) dir.create("./MotifX")
 lapply(names(serine.diff.phos), function(x) {
          write.table(serine.diff.phos[x], file = paste("./MotifX/", x, ".txt", sep = ""), col.names = F, row.names = F, sep = '\t') }
 )
-
-
-
-
-
-
-
-
-##### NetKin output and wordcloud generation -------------
-
-#Here the background is the set of all UNIQUE peptides (doubly and triply phosphorylated peptides ARE NOT considered here) containing AAs +/- 7 (peptides from N or C terminal regions of the protein are omitted) from central S/T residue (too few Ys for a meaningful enrichment). The foreground is the same.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
