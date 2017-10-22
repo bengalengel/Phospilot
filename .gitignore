@@ -41,6 +41,7 @@ ELM/*
 *cache/*
 *images*/*
 *InterProScan/*
+PosterWork
 melted
 medianquantilenormPhos
 comparisons.R
