@@ -9,12 +9,10 @@ library(seqinr)
 library(vioplot)
 source("loadMQ.R")
 source("ExpandPhos.R")
-source("ExpandPhos2.R") #for expanding the non-normalized data
 source("counts.R")
 source("breakdown.R")
 source("BatchNorm.R")
 source("DiffPhos.R")
-source("loadMQ2.R") #non normalized data
 source("NestedVar.R")
 source("NormProt.R")
 source("ProtAssignment.R")
@@ -22,7 +20,6 @@ source("ProtAssignment2.R")
 source("AddAnnotation.R")
 source("Enrichment.R")
 source("PerseusOut.R")
-source("AddAnnotation.R")
 
 
 #load, reformat and characterize MQ outputted mass spectrometry  --------
@@ -127,7 +124,7 @@ PhosPrepCombatPilot <- PhosPrepMatrices[[12]]#same as above with mean ratios for
 
 #For GelPrep protein normalization and assignment of proteins to phosphopeptides is done in two steps. 
 
-# Normprot performs 'traditional' quantile normalization AND calls multiple scripts to perform a pQTL optimization routine by regressing PCs.
+# Normprot performs quantile normalization AND calls multiple scripts to perform a pQTL optimization routine by regressing PCs.
 # See the PCregression folder for more details
 
 # Choose directory containing proteomics data to pass to 'NormProt'.
@@ -402,7 +399,7 @@ multExpanded1_withDE_annotated <- AddAnnotation(multExpanded1_withDE)
   multExpanded1_withDE_annotated <- readRDS("multExpanded1_withDE_annotated.rds")
 }
 
-# add ELM motif instances ----
+# add ELM motif instances
 source("./ELM/elm_processing.R")
 
 #combine with hprd motifs. processed using perseus on 9.19.15
@@ -411,26 +408,20 @@ motifs <- motifs[[1]]
 multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, motifs)
 saveRDS(multExpanded1_withDE_annotated, file = "./multExpanded1_withDE_annotated.rds")
 
-
-#protein level enrichments
-
-
-
-#peptide level enrichments
-
-
-
-# snp enrichments
-
-
-
-# pqtl enrichment
-
-
 # (Ontology) Enrichment analysis 
 enrichment_tables <- Enrichment(multExpanded1_withDE_annotated)
 
+#protein enrichments
+# ProtLevelEnrichment.R
 
+#peptide enrichments
+# PeptideLevelEnrichment.R
+
+# snp enrichments
+# SNPenrich.R
+
+# pqtl enrichment
+# pqtlEnrich.R
 
 
 
