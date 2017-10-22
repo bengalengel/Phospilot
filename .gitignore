@@ -13,6 +13,9 @@
 *.html 
 *.gmt
 *.RDataTmp*
+*.html
+*.Rmd
+
 
 #specific folders and files to ignore#
 #################
@@ -42,6 +45,9 @@ ELM/*
 *images*/*
 *InterProScan/*
 PosterWork
+playscripts
+missingpca
+NestedRE_scripts
 melted
 medianquantilenormPhos
 comparisons.R
