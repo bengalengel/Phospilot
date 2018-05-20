@@ -724,7 +724,7 @@ ProcessFit <- function(fit2, header, FitData, multExpanded1){
       ifelse(x %in% row.names(Fvals), Fvals[which(row.names(Fvals) == x), "adj.P.Val"], "-")
     })
     
-    #add DE to table. 5% FDR
+    #add DE threshold to the table. 5% FDR
     sig1 <- topTable(fit2, coef = 1, adjust = "BH", n = Inf, sort.by = "P", p = .05)
     sig2 <- topTable(fit2, coef = 2, adjust = "BH", n = Inf, sort.by = "P", p = .05)
     sig3 <- topTable(fit2, coef = 3, adjust = "BH", n = Inf, sort.by = "P", p = .05)
@@ -735,6 +735,27 @@ ProcessFit <- function(fit2, header, FitData, multExpanded1){
     c2down <- sig2[sig2$logFC < 0,]
     c3up <- sig3[sig3$logFC > 0,]
     c3down <- sig3[sig3$logFC < 0,]
+    
+    # calculate DiffPhos FCs for each contrast (can be added to table later if desired)
+    Cont1FC  <-  sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(topLists[[1]]), topLists[[1]][which(row.names(topLists[[1]]) == x), "logFC"], NA)
+    })
+    Cont2FC  <-  sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(topLists[[2]]), topLists[[2]][which(row.names(topLists[[2]]) == x), "logFC"], NA)
+    })
+    Cont3FC  <-  sapply(as.character(multExpanded1$idmult), function(x){
+      ifelse(x %in% row.names(topLists[[3]]), topLists[[3]][which(row.names(topLists[[3]]) == x), "logFC"], NA)
+    })
+    
+    # total number of unique phoshopeptides with log2FC >=2 in any contrast
+    Cont1FC <- Cont1FC[!is.na(Cont1FC)]
+    Cont2FC <- Cont2FC[!is.na(Cont2FC)]
+    Cont3FC <- Cont3FC[!is.na(Cont3FC)]
+    Cont1FC2 <- names(Cont1FC[Cont1FC >= 2 | Cont1FC <= -2])
+    Cont2FC2 <- names(Cont2FC[Cont2FC >= 2 | Cont2FC <= -2])
+    Cont3FC2 <- names(Cont3FC[Cont3FC >= 2 | Cont3FC <= -2])
+    sites.FC2 <- unique(c(Cont1FC2, Cont2FC2, Cont3FC2))
+    length(sites.FC2) #58 
     
     multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
     multExpanded1$DEcont2 = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
