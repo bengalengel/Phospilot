@@ -757,6 +757,14 @@ ProcessFit <- function(fit2, header, FitData, multExpanded1){
     sites.FC2 <- unique(c(Cont1FC2, Cont2FC2, Cont3FC2))
     length(sites.FC2) #58 
     
+    # total number of unique phoshopeptides with log2FC >=1 in any contrast
+
+    Cont1FC1 <- names(Cont1FC[Cont1FC >= 1 | Cont1FC <= -1])
+    Cont2FC1 <- names(Cont2FC[Cont2FC >= 1 | Cont2FC <= -1])
+    Cont3FC1 <- names(Cont3FC[Cont3FC >= 1 | Cont3FC <= -1])
+    sites.FC1 <- unique(c(Cont1FC1, Cont2FC1, Cont3FC1))
+    length(sites.FC1) #550 
+    
     multExpanded1$DEcont1 = ifelse(multExpanded1$idmult %in% row.names(sig1),"+","-")
     multExpanded1$DEcont2 = ifelse(multExpanded1$idmult %in% row.names(sig2),"+","-")
     multExpanded1$DEcont3 = ifelse(multExpanded1$idmult %in% row.names(sig3),"+","-")
