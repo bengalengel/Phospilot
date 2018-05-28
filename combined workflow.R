@@ -408,6 +408,32 @@ motifs <- motifs[[1]]
 multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, motifs)
 saveRDS(multExpanded1_withDE_annotated, file = "./multExpanded1_withDE_annotated.rds")
 
+# add the PSP kinase annotations to each site
+kinase <- read.table(gzfile("./PSP/Kinase_Substrate_Dataset.gz"), sep = "\t", header = T, skip = 3, stringsAsFactors = F)
+
+#filter to human NOTE that I will use in vitro and in vivo kinase data
+kinase <- kinase[kinase$KIN_ORGANISM == "human" & kinase$SUB_ORGANISM == "human", ]
+
+
+## annotate the site table with these kinases
+
+# Create hgnc symbol_AAsite columns in both tables
+kinase$SUB_SITE <- paste(kinase$SUB_GENE, kinase$SUB_MOD_RSD, sep = "_")
+
+Substrate <- sapply(as.character(multExpanded1_withDE_annotated$confoundedHGNCSymbol), function(x){
+  unlist(strsplit(x, ";"))[1]
+})
+
+multExpanded1_withDE_annotated$Protein_Site <- paste(Substrate, paste0(multExpanded1_withDE_annotated$Amino.acid, multExpanded1_withDE_annotated$Position), sep = "_")
+
+#create site level table and merge with phospho
+upstream.sitelevel <- kinase %>% dplyr::group_by(SUB_SITE) %>% dplyr::summarise(PSPKINASES = paste(GENE, collapse = ";"))
+
+multExpanded1_withDE_annotated <- merge(multExpanded1_withDE_annotated, upstream.sitelevel, by.x = "Protein_Site", by.y = "SUB_SITE", all.x = T, all.y = F)
+
+
+
+
 # (Ontology) Enrichment analysis 
 enrichment_tables <- Enrichment(multExpanded1_withDE_annotated)
 
