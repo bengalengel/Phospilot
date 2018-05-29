@@ -531,6 +531,8 @@ FALSE  TRUE
 4544    41 
 
 #add snp information back to mE_annotated table
+
+names(GelPrep.SNP.domain) <- paste0("GelPrep", names(GelPrep.SNP.domain))
 multExpanded1_withDE_annotated <- cbind(multExpanded1_withDE_annotated, GelPrep.SNP.domain)
 
 

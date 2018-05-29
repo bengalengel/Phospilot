@@ -434,11 +434,12 @@ multExpanded1_withDE_annotated <- merge(multExpanded1_withDE_annotated, upstream
 
 
 
-# (Ontology) Enrichment analysis 
+# (Ontology and PSP) Enrichment analysis 
 enrichment_tables <- Enrichment(multExpanded1_withDE_annotated)
 
+
 #protein enrichments
-# ProtLevelEnrichment.R
+# ProtLevelEnrichment.R"
 
 #peptide enrichments
 # PeptideLevelEnrichment.R
@@ -450,7 +451,54 @@ enrichment_tables <- Enrichment(multExpanded1_withDE_annotated)
 # pqtlEnrich.R
 
 
+#phosphopeptide annotation matrix for supplemental table
+
+#only sites subjected to F-test
+annotated.sites <- multExpanded1_withDE_annotated[multExpanded1_withDE_annotated$GelPrepCovSubtoDE == "+", ]
+
+#keepers
+identifiers <- c("idmult", "id", "multiplicity", "Amino.acid", "ppMajorityProteinIDs", "ppPositionInProteins")
+first.annotations <- c("GelPrepGOID", "motifs", "PSPKINASES")
+genetic.annotations <- c("GelPreppQTLPositive", "GelPrepNsSnpPositive", "snp.in.domain", "snp.domain.phospho.relevant.ST", "GelPrepAnySNPInDisorderedRegion", "GelPrepAnySNPHDIVDeleterious", "GelPrepAnySNPHVARDeleterious", "ClosestSNPtoSiteMinGelPrep")
+peptide.annotations <- c("GelPrep.Pos.Disorder",  "site.in.domain.GelPrep", "phospho.relevant.GelPrep", "GelPrepSiteInMotif") #siteindisordered,siteindomain,siteinphosdomain,siteinelmmotif 
+protein.annotations <- c("GelPrepInteractCount", "GelPrepPercentDisorder", "total.mod.count.GelPrep",
+                         "ppSequence.length", "GelPrep.Disorder.MaxLength", "GelPrepPFamIDs", "GelPrepPFamIDPhosphoST") #total mod count from psp
+
+annotated.sites <- annotated.sites[, c(identifiers,first.annotations,genetic.annotations,peptide.annotations,protein.annotations)]
+
+# last is protein expression from ibaq and the number of observed 
+ibaq.sites <- multExpanded1_withDE_annotated[ , c("ppiBAQ.L.18486", "ppiBAQ.L.18862", "ppiBAQ.L.19160", "GelPrepCovSubtoDE", 
+                                                  "ppMajorityProteinIDs", "id", "idmult")] 
+ibaq.sites$ibaq.median <- apply(as.matrix(ibaq.sites[,1:3]), 1, median)
+ibaq.sites <- ibaq.sites %>% group_by(ppMajorityProteinIDs) %>% mutate(ObservedSites = length(unique(id)))
+ibaq.sites <- ibaq.sites[ibaq.sites$GelPrepCovSubtoDE == "+",]
+annotated.sites <- merge(annotated.sites, ibaq.sites[, c("idmult", "ibaq.median", "ObservedSites")], by = "idmult")
+names(annotated.sites) <- c("idmult", "id", "PeptidePhosphorylations", "AminoAcid", "MajorityProteinIDs", "PositionInProteins",
+                            "GOID", "HPRDmotifs", "PSPKINASES", "pQTLPositive", "NSSnpPositive", "SnpInDomain", "SNPInPRPDomain",
+                            "AnySNPInDisorderedRegion", "AnySNPHDIVDeleterious", "AnySNPHVARDeleterious", "ClosestSNPtoSite",
+                            "PhosphositeDisordered", "PhosphositeInDomain", "PhosphositeInPRPDomain", "PhosphositeInELM",
+                            "ProteinInteractions", "ProtienPercentDisorder", "PSPTotalPTMs", "ProteinLength",
+                            "MaxDisorderedRunLength", "PFamIDs", "PFamIDPRP", "MedianiBAQ", "ObservedSites")   
+
+write.table(annotated.sites, "./annotatedsites.txt", sep = "\t", row.names = F, col.names = T)
+
+##S curve for proteins analyzed by diffphos
 
 
+#protein rank by protein log10(ibaq) intensity
+unique.proteins <- annotated.sites[!duplicated(annotated.sites$MajorityProteinIDs), ]
+ranks <- rank(-unique.proteins$MedianiBAQ, ties.method = "first")
+log10iBAQ <- log10(unique.proteins$MedianiBAQ)
+
+
+pdf("ProteomeSCurve.pdf", 7, 5)
+plot(ranks,log10iBAQ,
+              cex = .3,
+              pch = 19,
+              xlab = "iBAQ Intensity Rank",
+              ylab = expression(log[10](iBAQ)), lwd = 3,
+              family = "serif"
+)
+dev.off()
 
 
